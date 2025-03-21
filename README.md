@@ -1,6 +1,6 @@
 # 📋 Feegow: Contar DR. EXAMES com Logs Detalhados 🩺📊
 
-Este é um script **Tampermonkey** que conta pacientes exclusivos do **DR. EXAMES** em uma plataforma específica, com logs detalhados e uma lista de pacientes. Ele foi desenvolvido para facilitar a identificação e contagem de pacientes que estão apenas no DR. EXAMES, comparando listas de pacientes de diferentes URLs. 🧑‍💻🔍
+Este é um script **Tampermonkey** que foi desenvolvido para facilitar a identificação, contagem e comparação de pacientes que estão apenas no **DR. EXAMES** na plataforma Feegow, com logs detalhados e uma lista de pacientes. 🧑‍💻🔍
 
 ---
 
