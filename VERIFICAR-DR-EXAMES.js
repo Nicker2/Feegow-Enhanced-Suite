@@ -1,30 +1,57 @@
 // ==UserScript==
 // @name         Contar DR. EXAMES com Logs Detalhados (Comparação Correta)
 // @namespace    http://tampermonkey.net/
-// @version      3.5
-// @description  Conta pacientes DR. EXAMES com logs detalhados e lista de pacientes.
+// @version      3.6
+// @description  Conta pacientes DR. EXAMES com logs detalhados, lista de pacientes e remove elementos indesejados do DOM.
 // @author       Você
 // @match        https?://.*\.feegow\.com/v8/.*ListaEspera.*
 // @match        https://app.feegow.com/v8/?P=ListaEspera&Pers=1
 // @match        https://app2.feegow.com/v8/?P=ListaEspera&Pers=1
 // @match        https://*.feegow.com/v8/?P=ListaEspera&Pers=1
 // @match        https://*.feegow.com/v8/?p=listaespera&pers=1
+// @match        https://*.feegow.com/*/*
 // @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
 
+    // Função para remover elementos indesejados
+    function removerElementosIndesejados() {
+        const elementos = [
+            ...document.querySelectorAll('.alert-warning'),
+            ...document.querySelectorAll('.ui-pnotify'),
+            document.querySelector('#dp-spaces-header-container')
+        ];
+        elementos.forEach(elemento => {
+            if (elemento) {
+                elemento.remove();
+                log(`Elemento removido: ${elemento.className || elemento.id}`);
+            }
+        });
+    }
+
+    // Configura o MutationObserver para monitorar mudanças no DOM
+    function configurarObserver() {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach(() => {
+                removerElementosIndesejados();
+            });
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        log('MutationObserver configurado para remover .alert-warning, .ui-pnotify e #dp-spaces-header-container.');
+    }
+
     // Aguarda o carregamento completo da página
     window.onload = function() {
-        // Seleciona o elemento que você deseja remover
-        const element = document.querySelector('.ui-pnotify');
-
-        // Verifica se o elemento existe e o remove
-        if (element) {
-            element.remove();
-        }
+        removerElementosIndesejados();
+        configurarObserver();
     };
+
     let exibirTodos = 1; // Variável para controlar qual lista exibir (0 para todos, 1 para exclusivos)
     const debugMode = 1; // 1 para ativar logs, 0 para desativar
     const intervaloVerificacao = 10000; // 10 segundos
@@ -54,10 +81,8 @@
             const pacientes = [];
             const nomes = doc.querySelectorAll('a[href*="./?P=Pacientes&Pers=1&I="] i.text-dark');
             nomes.forEach(nome => {
-                // Modificação aqui: acessa a terceira célula <td> após a célula do nome
-                const smallElement = nome.parentElement.parentElement.querySelector('small'); // Seleciona o elemento <small> dentro do contexto
-                const descricao = smallElement ? smallElement.textContent.trim() : ''; // Obtém o texto do <small>, se existir
-
+                const smallElement = nome.parentElement.parentElement.querySelector('small');
+                const descricao = smallElement ? smallElement.textContent.trim() : '';
                 pacientes.push({
                     nome: nome.parentElement.textContent.trim(),
                     descricao: descricao
@@ -85,7 +110,6 @@
         const listaDrExames = await obterListaPacientes(urlApiDrExames);
         const listaTodos = await obterListaPacientes(urlApiTodos);
 
-        // Logs detalhados das listas (comparação correta por nome e descrição)
         log('Comparação de Pacientes (Todos | DR. EXAMES):');
         listaDrExames.forEach(pacienteDr => {
             const pacienteTodos = listaTodos.find(pacienteTodos => {
@@ -105,10 +129,8 @@
         log(`Total de pacientes DR. EXAMES exclusivos: ${pacientesExclusivos.length}`);
 
         if (exibirTodos === 0) {
-            // Exibe todos os pacientes
             exibirContagem(listaTodos.length, listaTodos);
         } else {
-            // Exibe apenas os pacientes exclusivos
             exibirContagem(pacientesExclusivos.length, pacientesExclusivos);
         }
     }
@@ -116,11 +138,11 @@
     // Função para calcular a cor de fundo com base na contagem
     function calcularCorFundo(contador) {
         if (contador <= 5) {
-            const green = Math.round(200 - (contador - 1) * 40); // Diminui o verde gradualmente
-            const red = Math.round(255 - (5 - contador) * 51); // Aumenta o vermelho gradualmente
-            return `rgb(${red}, ${green}, 0)`; // Cria a cor RGB com componente azul zero
+            const green = Math.round(200 - (contador - 1) * 40);
+            const red = Math.round(255 - (5 - contador) * 51);
+            return `rgb(${red}, ${green}, 0)`;
         } else {
-            return '#FF0000'; // Vermelho puro para números acima de 5
+            return '#FF0000';
         }
     }
 
@@ -143,7 +165,6 @@
             }
         }
 
-        // Define o conteúdo, a cor de fundo e a cor do texto com base na contagem
         if (contador === 0) {
             contadorElement.textContent = 'Nenhum paciente exclusivo do DR. EXAMES';
             contadorElement.style.backgroundColor = 'transparent';
@@ -163,11 +184,9 @@
         }
         log('Contagem atualizada no elemento.');
 
-        // Cria a lista de pacientes abaixo do contador
         let listaPacientesElement = document.getElementById('listaPacientesDrExames');
         let listaDrExamesHeader = document.getElementById('listaDrExamesHeader');
 
-        // Remove a lista e o cabeçalho se não houver pacientes
         if (!pacientes || pacientes.length === 0) {
             if (listaPacientesElement) {
                 listaPacientesElement.remove();
@@ -175,39 +194,31 @@
             if (listaDrExamesHeader) {
                 listaDrExamesHeader.remove();
             }
-            return; // Sai da função se não houver pacientes
+            return;
         }
 
-        // Cria a lista se ela não existir
         if (!listaPacientesElement) {
             log('Elemento da lista de pacientes não encontrado. Criando.');
             listaPacientesElement = document.createElement('div');
             listaPacientesElement.id = 'listaPacientesDrExames';
 
-            // Encontra o elemento <div class="panel-menu br-n hidden-xs">
             const panelMenuElement = document.querySelector('div.panel-menu.br-n.hidden-xs');
 
             if (panelMenuElement && panelMenuElement.parentNode) {
-                // Cria o elemento "LISTA DE EXCLUSIVOS NO DR EXAMES" com os mesmos estilos do thead
                 listaDrExamesHeader = document.createElement('div');
                 listaDrExamesHeader.textContent = 'LISTA DE EXCLUSIVOS NO DR EXAMES';
-                listaDrExamesHeader.style.backgroundColor = '#d9edf7'; // Cor de fundo do thead info
-                listaDrExamesHeader.style.color = '#31708f'; // Cor do texto do thead info
+                listaDrExamesHeader.style.backgroundColor = '#d9edf7';
+                listaDrExamesHeader.style.color = '#31708f';
                 listaDrExamesHeader.style.padding = '8px';
                 listaDrExamesHeader.style.fontSize = '16px';
                 listaDrExamesHeader.style.fontWeight = 'bold';
                 listaDrExamesHeader.style.textAlign = 'center';
-                listaDrExamesHeader.id = 'listaDrExamesHeader'; // Adiciona um ID para o cabeçalho
+                listaDrExamesHeader.id = 'listaDrExamesHeader';
 
-                // Insere o cabeçalho acima da lista
                 panelMenuElement.parentNode.insertBefore(listaDrExamesHeader, panelMenuElement);
-
-                // Insere a lista abaixo do cabeçalho
                 panelMenuElement.parentNode.insertBefore(listaPacientesElement, panelMenuElement);
 
                 log('Elemento da lista de pacientes inserido antes do elemento <div class="panel-menu br-n hidden-xs">.');
-
-                // Adiciona CSS para garantir que a lista seja exibida como um bloco abaixo do contador
                 listaPacientesElement.style.display = 'block';
                 listaPacientesElement.style.marginTop = '10px';
                 listaPacientesElement.style.width = '100%';
@@ -216,13 +227,11 @@
             }
         }
 
-        // Limpa a lista anterior e preenche com os pacientes atuais
         listaPacientesElement.innerHTML = '';
         if (pacientes && pacientes.length > 0) {
             const lista = document.createElement('ul');
             pacientes.forEach(paciente => {
                 const item = document.createElement('li');
-                // Verifica se paciente.descricao existe e não é nulo antes de concatenar
                 const descricao = paciente.descricao ? paciente.descricao : 'Sem detalhes';
                 item.textContent = `${paciente.nome} - ${descricao}`;
                 item.style.fontSize = '18px';
@@ -230,7 +239,6 @@
             });
             listaPacientesElement.appendChild(lista);
 
-            // Adiciona loop para exibir nome e descrição no console usando log()
             pacientes.forEach(paciente => {
                 log(`Nome: ${paciente.nome}, Descrição: ${paciente.descricao}`);
             });
@@ -240,13 +248,7 @@
     // Função para executar a verificação e contagem
     async function executarVerificacao() {
         log('Executando verificação e contagem (comparando listas estritamente da API).');
-
-        const element3 = document.querySelector('.alert-warning');
-
-        // Verifica se o elemento existe e o remove
-        if (element3) {
-            element3.remove();
-        }
+        removerElementosIndesejados();
         await contarDrExames();
     }
 
