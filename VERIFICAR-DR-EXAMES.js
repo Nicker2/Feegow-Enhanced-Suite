@@ -4,11 +4,6 @@
 // @version      3.6
 // @description  Conta pacientes DR. EXAMES com logs detalhados, lista de pacientes e remove elementos indesejados do DOM.
 // @author       Você
-// @match        https?://.*\.feegow\.com/v8/.*ListaEspera.*
-// @match        https://app.feegow.com/v8/?P=ListaEspera&Pers=1
-// @match        https://app2.feegow.com/v8/?P=ListaEspera&Pers=1
-// @match        https://*.feegow.com/v8/?P=ListaEspera&Pers=1
-// @match        https://*.feegow.com/v8/?p=listaespera&pers=1
 // @match        https://*.feegow.com/*/*
 // @grant        none
 // ==/UserScript==
@@ -55,8 +50,8 @@
     let exibirTodos = 1; // Variável para controlar qual lista exibir (0 para todos, 1 para exclusivos)
     const debugMode = 1; // 1 para ativar logs, 0 para desativar
     const intervaloVerificacao = 10000; // 10 segundos
-    const urlApiDrExames = 'https://app.feegow.com/v8/ListaEsperaCont.asp?itemsPerPage=30&Ordem=HoraSta&StatusExibir=4&Page=1&ProfissionalID=1083&EspecialidadeID=';
-    const urlApiTodos = 'https://app.feegow.com/v8/ListaEsperaCont.asp?itemsPerPage=30&Ordem=HoraSta&StatusExibir=4&Page=1&ProfissionalID=ALL&EspecialidadeID=';
+    const urlApiDrExames = 'https://app2.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=';
+    const urlApiTodos = 'https://app2.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=ALL&EspecialidadeID=';
 
     function log(message) {
         if (debugMode) {
