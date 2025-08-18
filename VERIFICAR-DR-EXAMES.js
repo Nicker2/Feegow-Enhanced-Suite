@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Contar DR. EXAMES com Logs Detalhados (Comparação Correta)
 // @namespace    http://tampermonkey.net/
-// @version      4.0
-// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe duas listas idênticas (acima e abaixo do tbody) com nomes como hyperlinks azuis sem sublinhado, e adiciona linhas na tabela existente.
+// @version      4.2
+// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe duas listas idênticas (acima e abaixo do tbody) com nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, e destaca "Primeira vez" com badge.
 // @author       Você
 // @match        https://*.feegow.com/*/*
 // @grant        none
@@ -46,8 +46,8 @@
     let exibirTodos = 1; // Variável para controlar qual lista exibir (0 para todos, 1 para exclusivos)
     const debugMode = 1; // 1 para ativar logs, 0 para desativar
     const intervaloVerificacao = 10000; // 10 segundos
-    const urlApiDrExames = 'https://app2.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=';
-    const urlApiTodos = 'https://app2.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=ALL&EspecialidadeID=';
+    const urlApiTodos = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=ALL&EspecialidadeID=';
+    const urlApiDrExames = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=';
 
     function log(message) {
         if (debugMode) {
@@ -77,32 +77,11 @@
                 const href = linkElement ? linkElement.getAttribute('href') : '';
                 const smallElement = linkElement ? linkElement.parentElement.querySelector('small') : null;
                 const descricao = smallElement ? smallElement.textContent.trim() : '';
-                const exameElement = linha.querySelector('td:nth-child(6)');
-                const exame = exameElement ? exameElement.textContent.trim() : '';
-                const idadeElement = linha.querySelector('td:nth-child(4)');
-                const idade = idadeElement ? idadeElement.textContent.trim() : '';
-                const horaStatusElement = linha.querySelector('td:nth-child(1)');
-                const horaStatus = horaStatusElement ? horaStatusElement.textContent.trim() : '';
-                const horaChegadaElement = linha.querySelector('td:nth-child(2)');
-                const horaChegada = horaChegadaElement ? horaChegadaElement.textContent.trim() : '';
-                const statusElement = linha.querySelector('td:nth-child(7)');
-                const status = statusElement ? statusElement.textContent.trim() : '';
-                const localElement = linha.querySelector('td:nth-child(8) code');
-                const local = localElement ? localElement.textContent.trim() : '';
-                const medicoElement = linha.querySelector('td:nth-child(5)');
-                const medico = medicoElement ? medicoElement.textContent.trim() : '';
                 if (nome && href) {
                     pacientes.push({
                         nome,
                         href,
-                        descricao,
-                        exame,
-                        idade,
-                        horaStatus,
-                        horaChegada,
-                        status,
-                        local,
-                        medico
+                        descricao
                     });
                 }
             });
@@ -161,10 +140,31 @@
         }
     }
 
+    // Função para alternar visibilidade das listas
+    function toggleListasVisibilidade() {
+        const lista1 = document.getElementById('listaPacientesDrExames');
+        const header1 = document.getElementById('listaDrExamesHeader');
+        const lista2 = document.getElementById('segundaListaDrExames');
+        const header2 = document.getElementById('segundaListaDrExamesHeader');
+        const botao = document.getElementById('toggleListasDrExames');
+
+        if (lista1 && lista2) {
+            const visivel = lista1.style.display !== 'none';
+            lista1.style.display = visivel ? 'none' : 'block';
+            header1.style.display = visivel ? 'none' : 'block';
+            lista2.style.display = visivel ? 'none' : 'block';
+            header2.style.display = visivel ? 'none' : 'block';
+            botao.textContent = visivel ? 'Mostrar Listas DR. EXAMES' : 'Esconder Listas DR. EXAMES';
+            log(`Listas DR. EXAMES ${visivel ? 'escondidas' : 'exibidas'}.`);
+        }
+    }
+
     // Função para exibir a contagem e as listas de pacientes
     function exibirContagem(contador, pacientes) {
         log(`Exibindo contagem: ${contador}`);
         let contadorElement = document.getElementById('drExamesCount');
+        let botaoToggle = document.getElementById('toggleListasDrExames');
+
         if (!contadorElement) {
             log('Elemento de contagem não encontrado. Criando.');
             contadorElement = document.createElement('span');
@@ -187,38 +187,64 @@
             contadorElement.style.fontSize = '18px';
             contadorElement.style.textShadow = 'none';
             contadorElement.style.color = 'black';
-        } else {
-            contadorElement.style.padding = '8px 15px';
-            contadorElement.style.borderRadius = '8px';
-            contadorElement.style.fontSize = '16px';
-            contadorElement.style.textShadow = '-1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black';
-            contadorElement.style.color = 'white';
-            contadorElement.style.backgroundColor = calcularCorFundo(contador);
-            contadorElement.textContent = `Pacientes exclusivos no DR. EXAMES: ${contador}`;
-        }
-        log('Contagem atualizada no elemento.');
 
-        // Primeira lista (acima do tbody)
-        let listaPacientesElement = document.getElementById('listaPacientesDrExames');
-        let listaDrExamesHeader = document.getElementById('listaDrExamesHeader');
-        if (!pacientes || pacientes.length === 0) {
+            // Remove o botão de visibilidade se não houver pacientes
+            if (botaoToggle) {
+                botaoToggle.remove();
+                log('Botão de visibilidade removido pois não há pacientes exclusivos.');
+            }
+
+            // Remove as listas se não houver pacientes
+            const listaPacientesElement = document.getElementById('listaPacientesDrExames');
+            const listaDrExamesHeader = document.getElementById('listaDrExamesHeader');
+            const segundaListaElement = document.getElementById('segundaListaDrExames');
+            const segundaListaHeader = document.getElementById('segundaListaDrExamesHeader');
             if (listaPacientesElement) {
                 listaPacientesElement.remove();
             }
             if (listaDrExamesHeader) {
                 listaDrExamesHeader.remove();
             }
-            // Remove a segunda lista se não houver pacientes
-            const segundaListaElement = document.getElementById('segundaListaDrExames');
             if (segundaListaElement) {
                 segundaListaElement.remove();
             }
-            const segundaListaHeader = document.getElementById('segundaListaDrExamesHeader');
             if (segundaListaHeader) {
                 segundaListaHeader.remove();
             }
+            log('Nenhum paciente exclusivo. Listas e cabeçalhos removidos.');
             return;
         }
+
+        // Atualiza o contador para quando há pacientes
+        contadorElement.style.padding = '8px 15px';
+        contadorElement.style.borderRadius = '8px';
+        contadorElement.style.fontSize = '16px';
+        contadorElement.style.textShadow = '-1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black';
+        contadorElement.style.color = 'white';
+        contadorElement.style.backgroundColor = calcularCorFundo(contador);
+        contadorElement.textContent = `Pacientes exclusivos no DR. EXAMES: ${contador}`;
+        log('Contagem atualizada no elemento.');
+
+        // Cria ou atualiza o botão de visibilidade apenas se houver pacientes
+        if (!botaoToggle && pacientes.length > 0) {
+            botaoToggle = document.createElement('button');
+            botaoToggle.id = 'toggleListasDrExames';
+            botaoToggle.textContent = 'Esconder Listas DR. EXAMES';
+            botaoToggle.style.marginLeft = '10px';
+            botaoToggle.style.padding = '8px 15px';
+            botaoToggle.style.borderRadius = '8px';
+            botaoToggle.style.backgroundColor = '#31708f';
+            botaoToggle.style.color = 'white';
+            botaoToggle.style.border = 'none';
+            botaoToggle.style.cursor = 'pointer';
+            botaoToggle.addEventListener('click', toggleListasVisibilidade);
+            contadorElement.parentNode.insertBefore(botaoToggle, contadorElement.nextSibling);
+            log('Botão de alternar visibilidade das listas adicionado.');
+        }
+
+        // Primeira lista (acima do tbody)
+        let listaPacientesElement = document.getElementById('listaPacientesDrExames');
+        let listaDrExamesHeader = document.getElementById('listaDrExamesHeader');
 
         if (!listaPacientesElement) {
             log('Elemento da primeira lista de pacientes não encontrado. Criando.');
@@ -275,6 +301,17 @@
                 item.style.display = 'flex';
                 item.style.alignItems = 'center';
                 item.style.transition = 'background-color 0.2s';
+                if (descricao.includes('Primeira vez')) {
+                    const badge = document.createElement('span');
+                    badge.textContent = 'Primeira vez';
+                    badge.style.backgroundColor = '#31708f';
+                    badge.style.color = 'white';
+                    badge.style.padding = '2px 8px';
+                    badge.style.borderRadius = '4px';
+                    badge.style.marginRight = '10px';
+                    badge.style.fontSize = '12px';
+                    item.appendChild(badge);
+                }
                 item.appendChild(link);
                 item.appendChild(document.createTextNode(` - ${descricao}`));
                 item.style.cursor = 'pointer';
@@ -285,7 +322,7 @@
                     item.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f1f1f1';
                 });
                 lista.appendChild(item);
-                log(`Nome estilizado como hyperlink azul sem sublinhado na primeira lista: ${paciente.nome}`);
+                log(`Nome estilizado como hyperlink azul sem sublinhado na primeira lista: ${paciente.nome}${descricao.includes('Primeira vez') ? ' (com badge Primeira vez)' : ''}`);
             });
 
             listaPacientesElement.appendChild(lista);
@@ -293,41 +330,8 @@
                 log(`Nome: ${paciente.nome}, Descrição: ${paciente.descricao}`);
             });
 
-            // Adiciona nova linha na tabela #listaespera > tbody para cada paciente exclusivo
-            const tbody = document.querySelector('#listaespera > tbody');
-            if (tbody) {
-                const linhasAntigas = tbody.querySelectorAll('tr.custom-row');
-                linhasAntigas.forEach(linha => linha.remove());
-                log('Linhas personalizadas antigas removidas do tbody.');
-
-                pacientes.forEach(paciente => {
-                    const novaLinha = document.createElement('tr');
-                    novaLinha.classList.add('custom-row');
-                    novaLinha.innerHTML = `
-                        <td class="" nowrap=""><span data-val="2" class="fas fa-play-circle text-system badge-icon-status" style="font-size:17px;"></span>${paciente.horaStatus || '15:00'}</td>
-                        <td class="">${paciente.horaChegada || '14:36'}</td>
-                        <td>
-                            <a href="${paciente.href}" style="color:blue; text-decoration:none;">${paciente.nome}</a><br>
-                            <small>${paciente.descricao || 'OCT OE'}</small>
-                        </td>
-                        <td>${paciente.idade || '43 anos'}</td>
-                        <td>${paciente.medico || 'NIXON LOPES DE ALMEIDA'}</td>
-                        <td>${paciente.exame || 'TOMOGRAFIA DE COERÊNCIA ÓPTICA DE MACULA – MONOCULAR'}</td>
-                        <td nowrap="nowrap">${paciente.status || 'Em atendimento'}</td>
-                        <td nowrap="nowrap" class="text-center"><br><code>${paciente.local || 'PARTICULAR - SÃO SEBASTIÃO'}</code></td>
-                        <td>
-                            <button class="btn btn-xs btn-warning" type="button" onclick="rechamar(234398, 2, )"><i class="far fa-bell"></i> CHAMAR </button>
-                        </td>
-                        <td>
-                            <button onclick="window.location='${paciente.href}'" class="btn btn-xs btn-primary" type="button">IR PARA ATENDIMENTO</button>
-                        </td>
-                    `;
-                    tbody.appendChild(novaLinha);
-                    log(`Nova linha adicionada ao tbody para paciente: ${paciente.nome}`);
-                });
-            } else {
-                log('Tabela #listaespera > tbody não encontrada para adicionar nova linha.');
-            }
+            // Não altera a tabela #listaespera > tbody
+            log('Tabela #listaespera > tbody não será modificada, conforme solicitado.');
 
             // Cria a segunda lista (idêntica à primeira) abaixo do #listaespera
             const listaEsperaTable = document.querySelector('#listaespera');
@@ -387,6 +391,17 @@
                     item.style.display = 'flex';
                     item.style.alignItems = 'center';
                     item.style.transition = 'background-color 0.2s';
+                    if (descricao.includes('Primeira vez')) {
+                        const badge = document.createElement('span');
+                        badge.textContent = 'Primeira vez';
+                        badge.style.backgroundColor = '#31708f';
+                        badge.style.color = 'white';
+                        badge.style.padding = '2px 8px';
+                        badge.style.borderRadius = '4px';
+                        badge.style.marginRight = '10px';
+                        badge.style.fontSize = '12px';
+                        item.appendChild(badge);
+                    }
                     item.appendChild(link);
                     item.appendChild(document.createTextNode(` - ${descricao}`));
                     item.style.cursor = 'pointer';
@@ -397,7 +412,7 @@
                         item.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f1f1f1';
                     });
                     lista.appendChild(item);
-                    log(`Nome estilizado como hyperlink azul sem sublinhado na segunda lista: ${paciente.nome}`);
+                    log(`Nome estilizado como hyperlink azul sem sublinhado na segunda lista: ${paciente.nome}${descricao.includes('Primeira vez') ? ' (com badge Primeira vez)' : ''}`);
                 });
 
                 segundaListaElement.appendChild(lista);
