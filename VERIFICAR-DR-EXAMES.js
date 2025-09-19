@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Contar DR. EXAMES com Logs Detalhados (Comparação Correta)
 // @namespace    http://tampermonkey.net/
-// @version      4.2
-// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe duas listas idênticas (acima e abaixo do tbody) com nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, e destaca "Primeira vez" com badge.
+// @version      4.3
+// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, e destaca "Primeira vez" com badge.
 // @author       Você
 // @match        https://*.feegow.com/*/*
 // @grant        none
@@ -152,10 +152,42 @@
             const visivel = lista1.style.display !== 'none';
             lista1.style.display = visivel ? 'none' : 'block';
             header1.style.display = visivel ? 'none' : 'block';
-            lista2.style.display = visivel ? 'none' : 'block';
-            header2.style.display = visivel ? 'none' : 'block';
+            lista2.style.display = visivel ? 'none' : 'none'; // Bottom list always hidden when toggled off
+            header2.style.display = visivel ? 'none' : 'none';
             botao.textContent = visivel ? 'Mostrar Listas DR. EXAMES' : 'Esconder Listas DR. EXAMES';
             log(`Listas DR. EXAMES ${visivel ? 'escondidas' : 'exibidas'}.`);
+        }
+    }
+
+    // Função para configurar o IntersectionObserver para a lista superior
+    function configurarIntersectionObserver() {
+        const lista1 = document.getElementById('listaPacientesDrExames');
+        const header1 = document.getElementById('listaDrExamesHeader');
+        const lista2 = document.getElementById('segundaListaDrExames');
+        const header2 = document.getElementById('segundaListaDrExamesHeader');
+
+        if (lista1 && header1 && lista2 && header2) {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) {
+                        // Top list is out of view, show bottom list
+                        lista2.style.display = 'block';
+                        header2.style.display = 'block';
+                        log('Lista superior fora de vista. Exibindo lista inferior.');
+                    } else {
+                        // Top list is in view, hide bottom list
+                        lista2.style.display = 'none';
+                        header2.style.display = 'none';
+                        log('Lista superior visível. Ocultando lista inferior.');
+                    }
+                });
+            }, {
+                root: null,
+                threshold: 0.1 // Trigger when 10% of the top list is visible
+            });
+
+            observer.observe(lista1);
+            log('IntersectionObserver configurado para monitorar visibilidade da lista superior.');
         }
     }
 
@@ -358,11 +390,12 @@
                 segundaListaHeader.style.borderRadius = '8px 8px 0 0';
                 segundaListaHeader.style.borderBottom = '2px solid #31708f';
                 segundaListaHeader.id = 'segundaListaDrExamesHeader';
+                segundaListaHeader.style.display = 'none'; // Hidden by default
                 listaEsperaTable.parentNode.insertBefore(segundaListaHeader, listaEsperaTable.nextSibling);
 
                 const segundaListaElement = document.createElement('div');
                 segundaListaElement.id = 'segundaListaDrExames';
-                segundaListaElement.style.display = 'block';
+                segundaListaElement.style.display = 'none'; // Hidden by default
                 segundaListaElement.style.marginTop = '10px';
                 segundaListaElement.style.width = '100%';
                 segundaListaElement.style.backgroundColor = '#f9f9f9';
@@ -417,7 +450,10 @@
 
                 segundaListaElement.appendChild(lista);
                 listaEsperaTable.parentNode.insertBefore(segundaListaElement, segundaListaHeader.nextSibling);
-                log('Segunda lista (idêntica à primeira) adicionada abaixo do #listaespera.');
+                log('Segunda lista (idêntica à primeira) adicionada abaixo do #listaespera, inicialmente oculta.');
+
+                // Configura o IntersectionObserver após criar a segunda lista
+                configurarIntersectionObserver();
             } else {
                 log('Tabela #listaespera não encontrada para adicionar a segunda lista.');
             }
