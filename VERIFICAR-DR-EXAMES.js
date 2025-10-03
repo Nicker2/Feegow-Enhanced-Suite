@@ -25,7 +25,6 @@
         "BRUNO CAMPOS FROES MARANGONI": "Oftalmologia",
         "CARLOS EDUARDO SAMPAIO FALEIRO": "Psiquiatria",
         "CARMEM SILVA FERRARI RUBI": "Ortóptica",
-        "CENTRO CIRURGICO": "Cirurgia Geral",
         "CHARLY TORREGROSSA": "Otorrinolaringologia",
         "CINTIA NAVARRO LAMAS": "Dermatologia",
         "FERNANDA MAGALHAES DE MORAES LOPES": "Dermatologia",
@@ -107,19 +106,19 @@
                     const botao = document.createElement('div');
                     botao.className = `botao-especialidade-${nomeCompleto.replace(/\s+/g, '-')}`;
                     botao.textContent = especialidade;
-                    botao.style.backgroundColor = especialidade === 'Oftalmologia' ? '#39FF14' : '#FF0000';
-                    botao.style.color = '#000000';
-                    botao.style.border = 'none';
-                    botao.style.borderRadius = '4px';
-                    botao.style.padding = '2px 6px';
+                    botao.style.backgroundColor = 'transparent';  // Sem fundo (removido o verde/vermelho)
+                    botao.style.color = '#333333';  // Cor cinza escuro para o texto (pode mudar se quiser)
+                    botao.style.border = 'none';  // Sem borda
+                    botao.style.borderRadius = '0';  // Sem arredondamento
+                    botao.style.padding = '0';  // Sem padding extra (só o necessário)
                     botao.style.marginTop = '2px';
-                    botao.style.fontSize = '10px';
-                    botao.style.fontWeight = '600';
+                    botao.style.fontSize = '12px';  // Mantido o tamanho aumentado
+                    botao.style.fontWeight = '600';  // Negrito para destacar
                     botao.style.display = 'block';
                     botao.style.textAlign = 'left';
-                    botao.style.boxShadow = especialidade === 'Oftalmologia' ? '0 0 5px #39FF14' : '0 0 5px #FF0000';
+                    botao.style.boxShadow = 'none';  // Sem sombra
                     label.appendChild(botao);
-                    log(`Botão "${especialidade}" adicionado abaixo de "${nomeCompleto}" no dropdown com cor ${especialidade === 'Oftalmologia' ? 'verde' : 'vermelho'}.`);
+                    log(`Texto "${especialidade}" adicionado abaixo de "${nomeCompleto}" no dropdown (sem visual de botão).`);
                 }
             }
         });
