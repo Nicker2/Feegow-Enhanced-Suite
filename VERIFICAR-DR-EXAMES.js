@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Contar DR. EXAMES com Logs Detalhados (Comparação Correta)
 // @namespace    http://tampermonkey.net/
-// @version      4.3
-// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, e destaca "Primeira vez" com badge.
+// @version      4.7
+// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, destaca "Primeira vez" com badge, verifica mensagem de login na página de login, adiciona botão com especialidade (verde para Oftalmologia, vermelho para outras) ao lado do nome do profissional na tabela e abaixo do nome no dropdown.
 // @author       Você
 // @match        https://*.feegow.com/*/*
 // @grant        none
@@ -10,6 +10,120 @@
 
 (function() {
     'use strict';
+
+    // Lista de profissionais e suas especialidades
+    const profissionais = {
+        "AIMEE CALVI ASAM": "Oftalmologia",
+        "ALEXANDRE SPIRANDELLI RODRIGUES COSTA": "Oftalmologia",
+        "ANA CAROLINA BONINI DOMINGOS": "Oftalmologia",
+        "ANDRE LUIS PELLEGRIN": "Ginecologia e Obstetrícia",
+        "ANDRE LUIZ SITA E SOUZA BRAGANTE": "Oftalmologia",
+        "ANTONIO ADOLFO COELHO OLIVEIRA": "Oftalmologia",
+        "BIANCA PUJOL FREITAS DA SILVA": "Cardiologia",
+        "BIANCA QUINTAS DA SILVA": "Oftalmologia",
+        "BRUNA DA COSTA PEVIDE": "Oftalmologia",
+        "BRUNO CAMPOS FROES MARANGONI": "Oftalmologia",
+        "CARLOS EDUARDO SAMPAIO FALEIRO": "Psiquiatria",
+        "CARMEM SILVA FERRARI RUBI": "Ortóptica",
+        "CENTRO CIRURGICO": "Cirurgia Geral",
+        "CHARLY TORREGROSSA": "Otorrinolaringologia",
+        "CINTIA NAVARRO LAMAS": "Dermatologia",
+        "FERNANDA MAGALHAES DE MORAES LOPES": "Dermatologia",
+        "HAMZE BAHJAT BOU HAMIE": "Oftalmologia",
+        "HENRIQUE LAGE FERREIRA FERREIRA": "Oftalmologia",
+        "IAGO RAFAEL BRITO GUIMARAES": "Clínica Geral",
+        "ISRAEL EMILIANO PACHECO": "Oftalmologia",
+        "JOSE ERNESTO GHEDIN SERVIDEI": "Oftalmologia",
+        "LEONEL TELLES DE MENEZES MORAIS": "Oftalmologia",
+        "LEONNE DI CARLO DEL VECCHIO": "Dermatologia",
+        "LINDA MARIA AVELAR MEDEIROS": "Dermatologia",
+        "MARIO MONTINGELLI JUNIOR": "Cirurgia Vascular",
+        "NIXON LOPES DE ALMEIDA": "Oftalmologia",
+        "PAULA RABELO HALFELD MENDONÇA": "Oftalmologia",
+        "RAPHAEL GHEDIN SERVIDEI SANTANA": "Oftalmologia",
+        "RODRIGO LIBERATO GONÇALVES VIANNA": "Oftalmologia",
+        "ROGERIO GHEDIN SERVIDEI": "Dermatologia",
+        "SILVIA MIRIAM DA SILVA DIAS": "Nutrição",
+        "SIRLENE AVILA DA ROCHA": "Dermatologia",
+        "VANESSA MARQUES MENDONÇA": "Oftalmologia"
+    };
+
+    // Função para verificar mensagem de login e clicar no botão Cancelar
+    function verificarMensagemLogin() {
+        if (window.location.href.startsWith('https://app.feegow.com/main/?P=Login')) {
+            const mensagem = document.body.textContent || document.body.innerText;
+            if (mensagem.includes('Este usuário já está conectado em outra máquina.')) {
+                const botaoCancelar = document.querySelector('button.btn.btn-secondary[onclick="window.history.back();"]');
+                if (botaoCancelar) {
+                    botaoCancelar.click();
+                    log('Mensagem "Este usuário já está conectado em outra máquina." detectada. Botão Cancelar clicado.');
+                } else {
+                    log('Botão Cancelar não encontrado na página de login.');
+                }
+            } else {
+                log('Mensagem de login não encontrada na página.');
+            }
+        }
+    }
+
+    // Função para adicionar botão com a especialidade do profissional na tabela
+    function adicionarBotaoEspecialidadeTabela() {
+        const tds = document.querySelectorAll('#listaespera > tbody > tr > td');
+        tds.forEach(td => {
+            const textoTd = td.textContent.trim();
+            for (const [nome, especialidade] of Object.entries(profissionais)) {
+                if (textoTd.includes(nome) && !td.querySelector(`.botao-especialidade-${nome.replace(/\s+/g, '-')}`)) {
+                    const botao = document.createElement('button');
+                    botao.className = `botao-especialidade-${nome.replace(/\s+/g, '-')}`;
+                    botao.textContent = especialidade;
+                    botao.style.backgroundColor = especialidade === 'Oftalmologia' ? '#39FF14' : '#FF0000';
+                    botao.style.color = '#000000';
+                    botao.style.border = 'none';
+                    botao.style.borderRadius = '4px';
+                    botao.style.padding = '4px 8px';
+                    botao.style.marginLeft = '10px';
+                    botao.style.fontSize = '12px';
+                    botao.style.fontWeight = '600';
+                    botao.style.cursor = 'default';
+                    botao.style.boxShadow = especialidade === 'Oftalmologia' ? '0 0 8px #39FF14' : '0 0 8px #FF0000';
+                    botao.style.display = 'inline-flex';
+                    botao.style.alignItems = 'center';
+                    td.appendChild(botao);
+                    log(`Botão "${especialidade}" adicionado ao lado de "${nome}" em <td> com cor ${especialidade === 'Oftalmologia' ? 'verde' : 'vermelho'}.`);
+                }
+            }
+        });
+    }
+
+    // Função para adicionar botão com a especialidade do profissional no dropdown
+    function adicionarBotaoEspecialidadeDropdown() {
+        const labels = document.querySelectorAll('ul.multiselect-container.dropdown-menu li a label.radio');
+        labels.forEach(label => {
+            const textoLabel = label.textContent.trim();
+            for (const [nomeCompleto, especialidade] of Object.entries(profissionais)) {
+                // Normaliza o nome do dropdown (remove "DR.", "DRA.", espaços extras e converte para maiúsculas)
+                const nomeNormalizado = textoLabel.replace(/^(DR\.|DRA\.)\s*/, '').trim().toUpperCase();
+                if (nomeCompleto.includes(nomeNormalizado) && !label.querySelector(`.botao-especialidade-${nomeCompleto.replace(/\s+/g, '-')}`)) {
+                    const botao = document.createElement('div');
+                    botao.className = `botao-especialidade-${nomeCompleto.replace(/\s+/g, '-')}`;
+                    botao.textContent = especialidade;
+                    botao.style.backgroundColor = especialidade === 'Oftalmologia' ? '#39FF14' : '#FF0000';
+                    botao.style.color = '#000000';
+                    botao.style.border = 'none';
+                    botao.style.borderRadius = '4px';
+                    botao.style.padding = '2px 6px';
+                    botao.style.marginTop = '2px';
+                    botao.style.fontSize = '10px';
+                    botao.style.fontWeight = '600';
+                    botao.style.display = 'block';
+                    botao.style.textAlign = 'left';
+                    botao.style.boxShadow = especialidade === 'Oftalmologia' ? '0 0 5px #39FF14' : '0 0 5px #FF0000';
+                    label.appendChild(botao);
+                    log(`Botão "${especialidade}" adicionado abaixo de "${nomeCompleto}" no dropdown com cor ${especialidade === 'Oftalmologia' ? 'verde' : 'vermelho'}.`);
+                }
+            }
+        });
+    }
 
     // Função para remover elementos indesejados
     function removerElementosIndesejados() {
@@ -31,15 +145,21 @@
         const observer = new MutationObserver((mutations) => {
             mutations.forEach(() => {
                 removerElementosIndesejados();
+                verificarMensagemLogin();
+                adicionarBotaoEspecialidadeTabela();
+                adicionarBotaoEspecialidadeDropdown();
             });
         });
         observer.observe(document.body, { childList: true, subtree: true });
-        log('MutationObserver configurado para remover .alert-warning, .ui-pnotify e #dp-spaces-header-container.');
+        log('MutationObserver configurado para remover .alert-warning, .ui-pnotify, #dp-spaces-header-container, verificar mensagem de login e adicionar botões de especialidade.');
     }
 
     // Aguarda o carregamento completo da página
     window.onload = function() {
         removerElementosIndesejados();
+        verificarMensagemLogin();
+        adicionarBotaoEspecialidadeTabela();
+        adicionarBotaoEspecialidadeDropdown();
         configurarObserver();
     };
 
@@ -464,6 +584,9 @@
     async function executarVerificacao() {
         log('Executando verificação e contagem (comparando listas estritamente da API).');
         removerElementosIndesejados();
+        verificarMensagemLogin();
+        adicionarBotaoEspecialidadeTabela();
+        adicionarBotaoEspecialidadeDropdown();
         await contarDrExames();
     }
 
