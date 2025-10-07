@@ -1,11 +1,16 @@
 // ==UserScript==
-// @name         Contar DR. EXAMES com Logs Detalhados (Comparação Correta)
-// @namespace    http://tampermonkey.net/
-// @version      4.7
-// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, destaca "Primeira vez" com badge, verifica mensagem de login na página de login, adiciona botão com especialidade (verde para Oftalmologia, vermelho para outras) ao lado do nome do profissional na tabela e abaixo do nome no dropdown.
-// @author       Você
-// @match        https://*.feegow.com/*/*
-// @grant        none
+// @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
+// @namespace http://tampermonkey.net/
+// @version 4.9
+// @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, destaca "Primeira vez" com badge, verifica mensagem de login na página de login, adiciona botão com especialidade (verde para Oftalmologia, vermelho para outras) ao lado do nome do profissional na tabela e abaixo do nome no dropdown, remove o elemento ai-assistant-plugin e mantém o valor 30 no select de itens por página.
+// @author Você
+// @match https://*.feegow.com/*/*
+// @match https://*.feegow.com/v8/?P=ListaEspera&Pers=1
+// @match https?://.*\.feegow\.com/v8/.*ListaEspera.*
+// @match https://app.feegow.com/v8/?P=ListaEspera&Pers=1
+// @match https://app2.feegow.com/v8/?P=ListaEspera&Pers=1
+// @match https://*.feegow.com/v8/?p=listaespera&pers=1
+// @grant none
 // ==/UserScript==
 
 (function() {
@@ -100,23 +105,22 @@
         labels.forEach(label => {
             const textoLabel = label.textContent.trim();
             for (const [nomeCompleto, especialidade] of Object.entries(profissionais)) {
-                // Normaliza o nome do dropdown (remove "DR.", "DRA.", espaços extras e converte para maiúsculas)
                 const nomeNormalizado = textoLabel.replace(/^(DR\.|DRA\.)\s*/, '').trim().toUpperCase();
                 if (nomeCompleto.includes(nomeNormalizado) && !label.querySelector(`.botao-especialidade-${nomeCompleto.replace(/\s+/g, '-')}`)) {
                     const botao = document.createElement('div');
                     botao.className = `botao-especialidade-${nomeCompleto.replace(/\s+/g, '-')}`;
                     botao.textContent = especialidade;
-                    botao.style.backgroundColor = 'transparent';  // Sem fundo (removido o verde/vermelho)
-                    botao.style.color = '#333333';  // Cor cinza escuro para o texto (pode mudar se quiser)
-                    botao.style.border = 'none';  // Sem borda
-                    botao.style.borderRadius = '0';  // Sem arredondamento
-                    botao.style.padding = '0';  // Sem padding extra (só o necessário)
+                    botao.style.backgroundColor = 'transparent';
+                    botao.style.color = '#333333';
+                    botao.style.border = 'none';
+                    botao.style.borderRadius = '0';
+                    botao.style.padding = '0';
                     botao.style.marginTop = '2px';
-                    botao.style.fontSize = '12px';  // Mantido o tamanho aumentado
-                    botao.style.fontWeight = '600';  // Negrito para destacar
+                    botao.style.fontSize = '12px';
+                    botao.style.fontWeight = '600';
                     botao.style.display = 'block';
                     botao.style.textAlign = 'left';
-                    botao.style.boxShadow = 'none';  // Sem sombra
+                    botao.style.boxShadow = 'none';
                     label.appendChild(botao);
                     log(`Texto "${especialidade}" adicionado abaixo de "${nomeCompleto}" no dropdown (sem visual de botão).`);
                 }
@@ -124,12 +128,13 @@
         });
     }
 
-    // Função para remover elementos indesejados
+    // Função para remover elementos indesejados, incluindo o ai-assistant-plugin
     function removerElementosIndesejados() {
         const elementos = [
             ...document.querySelectorAll('.alert-warning'),
             ...document.querySelectorAll('.ui-pnotify'),
-            document.querySelector('#dp-spaces-header-container')
+            document.querySelector('#dp-spaces-header-container'),
+            document.querySelector('#ai-assistant-plugin')
         ];
         elementos.forEach(elemento => {
             if (elemento) {
@@ -137,6 +142,16 @@
                 log(`Elemento removido: ${elemento.className || elemento.id}`);
             }
         });
+    }
+
+    // Função para garantir que o valor 30 esteja sempre selecionado no select
+    function manterValor30() {
+        const selectElement = document.getElementById('waitingRoomItemsPerPage');
+        if (selectElement && selectElement.value !== '30') {
+            selectElement.value = '30';
+            selectElement.dispatchEvent(new Event('change')); // Dispara o evento de mudança
+            log('Valor do select waitingRoomItemsPerPage alterado para 30.');
+        }
     }
 
     // Configura o MutationObserver para monitorar mudanças no DOM
@@ -147,10 +162,11 @@
                 verificarMensagemLogin();
                 adicionarBotaoEspecialidadeTabela();
                 adicionarBotaoEspecialidadeDropdown();
+                manterValor30(); // Adiciona a verificação do valor 30
             });
         });
         observer.observe(document.body, { childList: true, subtree: true });
-        log('MutationObserver configurado para remover .alert-warning, .ui-pnotify, #dp-spaces-header-container, verificar mensagem de login e adicionar botões de especialidade.');
+        log('MutationObserver configurado para remover .alert-warning, .ui-pnotify, #dp-spaces-header-container, #ai-assistant-plugin, verificar mensagem de login, adicionar botões de especialidade e manter valor 30 no select.');
     }
 
     // Aguarda o carregamento completo da página
@@ -159,12 +175,13 @@
         verificarMensagemLogin();
         adicionarBotaoEspecialidadeTabela();
         adicionarBotaoEspecialidadeDropdown();
+        manterValor30(); // Chama inicialmente para garantir o valor 30
         configurarObserver();
     };
 
-    let exibirTodos = 1; // Variável para controlar qual lista exibir (0 para todos, 1 para exclusivos)
-    const debugMode = 1; // 1 para ativar logs, 0 para desativar
-    const intervaloVerificacao = 10000; // 10 segundos
+    let exibirTodos = 1;
+    const debugMode = 1;
+    const intervaloVerificacao = 10000;
     const urlApiTodos = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=ALL&EspecialidadeID=';
     const urlApiDrExames = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=';
 
@@ -178,7 +195,6 @@
 
     log('Script iniciado.');
 
-    // Função para obter lista de pacientes com detalhes de uma URL da API
     async function obterListaPacientes(url) {
         try {
             const response = await fetch(url);
@@ -211,7 +227,6 @@
         }
     }
 
-    // Função para comparar listas de pacientes com detalhes (comparação estrita)
     function compararListas(listaDrExames, listaTodos) {
         return listaDrExames.filter(pacienteDr => {
             return !listaTodos.some(pacienteTodos => {
@@ -220,7 +235,6 @@
         });
     }
 
-    // Função para contar pacientes DR. EXAMES (comparando listas estritamente)
     async function contarDrExames() {
         log('Iniciando contagem de pacientes DR. EXAMES (comparando listas estritamente da API).');
         const listaDrExames = await obterListaPacientes(urlApiDrExames);
@@ -248,7 +262,6 @@
         }
     }
 
-    // Função para calcular a cor de fundo com base na contagem
     function calcularCorFundo(contador) {
         if (contador <= 5) {
             const green = Math.round(200 - (contador - 1) * 40);
@@ -259,42 +272,36 @@
         }
     }
 
-    // Função para alternar visibilidade das listas
     function toggleListasVisibilidade() {
         const lista1 = document.getElementById('listaPacientesDrExames');
         const header1 = document.getElementById('listaDrExamesHeader');
         const lista2 = document.getElementById('segundaListaDrExames');
         const header2 = document.getElementById('segundaListaDrExamesHeader');
         const botao = document.getElementById('toggleListasDrExames');
-
         if (lista1 && lista2) {
             const visivel = lista1.style.display !== 'none';
             lista1.style.display = visivel ? 'none' : 'block';
             header1.style.display = visivel ? 'none' : 'block';
-            lista2.style.display = visivel ? 'none' : 'none'; // Bottom list always hidden when toggled off
+            lista2.style.display = visivel ? 'none' : 'none';
             header2.style.display = visivel ? 'none' : 'none';
             botao.textContent = visivel ? 'Mostrar Listas DR. EXAMES' : 'Esconder Listas DR. EXAMES';
             log(`Listas DR. EXAMES ${visivel ? 'escondidas' : 'exibidas'}.`);
         }
     }
 
-    // Função para configurar o IntersectionObserver para a lista superior
     function configurarIntersectionObserver() {
         const lista1 = document.getElementById('listaPacientesDrExames');
         const header1 = document.getElementById('listaDrExamesHeader');
         const lista2 = document.getElementById('segundaListaDrExames');
         const header2 = document.getElementById('segundaListaDrExamesHeader');
-
         if (lista1 && header1 && lista2 && header2) {
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (!entry.isIntersecting) {
-                        // Top list is out of view, show bottom list
                         lista2.style.display = 'block';
                         header2.style.display = 'block';
                         log('Lista superior fora de vista. Exibindo lista inferior.');
                     } else {
-                        // Top list is in view, hide bottom list
                         lista2.style.display = 'none';
                         header2.style.display = 'none';
                         log('Lista superior visível. Ocultando lista inferior.');
@@ -302,20 +309,17 @@
                 });
             }, {
                 root: null,
-                threshold: 0.1 // Trigger when 10% of the top list is visible
+                threshold: 0.1
             });
-
             observer.observe(lista1);
             log('IntersectionObserver configurado para monitorar visibilidade da lista superior.');
         }
     }
 
-    // Função para exibir a contagem e as listas de pacientes
     function exibirContagem(contador, pacientes) {
         log(`Exibindo contagem: ${contador}`);
         let contadorElement = document.getElementById('drExamesCount');
         let botaoToggle = document.getElementById('toggleListasDrExames');
-
         if (!contadorElement) {
             log('Elemento de contagem não encontrado. Criando.');
             contadorElement = document.createElement('span');
@@ -329,7 +333,6 @@
                 log('Elemento "pacientes aguardando" não encontrado ou sem pai.');
             }
         }
-
         if (contador === 0) {
             contadorElement.textContent = 'Nenhum paciente exclusivo do DR. EXAMES';
             contadorElement.style.backgroundColor = 'transparent';
@@ -338,14 +341,10 @@
             contadorElement.style.fontSize = '18px';
             contadorElement.style.textShadow = 'none';
             contadorElement.style.color = 'black';
-
-            // Remove o botão de visibilidade se não houver pacientes
             if (botaoToggle) {
                 botaoToggle.remove();
                 log('Botão de visibilidade removido pois não há pacientes exclusivos.');
             }
-
-            // Remove as listas se não houver pacientes
             const listaPacientesElement = document.getElementById('listaPacientesDrExames');
             const listaDrExamesHeader = document.getElementById('listaDrExamesHeader');
             const segundaListaElement = document.getElementById('segundaListaDrExames');
@@ -365,8 +364,6 @@
             log('Nenhum paciente exclusivo. Listas e cabeçalhos removidos.');
             return;
         }
-
-        // Atualiza o contador para quando há pacientes
         contadorElement.style.padding = '8px 15px';
         contadorElement.style.borderRadius = '8px';
         contadorElement.style.fontSize = '16px';
@@ -375,8 +372,6 @@
         contadorElement.style.backgroundColor = calcularCorFundo(contador);
         contadorElement.textContent = `Pacientes exclusivos no DR. EXAMES: ${contador}`;
         log('Contagem atualizada no elemento.');
-
-        // Cria ou atualiza o botão de visibilidade apenas se houver pacientes
         if (!botaoToggle && pacientes.length > 0) {
             botaoToggle = document.createElement('button');
             botaoToggle.id = 'toggleListasDrExames';
@@ -392,11 +387,8 @@
             contadorElement.parentNode.insertBefore(botaoToggle, contadorElement.nextSibling);
             log('Botão de alternar visibilidade das listas adicionado.');
         }
-
-        // Primeira lista (acima do tbody)
         let listaPacientesElement = document.getElementById('listaPacientesDrExames');
         let listaDrExamesHeader = document.getElementById('listaDrExamesHeader');
-
         if (!listaPacientesElement) {
             log('Elemento da primeira lista de pacientes não encontrado. Criando.');
             listaPacientesElement = document.createElement('div');
@@ -428,14 +420,12 @@
                 log('Elemento <div class="panel-menu br-n hidden-xs"> não encontrado.');
             }
         }
-
         listaPacientesElement.innerHTML = '';
         if (pacientes && pacientes.length > 0) {
             const lista = document.createElement('ul');
             lista.style.listStyleType = 'none';
             lista.style.padding = '0';
             lista.style.margin = '0';
-
             pacientes.forEach((paciente, index) => {
                 const item = document.createElement('li');
                 const descricao = paciente.descricao ? paciente.descricao : 'Sem detalhes';
@@ -475,16 +465,11 @@
                 lista.appendChild(item);
                 log(`Nome estilizado como hyperlink azul sem sublinhado na primeira lista: ${paciente.nome}${descricao.includes('Primeira vez') ? ' (com badge Primeira vez)' : ''}`);
             });
-
             listaPacientesElement.appendChild(lista);
             pacientes.forEach(paciente => {
                 log(`Nome: ${paciente.nome}, Descrição: ${paciente.descricao}`);
             });
-
-            // Não altera a tabela #listaespera > tbody
             log('Tabela #listaespera > tbody não será modificada, conforme solicitado.');
-
-            // Cria a segunda lista (idêntica à primeira) abaixo do #listaespera
             const listaEsperaTable = document.querySelector('#listaespera');
             if (listaEsperaTable) {
                 const segundaListaAntiga = document.getElementById('segundaListaDrExames');
@@ -497,7 +482,6 @@
                     segundaListaHeaderAntiga.remove();
                     log('Cabeçalho da segunda lista antiga removido.');
                 }
-
                 const segundaListaHeader = document.createElement('div');
                 segundaListaHeader.textContent = 'SEGUNDA LISTA DE EXCLUSIVOS NO DR EXAMES';
                 segundaListaHeader.style.backgroundColor = '#d9edf7';
@@ -509,24 +493,21 @@
                 segundaListaHeader.style.borderRadius = '8px 8px 0 0';
                 segundaListaHeader.style.borderBottom = '2px solid #31708f';
                 segundaListaHeader.id = 'segundaListaDrExamesHeader';
-                segundaListaHeader.style.display = 'none'; // Hidden by default
+                segundaListaHeader.style.display = 'none';
                 listaEsperaTable.parentNode.insertBefore(segundaListaHeader, listaEsperaTable.nextSibling);
-
                 const segundaListaElement = document.createElement('div');
                 segundaListaElement.id = 'segundaListaDrExames';
-                segundaListaElement.style.display = 'none'; // Hidden by default
+                segundaListaElement.style.display = 'none';
                 segundaListaElement.style.marginTop = '10px';
                 segundaListaElement.style.width = '100%';
                 segundaListaElement.style.backgroundColor = '#f9f9f9';
                 segundaListaElement.style.borderRadius = '0 0 8px 8px';
                 segundaListaElement.style.border = '1px solid #d9edf7';
                 segundaListaElement.style.padding = '10px';
-
                 const lista = document.createElement('ul');
                 lista.style.listStyleType = 'none';
                 lista.style.padding = '0';
                 lista.style.margin = '0';
-
                 pacientes.forEach((paciente, index) => {
                     const item = document.createElement('li');
                     const descricao = paciente.descricao ? paciente.descricao : 'Sem detalhes';
@@ -566,12 +547,9 @@
                     lista.appendChild(item);
                     log(`Nome estilizado como hyperlink azul sem sublinhado na segunda lista: ${paciente.nome}${descricao.includes('Primeira vez') ? ' (com badge Primeira vez)' : ''}`);
                 });
-
                 segundaListaElement.appendChild(lista);
                 listaEsperaTable.parentNode.insertBefore(segundaListaElement, segundaListaHeader.nextSibling);
                 log('Segunda lista (idêntica à primeira) adicionada abaixo do #listaespera, inicialmente oculta.');
-
-                // Configura o IntersectionObserver após criar a segunda lista
                 configurarIntersectionObserver();
             } else {
                 log('Tabela #listaespera não encontrada para adicionar a segunda lista.');
@@ -579,21 +557,18 @@
         }
     }
 
-    // Função para executar a verificação e contagem
     async function executarVerificacao() {
         log('Executando verificação e contagem (comparando listas estritamente da API).');
         removerElementosIndesejados();
         verificarMensagemLogin();
         adicionarBotaoEspecialidadeTabela();
         adicionarBotaoEspecialidadeDropdown();
+        manterValor30(); // Verifica o valor 30 no select durante a verificação periódica
         await contarDrExames();
     }
 
-    // Chama a função inicialmente
     log('Chamando funções iniciais.');
     executarVerificacao();
-
-    // Configura o intervalo
     setInterval(executarVerificacao, intervaloVerificacao);
     log('Script finalizado.');
 })();
