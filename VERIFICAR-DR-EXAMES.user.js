@@ -12,7 +12,6 @@
 // @match https://*.feegow.com/v8/?p=listaespera&pers=1
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.js
 // @grant none
-
 // ==/UserScript==
 
 (function() {
