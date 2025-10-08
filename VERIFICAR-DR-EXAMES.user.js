@@ -5,11 +5,6 @@
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, destaca "Primeira vez" com badge, verifica mensagem de login na página de login, adiciona botão com especialidade (verde para Oftalmologia, vermelho para outras) ao lado do nome do profissional na tabela e abaixo do nome no dropdown, remove o elemento ai-assistant-plugin e mantém o valor 30 no select de itens por página.
 // @author Você
 // @match https://*.feegow.com/*/*
-// @match https://*.feegow.com/v8/?P=ListaEspera&Pers=1
-// @match https?://.*\.feegow\.com/v8/.*ListaEspera.*
-// @match https://app.feegow.com/v8/?P=ListaEspera&Pers=1
-// @match https://app2.feegow.com/v8/?P=ListaEspera&Pers=1
-// @match https://*.feegow.com/v8/?p=listaespera&pers=1
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.js
 // @grant none
 // ==/UserScript==
