@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.1
+// @version 4.9.1.1
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, destaca "Primeira vez" com badge, verifica mensagem de login na página de login, adiciona botão com especialidade (verde para Oftalmologia, vermelho para outras) ao lado do nome do profissional na tabela e abaixo do nome no dropdown, remove o elemento ai-assistant-plugin e mantém o valor 30 no select de itens por página.
 // @author Você
 // @match https://*.feegow.com/*/*
@@ -26,11 +26,13 @@
         "BIANCA QUINTAS DA SILVA": "Oftalmologia",
         "BRUNA DA COSTA PEVIDE": "Oftalmologia",
         "BRUNO CAMPOS FROES MARANGONI": "Oftalmologia",
+        "CAMILA APARECIDA DE ALMEIDA FERREIRA": "Oftalmologia",
         "CARLOS EDUARDO SAMPAIO FALEIRO": "Psiquiatria",
         "CARMEM SILVA FERRARI RUBI": "Ortóptica",
         "CHARLY TORREGROSSA": "Otorrinolaringologia",
         "CINTIA NAVARRO LAMAS": "Dermatologia",
         "FERNANDA MAGALHAES DE MORAES LOPES": "Dermatologia",
+        "GIAN LUCCA ANGELINI DOS SANTOS": "Oftalmologia",
         "HAMZE BAHJAT BOU HAMIE": "Oftalmologia",
         "HENRIQUE LAGE FERREIRA FERREIRA": "Oftalmologia",
         "IAGO RAFAEL BRITO GUIMARAES": "Clínica Geral",
