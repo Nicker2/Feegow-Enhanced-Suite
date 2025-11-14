@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.1.3
+// @version 4.9.1.4
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, destaca "Primeira vez" com badge, verifica mensagem de login na página de login, adiciona botão com especialidade (verde para Oftalmologia, vermelho para outras) ao lado do nome do profissional na tabela e abaixo do nome no dropdown, remove o elemento ai-assistant-plugin e mantém o valor 30 no select de itens por página.
 // @author Você
 // @match https://*.feegow.com/*/*
@@ -19,6 +19,7 @@
         "AIMEE CALVI ASAM": "Oftalmologia",
         "ALEXANDRE SPIRANDELLI RODRIGUES COSTA": "Oftalmologia",
         "ANA CAROLINA BONINI DOMINGOS": "Oftalmologia",
+        "ANA CAROLINA BUHLER": "Oftalmologia",
         "ANDRE LUIS PELLEGRIN": "Ginecologia e Obstetrícia",
         "ANDRE LUIZ SITA E SOUZA BRAGANTE": "Oftalmologia",
         "ANTONIO ADOLFO COELHO OLIVEIRA": "Oftalmologia",
@@ -185,8 +186,8 @@
     const debugMode = 1;
     const intervaloVerificacao = 10000;
     const urlApiTodos = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=ALL&EspecialidadeID=';
-    //const urlApiDrExames = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=';
-    const urlApiDrExames = 'https://app2.feegow.com/v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=&update_reason=specialty_reload';
+    const urlApiDrExames = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=';
+    //const urlApiDrExames = 'https://app2.feegow.com/v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=&update_reason=specialty_reload';
 
     function log(message) {
         if (debugMode) {
