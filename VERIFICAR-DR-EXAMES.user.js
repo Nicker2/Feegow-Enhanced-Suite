@@ -43,6 +43,7 @@
         "LEONEL TELLES DE MENEZES MORAIS": "Oftalmologia",
         "LEONNE DI CARLO DEL VECCHIO": "Dermatologia",
         "LINDA MARIA AVELAR MEDEIROS": "Dermatologia",
+        "LUIZA AMARANTE RODRIGUES": "Dermatologia",
         "MARCOS AURELIO COSTA": "Oftalmologia",
         "MARIO MONTINGELLI JUNIOR": "Cirurgia Vascular",
         "NIXON LOPES DE ALMEIDA": "Oftalmologia",
