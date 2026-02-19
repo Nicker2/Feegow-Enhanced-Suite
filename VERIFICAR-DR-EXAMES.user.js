@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.1.6
-// @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, sem alterar a tabela #listaespera > tbody, adiciona botão para alternar visibilidade das listas apenas quando há pacientes, destaca "Primeira vez" com badge, verifica mensagem de login na página de login, adiciona botão com especialidade (verde para Oftalmologia, vermelho para outras) ao lado do nome do profissional na tabela e abaixo do nome no dropdown, remove o elemento ai-assistant-plugin e mantém o valor 30 no select de itens por página.
+// @version 4.9.1.7
+// @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e força reenvio infinito super rápido se o usuário já estiver logado, adiciona especialidade e mantém valor 30.
 // @author Você
 // @match https://*.feegow.com/*/*
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.user.js
 // @updateURL https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.meta.js
-// @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
+// @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
 // @grant none
 // ==/UserScript==
 
@@ -44,6 +44,7 @@
         "LEONEL TELLES DE MENEZES MORAIS": "Oftalmologia",
         "LEONNE DI CARLO DEL VECCHIO": "Dermatologia",
         "LINDA MARIA AVELAR MEDEIROS": "Dermatologia",
+        "LUIS CLAUDIO PIMENTEL DA SILVA": "Oftalmologia",
         "LUIZA AMARANTE RODRIGUES": "Dermatologia",
         "MARCOS AURELIO COSTA": "Oftalmologia",
         "MARIO MONTINGELLI JUNIOR": "Cirurgia Vascular",
@@ -57,20 +58,78 @@
         "VANESSA MARQUES MENDONÇA": "Oftalmologia"
     };
 
-    // Função para verificar mensagem de login e clicar no botão Cancelar
+    // Função para interceptar e salvar os dados na tela de login original
+    function interceptarLogin() {
+        const botaoEntrar = document.getElementById('Entrar');
+        
+        // Garante que só vamos adicionar o evento de clique uma vez
+        if (botaoEntrar && !botaoEntrar.dataset.interceptado) {
+            botaoEntrar.dataset.interceptado = "true";
+            
+            botaoEntrar.addEventListener('click', function() {
+                const usuarioInput = document.getElementById('User');
+                const senhaInput = document.getElementById('password');
+                const formElement = botaoEntrar.closest('form');
+
+                if (usuarioInput && senhaInput && formElement) {
+                    sessionStorage.setItem('feegow_user_temp', usuarioInput.value);
+                    sessionStorage.setItem('feegow_pass_temp', senhaInput.value);
+                    sessionStorage.setItem('feegow_action_temp', formElement.action || window.location.href);
+                    log('Dados de login interceptados e salvos no sessionStorage.');
+                }
+            });
+        }
+    }
+
+    // Função para verificar a mensagem de erro e fazer o reenvio "fantasma" em LOOP ultra-rápido
     function verificarMensagemLogin() {
-        if (window.location.href.startsWith('https://app.feegow.com/main/?P=Login')) {
+        const urlAtual = window.location.href;
+        
+        // Verifica se a URL tem "feegow.com" E também tem "/main/?P=Login"
+        if (urlAtual.includes('feegow.com') && urlAtual.includes('/main/?P=Login')) {
             const mensagem = document.body.textContent || document.body.innerText;
+            
             if (mensagem.includes('Este usuário já está conectado em outra máquina.')) {
-                const botaoCancelar = document.querySelector('button.btn.btn-secondary[onclick="window.history.back();"]');
-                if (botaoCancelar) {
-                    botaoCancelar.click();
-                    log('Mensagem "Este usuário já está conectado em outra máquina." detectada. Botão Cancelar clicado.');
+                log('Mensagem de conexão simultânea detectada. Iniciando reenvio contínuo super rápido (Loop Ativado)...');
+
+                const user = sessionStorage.getItem('feegow_user_temp');
+                const pass = sessionStorage.getItem('feegow_pass_temp');
+                const actionUrl = sessionStorage.getItem('feegow_action_temp') || window.location.href;
+
+                if (user && pass) {
+                    // Monta o formulário invisível
+                    const formFantasma = document.createElement('form');
+                    formFantasma.method = 'POST'; 
+                    formFantasma.action = actionUrl;
+                    formFantasma.style.display = 'none';
+
+                    const inputUser = document.createElement('input');
+                    inputUser.type = 'hidden';
+                    inputUser.name = 'User'; 
+                    inputUser.value = user;
+
+                    const inputPass = document.createElement('input');
+                    inputPass.type = 'hidden';
+                    inputPass.name = 'password'; 
+                    inputPass.value = pass;
+
+                    formFantasma.appendChild(inputUser);
+                    formFantasma.appendChild(inputPass);
+                    document.body.appendChild(formFantasma);
+                    
+                    log('Disparando submit do formulário fantasma em 10 milissegundos...');
+                    
+                    // Delay quase nulo (10ms)
+                    setTimeout(() => {
+                        formFantasma.submit();
+                    }, 10);
+
                 } else {
-                    log('Botão Cancelar não encontrado na página de login.');
+                    log('Sem dados no sessionStorage para reenvio.');
                 }
             } else {
-                log('Mensagem de login não encontrada na página.');
+                // Se for a tela de login normal, apenas chama o interceptador
+                interceptarLogin();
             }
         }
     }
@@ -171,7 +230,7 @@
             });
         });
         observer.observe(document.body, { childList: true, subtree: true });
-        log('MutationObserver configurado para remover .alert-warning, .ui-pnotify, #dp-spaces-header-container, #ai-assistant-plugin, verificar mensagem de login, adicionar botões de especialidade e manter valor 30 no select.');
+        log('MutationObserver configurado para remover elementos, verificar login, especialidades e select.');
     }
 
     // Aguarda o carregamento completo da página
@@ -189,7 +248,6 @@
     const intervaloVerificacao = 10000;
     const urlApiTodos = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=ALL&EspecialidadeID=';
     const urlApiDrExames = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=';
-    //const urlApiDrExames = 'https://app2.feegow.com/v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=&update_reason=specialty_reload';
 
     function log(message) {
         if (debugMode) {
