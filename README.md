@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-4.9.1.4-blue?style=for-the-badge&logo=semver)
+![Version](https://img.shields.io/badge/version-4.9.1.7-blue?style=for-the-badge&logo=semver)
 ![Platform](https://img.shields.io/badge/Platform-Feegow-green?style=for-the-badge)
 ![Maintainer](https://img.shields.io/badge/maintainer-Nicolas_Borges-orange?style=for-the-badge)
 
@@ -18,32 +18,32 @@
 
 Este é um **UserScript avançado** desenvolvido para otimizar o fluxo de trabalho na plataforma **Feegow**. Ele atua como uma camada de inteligência sobre a interface original, focando na identificação, contagem e comparação de pacientes exclusivos na fila do **DR. EXAMES**.
 
-O script opera de forma assíncrona (non-blocking), manipulando o DOM em tempo real para fornecer insights visuais sem prejudicar a performance do sistema.
+O script opera de forma assíncrona (non-blocking), manipulando o DOM em tempo real para fornecer insights visuais e automações de acesso sem prejudicar a performance do sistema.
 
 ---
 
 ## 🚀 Funcionalidades Principais
 
+### ⚡ Automação e Anti-Travamentos
+* **Login Bypass Engine (Novo! 🚀):** Resolve definitivamente a tela de *"Usuário conectado em outra máquina"*. O script intercepta as credenciais temporariamente de forma segura no momento do clique e, caso a tela de bloqueio apareça, cria um formulário fantasma em background que força o reenvio (loop contínuo de 10ms) até liberar o acesso, sem intervenção manual.
+* **Anti-Clutter:** Remove elementos desnecessários da interface original (`.alert-warning`, plugins de IA, headers de espaço).
+* **Force Config:** Garante que a visualização da fila esteja sempre e automaticamente configurada para **30 itens por página**.
+
 ### 🧠 Inteligência de Dados
 * **Comparação em Tempo Real:** Cruza dados de duas APIs (`ProfissionalID=ALL` vs `ProfissionalID=1083`) para identificar pacientes exclusivos.
-* **Logs Detalhados:** Sistema robusto de debug no console para rastreamento de requisições e processamento de lista.
-* **Contador Dinâmico:** Badge visual que altera a cor baseada na carga de trabalho:
+* **Logs Detalhados:** Sistema robusto de debug no console para rastreamento de requisições e processamento de listas.
+* **Contador Dinâmico:** Badge visual inteligente que altera a cor baseada na carga de trabalho atual:
     * 🟢 **1-5 Pacientes:** Verde (Carga Leve)
     * 🔴 **>5 Pacientes:** Vermelho (Carga Alta)
 
 ### 🎨 Melhorias de UI/UX
-* **Identificação de Especialidades:** Adiciona tags visuais coloridas ao lado dos nomes dos médicos.
+* **Identificação de Especialidades:** Adiciona tags visuais coloridas ao lado dos nomes dos médicos diretamente na tabela e nos menus suspensos.
     * 🟢 **Oftalmologia:** Destaque Neon Green.
     * 🔴 **Outras:** Vermelho Padrão.
 * **Listas Inteligentes (Smart Lists):**
-    * **Primeira Lista:** Fixada no topo.
-    * **Segunda Lista (Sticky):** Aparece automaticamente no rodapé quando a lista superior sai da visão (usando `IntersectionObserver`).
-* **Badges de Status:** Identificação automática de pacientes de "Primeira vez".
-
-### ⚡ Automação e Limpeza
-* **Anti-Clutter:** Remove elementos desnecessários (`.alert-warning`, plugins de IA, headers de espaço).
-* **Login Handler:** Detecta e resolve automaticamente o conflito de "Usuário conectado em outra máquina".
-* **Force Config:** Garante que a visualização esteja sempre configurada para **30 itens por página**.
+    * **Primeira Lista:** Visível e fixada no topo.
+    * **Segunda Lista (Sticky):** Aparece automaticamente no rodapé quando a lista superior sai do campo de visão (gerenciado via `IntersectionObserver`).
+* **Badges de Status:** Identificação automática e destaque visual para pacientes de "Primeira vez".
 
 ---
 
@@ -53,10 +53,11 @@ O script utiliza recursos modernos da Web API:
 
 | Tecnologia | Uso no Script |
 | :--- | :--- |
-| **MutationObserver** | Monitora mudanças no DOM para reinjetar botões e remover alertas dinamicamente. |
-| **IntersectionObserver** | Gerencia a visibilidade das listas duplas (efeito de scroll infinito/sticky). |
-| **Fetch API** | Realiza requisições assíncronas aos endpoints da Feegow em background. |
-| **DOM Parser** | Lê e interpreta o HTML retornado pelas requisições "under the hood". |
+| **Web Storage API** | Utiliza o `sessionStorage` como cofre temporário de credenciais para viabilizar a injeção do formulário fantasma no bypass de login. |
+| **MutationObserver** | Monitora mudanças no DOM para reinjetar botões e remover alertas dinamicamente sem recarregar a página. |
+| **IntersectionObserver** | Gerencia a visibilidade das listas duplas, criando um efeito de scroll inteligente/sticky. |
+| **Fetch API** | Realiza requisições assíncronas aos endpoints da Feegow em background para cruzamento de dados. |
+| **DOM Parser** | Lê e interpreta o HTML retornado pelas requisições "under the hood" para mapear os links dos pacientes. |
 
 ---
 
@@ -72,32 +73,33 @@ O script utiliza recursos modernos da Web API:
     * Pressione `Ctrl + S` para salvar.
 
 3.  **Uso:**
-    * Acesse a lista de espera do Feegow (ex: `https://app.feegow.com/v8/?P=ListaEspera...`).
-    * O script será carregado automaticamente.
+    * O script será carregado automaticamente em qualquer subdomínio (`app`, `app2`, etc.) na lista de espera ou tela de login do Feegow.
 
 ---
 
 ## ⚙️ Configuração Personalizável
 
-Você pode ajustar as variáveis no topo do script para adaptar ao seu uso:
+Você pode ajustar as variáveis no topo do código-fonte para adaptar ao seu fluxo de trabalho:
 
 ```javascript
 // Configurações do Usuário
 let exibirTodos = 1;              // 0: Mostra todos | 1: Apenas exclusivos DR. EXAMES
 const debugMode = 1;              // 1: Ativa logs no console (F12)
-const intervaloVerificacao = 10000; // Tempo em ms (10 segundos)
+const intervaloVerificacao = 10000; // Tempo de atualização em ms (10 segundos)
+
 
 ```
 
 ### Mapeamento de Profissionais
 
-O script contém um objeto `profissionais` que mapeia nomes para especialidades. Para adicionar um novo médico, siga o padrão:
+O script contém um objeto `profissionais` que mapeia nomes para especialidades. Para adicionar um novo médico, siga o padrão estabelecido no código:
 
 ```javascript
 const profissionais = {
-    "NOME DO MÉDICO": "Oftalmologia", // Gera botão Verde
-    "OUTRO MÉDICO": "Dermatologia"    // Gera botão Vermelho
+    "NOME DO MÉDICO": "Oftalmologia", // Gera badge Verde
+    "OUTRO MÉDICO": "Dermatologia"    // Gera badge Vermelho
 };
+
 
 ```
 
@@ -109,18 +111,21 @@ const profissionais = {
 <summary><strong>Clique para expandir soluções comuns</strong></summary>
 
 1. **O Script não carrega:**
-* Verifique se a URL da página corresponde ao `@match https://*.feegow.com/*/*`.
-* Certifique-se de que o Tampermonkey está ativo.
 
+* Verifique se a URL da página corresponde ao escopo `@match https://*.feegow.com/*/*`.
+* Certifique-se de que a extensão Tampermonkey está habilitada no navegador.
 
 2. **Lista Inferior não aparece:**
-* Role a página até que a "Lista Superior" saia completamente da tela. O `IntersectionObserver` precisa detectar a saída para ativar a lista inferior.
 
+* Role a página até que a "Lista Superior" saia completamente da tela. O `IntersectionObserver` precisa detectar a saída do elemento para ativar a visualização da lista inferior.
 
 3. **Logs de Erro de API:**
-* Se vir "Erro ao buscar dados", verifique sua conexão ou se a sessão do Feegow expirou.
 
+* Se visualizar a mensagem "Erro ao buscar dados" no console, verifique sua conexão com a internet ou se a sua sessão no Feegow expirou.
 
+4. **Auto-Login não disparou:**
+
+* O script requer que o botão "Entrar" original seja clicado para capturar as credenciais na primeira tentativa. Se usar um preenchimento automático externo que pule o botão, o script não terá os dados salvos para o reenvio na tela de sessão dupla.
 
 </details>
 
