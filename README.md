@@ -26,7 +26,7 @@ O script opera de forma assíncrona (non-blocking), manipulando o DOM em tempo r
 
 ### ⚡ Automação e Anti-Travamentos
 * **Login Bypass Invisível e UI Premium (Novo! 🚀):** Resolve definitivamente a tela de *"Usuário conectado em outra máquina"*. O script intercepta as credenciais temporariamente de forma segura e, caso a tela de bloqueio apareça, sobrepõe a página com uma **bela tela de carregamento corporativa e customizada**. Por baixo dos panos (via *Fetch API*), ele inicia um loop silencioso tentando o acesso repetidamente sem recarregar o navegador. 
-    * **Importante:** O script *não* derruba ativamente ou expulsa a sessão aberta no outro computador. Ele fica apenas tentando o login incansavelmente (em frações de segundo) enquanto exibe a tela de carregamento para você. Assim que a outra pessoa fechar ou a sessão for liberada, ele te joga para dentro do sistema instantaneamente!
+    * **Importante:** O script *não* derruba ativamente ou expulsa a sessão aberta no outro computador. Ele fica apenas tentando o login incansavelmente (em frações de segundo) enquanto exibe a tela de carregamento para você. Assim que a sessão for liberada, ele te joga para dentro do sistema instantaneamente!
 * **Anti-Clutter:** Remove elementos desnecessários da interface original (`.alert-warning`, plugins de IA, headers de espaço).
 * **Force Config:** Garante que a visualização da fila esteja sempre e automaticamente configurada para **30 itens por página**.
 
