@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-4.9.1.7-blue?style=for-the-badge&logo=semver)
+![Version](https://img.shields.io/badge/version-4.9.2.0-blue?style=for-the-badge&logo=semver)
 ![Platform](https://img.shields.io/badge/Platform-Feegow-green?style=for-the-badge)
 ![Maintainer](https://img.shields.io/badge/maintainer-Nicolas_Borges-orange?style=for-the-badge)
 
@@ -25,7 +25,8 @@ O script opera de forma assíncrona (non-blocking), manipulando o DOM em tempo r
 ## 🚀 Funcionalidades Principais
 
 ### ⚡ Automação e Anti-Travamentos
-* **Login Bypass Engine (Novo! 🚀):** Resolve definitivamente a tela de *"Usuário conectado em outra máquina"*. O script intercepta as credenciais temporariamente de forma segura no momento do clique e, caso a tela de bloqueio apareça, cria um formulário fantasma em background que força o reenvio (loop contínuo de 10ms) até liberar o acesso, sem intervenção manual.
+* **Login Bypass Invisível (Novo! 🚀):** Resolve definitivamente a tela de *"Usuário conectado em outra máquina"*. O script intercepta as credenciais de forma segura e, caso a tela de bloqueio apareça, atua como um mensageiro invisível via `Fetch API`, derrubando a sessão antiga em background sem recarregar a sua página nenhuma vez.
+* **Tela de Autenticação Premium 🎨:** Enquanto o bypass invisível trabalha nos bastidores, o usuário visualiza uma tela de carregamento elegante, corporativa e persistente (com logo, GIF suave e background customizado), garantindo uma imersão total que parece nativa do próprio sistema.
 * **Anti-Clutter:** Remove elementos desnecessários da interface original (`.alert-warning`, plugins de IA, headers de espaço).
 * **Force Config:** Garante que a visualização da fila esteja sempre e automaticamente configurada para **30 itens por página**.
 
@@ -53,10 +54,10 @@ O script utiliza recursos modernos da Web API:
 
 | Tecnologia | Uso no Script |
 | :--- | :--- |
-| **Web Storage API** | Utiliza o `sessionStorage` como cofre temporário de credenciais para viabilizar a injeção do formulário fantasma no bypass de login. |
+| **Web Storage API** | Utiliza o `sessionStorage` como cofre temporário de credenciais para viabilizar o bypass de login automático. |
+| **Fetch API** | Realiza requisições assíncronas aos endpoints da Feegow em background para cruzamento de dados e agora **também é o motor responsável pelo Bypass Invisível do login**. |
 | **MutationObserver** | Monitora mudanças no DOM para reinjetar botões e remover alertas dinamicamente sem recarregar a página. |
 | **IntersectionObserver** | Gerencia a visibilidade das listas duplas, criando um efeito de scroll inteligente/sticky. |
-| **Fetch API** | Realiza requisições assíncronas aos endpoints da Feegow em background para cruzamento de dados. |
 | **DOM Parser** | Lê e interpreta o HTML retornado pelas requisições "under the hood" para mapear os links dos pacientes. |
 
 ---
@@ -86,67 +87,3 @@ Você pode ajustar as variáveis no topo do código-fonte para adaptar ao seu fl
 let exibirTodos = 1;              // 0: Mostra todos | 1: Apenas exclusivos DR. EXAMES
 const debugMode = 1;              // 1: Ativa logs no console (F12)
 const intervaloVerificacao = 10000; // Tempo de atualização em ms (10 segundos)
-
-
-```
-
-### Mapeamento de Profissionais
-
-O script contém um objeto `profissionais` que mapeia nomes para especialidades. Para adicionar um novo médico, siga o padrão estabelecido no código:
-
-```javascript
-const profissionais = {
-    "NOME DO MÉDICO": "Oftalmologia", // Gera badge Verde
-    "OUTRO MÉDICO": "Dermatologia"    // Gera badge Vermelho
-};
-
-
-```
-
----
-
-## 🐛 Troubleshooting
-
-<details>
-<summary><strong>Clique para expandir soluções comuns</strong></summary>
-
-1. **O Script não carrega:**
-
-* Verifique se a URL da página corresponde ao escopo `@match https://*.feegow.com/*/*`.
-* Certifique-se de que a extensão Tampermonkey está habilitada no navegador.
-
-2. **Lista Inferior não aparece:**
-
-* Role a página até que a "Lista Superior" saia completamente da tela. O `IntersectionObserver` precisa detectar a saída do elemento para ativar a visualização da lista inferior.
-
-3. **Logs de Erro de API:**
-
-* Se visualizar a mensagem "Erro ao buscar dados" no console, verifique sua conexão com a internet ou se a sua sessão no Feegow expirou.
-
-4. **Auto-Login não disparou:**
-
-* O script requer que o botão "Entrar" original seja clicado para capturar as credenciais na primeira tentativa. Se usar um preenchimento automático externo que pule o botão, o script não terá os dados salvos para o reenvio na tela de sessão dupla.
-
-</details>
-
----
-
-## 🤝 Contribuição
-
-Contribuições são bem-vindas!
-
-1. Faça um Fork do projeto.
-2. Crie uma Branch para sua Feature (`git checkout -b feature/Incrivel`).
-3. Faça o Commit (`git commit -m 'Add some Incrivel'`).
-4. Push para a Branch (`git push origin feature/Incrivel`).
-5. Abra um Pull Request.
-
----
-
-## 📝 Licença
-
-Distribuído sob a licença **MIT**. Veja `LICENSE` para mais informações.
-
-<div align="center">
-<sub>Feito com ❤️ por Nicolas Bonza Cavalari Borges</sub>
-</div>
