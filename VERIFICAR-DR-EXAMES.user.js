@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.1.7
-// @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e força reenvio infinito super rápido se o usuário já estiver logado, adiciona especialidade e mantém valor 30.
+// @version 4.9.2.0
+// @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Você
 // @match https://*.feegow.com/*/*
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.user.js
@@ -58,14 +58,107 @@
         "VANESSA MARQUES MENDONÇA": "Oftalmologia"
     };
 
-    // Função para interceptar e salvar os dados na tela de login original
+    // Função para criar e exibir a tela de carregamento customizada
+    function mostrarTelaDeCarregamento() {
+        if (document.getElementById('feegow-custom-loader')) return; // Evita duplicar a tela
+
+        const overlay = document.createElement('div');
+        overlay.id = 'feegow-custom-loader';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.backgroundColor = 'rgb(23, 162, 184)';
+        overlay.style.zIndex = '9999999'; // Fica por cima de absolutamente tudo
+        overlay.style.display = 'flex';
+        overlay.style.fontFamily = '"Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
+        // Metade Esquerda
+        const leftSide = document.createElement('div');
+        leftSide.style.width = '50%';
+        leftSide.style.height = '100%';
+        leftSide.style.backgroundImage = 'url("https://cdn.feegow.com/marketing/assets/fw-login/login_bem_vindo.webp")';
+        leftSide.style.backgroundSize = 'auto 100%';
+        leftSide.style.backgroundPosition = 'left center';
+        leftSide.style.backgroundRepeat = 'no-repeat';
+        leftSide.style.boxShadow = '5px 0 25px rgba(0,0,0,0.3)';
+        leftSide.style.zIndex = '2';
+
+        // Metade Direita
+        const rightSide = document.createElement('div');
+        rightSide.style.width = '50%';
+        rightSide.style.height = '100%';
+        rightSide.style.display = 'flex';
+        rightSide.style.flexDirection = 'column';
+        rightSide.style.justifyContent = 'center';
+        rightSide.style.alignItems = 'center';
+        rightSide.style.zIndex = '1';
+
+        // Logo
+        const logoContainer = document.createElement('div');
+        logoContainer.style.backgroundColor = '#ffffff';
+        logoContainer.style.borderRadius = '20px';
+        logoContainer.style.padding = '25px 30px';
+        logoContainer.style.marginBottom = '35px';
+        logoContainer.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)';
+        logoContainer.style.display = 'flex';
+        logoContainer.style.justifyContent = 'center';
+        logoContainer.style.alignItems = 'center';
+
+        const logo = document.createElement('img');
+        logo.src = 'https://app.feegow.com/main/assets/img/login_logo.svg';
+        logo.style.width = '220px';
+        logoContainer.appendChild(logo);
+
+        // GIF
+        const loadingGif = document.createElement('img');
+        loadingGif.src = 'https://core.feegow.com/img/feegow-loading.gif';
+        loadingGif.style.width = '75px';
+        loadingGif.style.height = '75px';
+        loadingGif.style.objectFit = 'contain';
+        loadingGif.style.backgroundColor = '#ffffff';
+        loadingGif.style.padding = '10px';
+        loadingGif.style.borderRadius = '18px';
+        loadingGif.style.marginBottom = '25px';
+        loadingGif.style.boxShadow = '0 8px 20px rgba(0,0,0,0.2)';
+
+        // Textos
+        const textTitle = document.createElement('h2');
+        textTitle.textContent = 'Autenticando Acesso';
+        textTitle.style.color = '#ffffff';
+        textTitle.style.margin = '0 0 12px 0';
+        textTitle.style.fontSize = '26px';
+        textTitle.style.fontWeight = '600';
+        textTitle.style.letterSpacing = '0.5px';
+
+        const textSub = document.createElement('p');
+        textSub.textContent = 'Encerrando sessões ativas e estabelecendo uma nova conexão segura. Por favor, aguarde um instante...';
+        textSub.style.color = '#e0f7fa';
+        textSub.style.fontSize = '16px';
+        textSub.style.textAlign = 'center';
+        textSub.style.maxWidth = '65%';
+        textSub.style.lineHeight = '1.6';
+        textSub.style.margin = '0';
+
+        rightSide.appendChild(logoContainer);
+        rightSide.appendChild(loadingGif);
+        rightSide.appendChild(textTitle);
+        rightSide.appendChild(textSub);
+
+        overlay.appendChild(leftSide);
+        overlay.appendChild(rightSide);
+
+        document.body.appendChild(overlay);
+    }
+
+    // Função para interceptar o clique no botão "Entrar" e salvar os dados
     function interceptarLogin() {
         const botaoEntrar = document.getElementById('Entrar');
-        
-        // Garante que só vamos adicionar o evento de clique uma vez
+
         if (botaoEntrar && !botaoEntrar.dataset.interceptado) {
             botaoEntrar.dataset.interceptado = "true";
-            
+
             botaoEntrar.addEventListener('click', function() {
                 const usuarioInput = document.getElementById('User');
                 const senhaInput = document.getElementById('password');
@@ -75,66 +168,85 @@
                     sessionStorage.setItem('feegow_user_temp', usuarioInput.value);
                     sessionStorage.setItem('feegow_pass_temp', senhaInput.value);
                     sessionStorage.setItem('feegow_action_temp', formElement.action || window.location.href);
-                    log('Dados de login interceptados e salvos no sessionStorage.');
+                    log('Dados de login interceptados para possível bypass.');
                 }
             });
         }
     }
 
-    // Função para verificar a mensagem de erro e fazer o reenvio "fantasma" em LOOP ultra-rápido
+    // Função para rodar o Bypass INVISÍVEL no background usando Fetch API
+    async function executarBypassInvisivel(actionUrl, user, pass) {
+        const formData = new URLSearchParams();
+        formData.append('User', user);
+        formData.append('password', pass);
+
+        let sucesso = false;
+        let tentativas = 0;
+
+        while (!sucesso) {
+            tentativas++;
+            try {
+                // Envia os dados silenciosamente por debaixo dos panos (sem recarregar a tela)
+                const res = await fetch(actionUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData.toString()
+                });
+
+                const html = await res.text();
+
+                // Verifica se a resposta do servidor AINDA é a tela de erro
+                if (html.includes('Este usuário já está conectado em outra máquina.')) {
+                    log(`[Bypass Background] Tentativa ${tentativas}: Sessão ainda ocupada. Disparando novamente em 50ms...`);
+                    // Espera só 50ms (ultra rápido) e tenta de novo. O visual do usuário fica 100% congelado!
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                } else {
+                    // A resposta mudou! O login passou!
+                    log(`[Bypass Background] SUCESSO na tentativa ${tentativas}! Acesso liberado.`);
+                    sucesso = true;
+
+                    // Limpa o cofre
+                    sessionStorage.removeItem('feegow_user_temp');
+                    sessionStorage.removeItem('feegow_pass_temp');
+
+                    // Agora sim, redireciona a página inteira para o sistema principal
+                    window.location.href = res.url || 'https://app.feegow.com/main/';
+                }
+            } catch (error) {
+                log(`[Bypass Background] Erro de rede: ${error.message}. Tentando novamente...`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+    }
+
+    // Verifica se caiu na tela de erro e aciona a tela de loading + loop invisível
     function verificarMensagemLogin() {
         const urlAtual = window.location.href;
-        
-        // Verifica se a URL tem "feegow.com" E também tem "/main/?P=Login"
+
         if (urlAtual.includes('feegow.com') && urlAtual.includes('/main/?P=Login')) {
             const mensagem = document.body.textContent || document.body.innerText;
-            
+
             if (mensagem.includes('Este usuário já está conectado em outra máquina.')) {
-                log('Mensagem de conexão simultânea detectada. Iniciando reenvio contínuo super rápido (Loop Ativado)...');
+                log('Mensagem de conexão detectada. Congelando a tela e iniciando bypass de background...');
 
                 const user = sessionStorage.getItem('feegow_user_temp');
                 const pass = sessionStorage.getItem('feegow_pass_temp');
                 const actionUrl = sessionStorage.getItem('feegow_action_temp') || window.location.href;
 
                 if (user && pass) {
-                    // Monta o formulário invisível
-                    const formFantasma = document.createElement('form');
-                    formFantasma.method = 'POST'; 
-                    formFantasma.action = actionUrl;
-                    formFantasma.style.display = 'none';
+                    // 1. Congela a tela original com a nossa interface bonita
+                    mostrarTelaDeCarregamento();
 
-                    const inputUser = document.createElement('input');
-                    inputUser.type = 'hidden';
-                    inputUser.name = 'User'; 
-                    inputUser.value = user;
-
-                    const inputPass = document.createElement('input');
-                    inputPass.type = 'hidden';
-                    inputPass.name = 'password'; 
-                    inputPass.value = pass;
-
-                    formFantasma.appendChild(inputUser);
-                    formFantasma.appendChild(inputPass);
-                    document.body.appendChild(formFantasma);
-                    
-                    log('Disparando submit do formulário fantasma em 10 milissegundos...');
-                    
-                    // Delay quase nulo (10ms)
-                    setTimeout(() => {
-                        formFantasma.submit();
-                    }, 10);
-
-                } else {
-                    log('Sem dados no sessionStorage para reenvio.');
+                    // 2. Inicia o loop assíncrono que não recarrega a página
+                    executarBypassInvisivel(actionUrl, user, pass);
                 }
             } else {
-                // Se for a tela de login normal, apenas chama o interceptador
                 interceptarLogin();
             }
         }
     }
 
-    // Função para adicionar botão com a especialidade do profissional na tabela
+    // Funções visuais da tabela de espera
     function adicionarBotaoEspecialidadeTabela() {
         const tds = document.querySelectorAll('#listaespera > tbody > tr > td');
         tds.forEach(td => {
@@ -163,7 +275,6 @@
         });
     }
 
-    // Função para adicionar botão com a especialidade do profissional no dropdown
     function adicionarBotaoEspecialidadeDropdown() {
         const labels = document.querySelectorAll('ul.multiselect-container.dropdown-menu li a label.radio');
         labels.forEach(label => {
@@ -192,7 +303,6 @@
         });
     }
 
-    // Função para remover elementos indesejados, incluindo o ai-assistant-plugin
     function removerElementosIndesejados() {
         const elementos = [
             ...document.querySelectorAll('.alert-warning'),
@@ -208,17 +318,15 @@
         });
     }
 
-    // Função para garantir que o valor 30 esteja sempre selecionado no select
     function manterValor30() {
         const selectElement = document.getElementById('waitingRoomItemsPerPage');
         if (selectElement && selectElement.value !== '30') {
             selectElement.value = '30';
-            selectElement.dispatchEvent(new Event('change')); // Dispara o evento de mudança
+            selectElement.dispatchEvent(new Event('change'));
             log('Valor do select waitingRoomItemsPerPage alterado para 30.');
         }
     }
 
-    // Configura o MutationObserver para monitorar mudanças no DOM
     function configurarObserver() {
         const observer = new MutationObserver((mutations) => {
             mutations.forEach(() => {
@@ -226,20 +334,19 @@
                 verificarMensagemLogin();
                 adicionarBotaoEspecialidadeTabela();
                 adicionarBotaoEspecialidadeDropdown();
-                manterValor30(); // Adiciona a verificação do valor 30
+                manterValor30();
             });
         });
         observer.observe(document.body, { childList: true, subtree: true });
         log('MutationObserver configurado para remover elementos, verificar login, especialidades e select.');
     }
 
-    // Aguarda o carregamento completo da página
     window.onload = function() {
         removerElementosIndesejados();
         verificarMensagemLogin();
         adicionarBotaoEspecialidadeTabela();
         adicionarBotaoEspecialidadeDropdown();
-        manterValor30(); // Chama inicialmente para garantir o valor 30
+        manterValor30();
         configurarObserver();
     };
 
