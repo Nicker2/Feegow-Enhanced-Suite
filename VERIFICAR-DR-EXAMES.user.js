@@ -49,7 +49,7 @@
         "LUIZA AMARANTE RODRIGUES": "Dermatologia",
         "MARCOS AURELIO COSTA": "Oftalmologia",
         "MARIO MONTINGELLI JUNIOR": "Cirurgia Vascular",
-        "MARIA CAROLINA RODRIGUES MARTINI": "Cardiologia"
+        "MARIA CAROLINA RODRIGUES MARTINI": "Cardiologia",
         "NIXON LOPES DE ALMEIDA": "Oftalmologia",
         "PAULA RABELO HALFELD MENDONÇA": "Oftalmologia",
         "RAPHAEL GHEDIN SERVIDEI SANTANA": "Oftalmologia",
