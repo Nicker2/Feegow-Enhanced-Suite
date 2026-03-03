@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.2.1
+// @version 4.9.2.2
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Você
 // @match https://*.feegow.com/*/*
@@ -34,7 +34,7 @@
         "CINTIA NAVARRO LAMAS": "Dermatologia",
         "FERNANDA MAGALHAES DE MORAES LOPES": "Dermatologia",
         "GIAN LUCCA ANGELINI DOS SANTOS": "Oftalmologia",
-        "GUILHERME ARAUJO DE ABREU": "Oftalmologia",
+        "GUILHERME ARAUJO DE ABREU": "Oftalmo (NÃO TRIAR)",
         "HAMZE BAHJAT BOU HAMIE": "Oftalmologia",
         "HENRIQUE LAGE FERREIRA FERREIRA": "Oftalmologia",
         "IAGO RAFAEL BRITO GUIMARAES": "Clínica Geral",
@@ -50,6 +50,7 @@
         "MARCOS AURELIO COSTA": "Oftalmologia",
         "MARIO MONTINGELLI JUNIOR": "Cirurgia Vascular",
         "MARIA CAROLINA RODRIGUES MARTINI": "Cardiologia",
+        "MATHEUS DE SOUZA PRETI": "Oftalmologia",
         "NIXON LOPES DE ALMEIDA": "Oftalmologia",
         "PAULA RABELO HALFELD MENDONÇA": "Oftalmologia",
         "RAPHAEL GHEDIN SERVIDEI SANTANA": "Oftalmologia",
