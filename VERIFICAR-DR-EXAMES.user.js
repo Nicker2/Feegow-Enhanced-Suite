@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.2.3
+// @version 4.9.2.4
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
-// @author Você
+// @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.user.js
 // @updateURL https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.meta.js
@@ -22,14 +22,18 @@
         "ANA CAROLINA BUHLER": "Oftalmologia",
         "ANDRE LUIS PELLEGRIN": "Ginecologia e Obstetrícia",
         "ANDRE LUIZ SITA E SOUZA BRAGANTE": "Oftalmologia",
+        "ANA LUISA PACHECO MILLEN DE MATTOS": "Dermatologia",
         "ANTONIO ADOLFO COELHO OLIVEIRA": "Oftalmologia",
+        "ATAUL MOURA GUIMARAES": "Oftalmologia",
         "BIANCA PUJOL FREITAS DA SILVA": "Cardiologia",
         "BIANCA QUINTAS DA SILVA": "Oftalmologia",
         "BRUNA DA COSTA PEVIDE": "Oftalmologia",
         "BRUNO CAMPOS FROES MARANGONI": "Oftalmologia",
         "CAMILA APARECIDA DE ALMEIDA FERREIRA": "Oftalmologia",
+        "CAMILA APARECIDA ROCHA DE OLIVEIRA": "Dermatologia",
         "CARLOS EDUARDO SAMPAIO FALEIRO": "Psiquiatria",
         "CARMEM SILVA FERRARI RUBI": "Ortóptica",
+        "CENTRO CIRURGICO": "Cirurgia Geral",
         "CHARLY TORREGROSSA": "Otorrinolaringologia",
         "CINTIA NAVARRO LAMAS": "Dermatologia",
         "FERNANDA MAGALHAES DE MORAES LOPES": "Dermatologia",
@@ -39,6 +43,7 @@
         "HAMZE BAHJAT BOU HAMIE": "Oftalmologia",
         "HENRIQUE LAGE FERREIRA FERREIRA": "Oftalmologia",
         "IAGO RAFAEL BRITO GUIMARAES": "Clínica Geral",
+        "IRACELIS SARA CANDIDO DE PAULA": "Verificar qual Especialidade",
         "ISRAEL EMILIANO PACHECO": "Oftalmologia",
         "JOSE ERNESTO GHEDIN SERVIDEI": "Oftalmologia",
         "JOÃO VICTOR DE ALMEIDA WESTPHAL": "Oftalmologia",
@@ -47,6 +52,7 @@
         "LEONNE DI CARLO DEL VECCHIO": "Dermatologia",
         "LINDA MARIA AVELAR MEDEIROS": "Dermatologia",
         "LUIS CLAUDIO PIMENTEL DA SILVA": "Oftalmologia",
+        "LUIS AUGUSTO RAGAZZO DI PAOLO": "Oftalmologia",
         "LUIZA AMARANTE RODRIGUES": "Dermatologia",
         "MARCOS AURELIO COSTA": "Oftalmologia",
         "MARIO MONTINGELLI JUNIOR": "Cirurgia Vascular",
@@ -59,7 +65,9 @@
         "ROGERIO GHEDIN SERVIDEI": "Dermatologia",
         "SILVIA MIRIAM DA SILVA DIAS": "Nutrição",
         "SIRLENE AVILA DA ROCHA": "Dermatologia",
-        "VANESSA MARQUES MENDONÇA": "Oftalmologia"
+        "VANESSA MARQUES MENDONÇA": "Oftalmologia",
+        "VITOR GUILHERMINO JACOBUCCI": "Oftalmologia",
+        "WILLIAN EXPEDITO ALMEIDA DA SILVA": "Nutrição"
     };
 
     // Função para criar e exibir a tela de carregamento customizada
