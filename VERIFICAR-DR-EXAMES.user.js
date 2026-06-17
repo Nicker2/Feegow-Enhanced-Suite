@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.2.6
+// @version 4.9.2.7
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -17,6 +17,7 @@
     // Lista de profissionais e suas especialidades
     const profissionais = {
         "AIMEE CALVI ASAM": "Oftalmologia",
+        "ALEXANDRE ARGUELIO SOUTO": "Oftalmologia",
         "ALEXANDRE SPIRANDELLI RODRIGUES COSTA": "Oftalmologia",
         "ANA CAROLINA BONINI DOMINGOS": "Oftalmologia",
         "ANA CAROLINA BUHLER": "Oftalmologia",
@@ -47,9 +48,11 @@
         "ISRAEL EMILIANO PACHECO": "Oftalmologia",
         "JOSE ERNESTO GHEDIN SERVIDEI": "Oftalmologia",
         "JOÃO VICTOR DE ALMEIDA WESTPHAL": "Oftalmologia",
+        "LARISSA CARDOSO LUCENA ARGUELIO": "Oftalmologia",
         "LEONARDO DE ANGELLI BENEDITO CARDOSO": "Oftalmologia",
         "LEONEL TELLES DE MENEZES MORAIS": "Oftalmologia",
         "LEONNE DI CARLO DEL VECCHIO": "Dermatologia",
+        "LETÍCIA CARDOSO LUCENA": "Oftalmologia",
         "LINDA MARIA AVELAR MEDEIROS": "Dermatologia",
         "LUCAS MARQUES FRANÇA": "Oftalmologia",
         "LUIS CLAUDIO PIMENTEL DA SILVA": "Oftalmologia",
