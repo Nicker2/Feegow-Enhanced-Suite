@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.2.8
+// @version 4.9.2.9
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -324,6 +324,59 @@
         });
     }
 
+    function adicionarBotaoProntuarioAgenda() {
+        // Só executa se estiver na página da Agenda
+        if (!window.location.href.includes('Agenda-1')) return;
+
+        // Seleciona todas as linhas (tr) da agenda que contêm o tooltip com as informações do paciente
+        const linhas = document.querySelectorAll('tr[data-original-title], tr[title]');
+
+        linhas.forEach(linha => {
+            // Captura o texto inteiro do tooltip (onde está o "Prontuário: 514355")
+            const tooltipText = linha.getAttribute('data-original-title') || linha.getAttribute('title');
+            if (!tooltipText) return;
+
+            // Procura pelo padrão "Prontuário: XXXXXX" (aceita acentos normais ou códigos HTML)
+            const match = tooltipText.match(/Prontu(?:á|&aacute;)rio:\s*(\d+)/i);
+
+            if (match && match[1]) {
+                const pacienteId = match[1];
+
+                // Busca o span com a classe nomePac dentro DESTA linha especificamente
+                const spanNome = linha.querySelector('span.nomePac');
+
+                // Verifica se o span existe e se o botão já não foi adicionado (para evitar clones visuais)
+                if (spanNome && !spanNome.parentNode.querySelector(`.btn-prontuario-${pacienteId}`)) {
+
+                    const btn = document.createElement('a');
+                    btn.className = `btn-prontuario-direto btn-prontuario-${pacienteId}`;
+                    btn.href = `https://app.feegow.com/main/?P=Pacientes&I=${pacienteId}`;
+                    btn.target = '_blank'; // Abre o prontuário em uma nova guia sem fechar a agenda
+                    btn.textContent = '📄 Prontuário';
+
+                    // Estilização para ficar bem encaixado na tabela
+                    btn.style.backgroundColor = '#17a2b8';
+                    btn.style.color = '#ffffff';
+                    btn.style.border = 'none';
+                    btn.style.borderRadius = '4px';
+                    btn.style.padding = '2px 6px';
+                    btn.style.marginLeft = '8px';
+                    btn.style.fontSize = '10px';
+                    btn.style.fontWeight = 'bold';
+                    btn.style.textDecoration = 'none';
+                    btn.style.cursor = 'pointer';
+                    btn.style.display = 'inline-block';
+                    btn.style.verticalAlign = 'middle';
+                    btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+
+                    // Insere o botão logo após o elemento <span class="nomePac">
+                    spanNome.parentNode.insertBefore(btn, spanNome.nextSibling);
+                    log(`Botão de prontuário adicionado na Agenda ao lado de ${spanNome.textContent.trim()} (ID: ${pacienteId})`);
+                }
+            }
+        });
+    }
+
     function removerElementosIndesejados() {
         const elementos = [
             ...document.querySelectorAll('.alert-warning'),
@@ -355,6 +408,8 @@
                 verificarMensagemLogin();
                 adicionarBotaoEspecialidadeTabela();
                 adicionarBotaoEspecialidadeDropdown();
+                adicionarBotaoProntuarioAgenda();
+                adicionarBotaoProntuarioAgenda();
                 manterValor30();
             });
         });
@@ -755,6 +810,7 @@
         verificarMensagemLogin();
         adicionarBotaoEspecialidadeTabela();
         adicionarBotaoEspecialidadeDropdown();
+        adicionarBotaoProntuarioAgenda();
         manterValor30(); // Verifica o valor 30 no select durante a verificação periódica
         await contarDrExames();
     }
