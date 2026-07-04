@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.2.7
+// @version 4.9.2.8
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -29,11 +29,14 @@
         "BIANCA PUJOL FREITAS DA SILVA": "Cardiologia",
         "BIANCA QUINTAS DA SILVA": "Oftalmologia",
         "BRUNA DA COSTA PEVIDE": "Oftalmologia",
+        "BRUNA LUIZA PELICER": "Oftalmologia",
+        "OCI AVALIAÇÃO": "DILATAR",
         "BRUNO CAMPOS FROES MARANGONI": "Oftalmologia",
         "CAMILA APARECIDA DE ALMEIDA FERREIRA": "Oftalmologia",
         "CAMILA APARECIDA ROCHA DE OLIVEIRA": "Dermatologia",
         "CARLOS EDUARDO SAMPAIO FALEIRO": "Psiquiatria",
         "CARMEM SILVA FERRARI RUBI": "Ortóptica",
+        "CAROLINA CASTILHO BOIÇA": "Oftalmologia",
         "CENTRO CIRURGICO": "Cirurgia Geral",
         "CHARLY TORREGROSSA": "Otorrinolaringologia",
         "CINTIA NAVARRO LAMAS": "Dermatologia",
@@ -67,8 +70,10 @@
         "RAPHAEL GHEDIN SERVIDEI SANTANA": "Oftalmologia",
         "RODRIGO LIBERATO GONÇALVES VIANNA": "Oftalmologia",
         "ROGERIO GHEDIN SERVIDEI": "Dermatologia",
+        "SAYONARA DOUTOR INÁCIO DE CARVALHO": "Oftalmologia",
         "SILVIA MIRIAM DA SILVA DIAS": "Nutrição",
         "SIRLENE AVILA DA ROCHA": "Dermatologia",
+        "STEFAN TUBEL": "Dermatologia",
         "VANESSA MARQUES MENDONÇA": "Oftalmologia",
         "VITOR GUILHERMINO JACOBUCCI": "Oftalmologia",
         "WILLIAN EXPEDITO ALMEIDA DA SILVA": "Nutrição"
