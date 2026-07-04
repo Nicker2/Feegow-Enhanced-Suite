@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.2.9
+// @version 4.9.3.0
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -326,7 +326,10 @@
 
     function adicionarBotaoProntuarioAgenda() {
         // Só executa se estiver na página da Agenda
-        if (!window.location.href.includes('Agenda-1')) return;
+        const paginasPermitidas = ['Agenda-1', 'EquipamentosAlocados'];
+
+        // Se a URL não incluir NENHUMA das páginas permitidas, o código para
+        if (!paginasPermitidas.some(url => window.location.href.includes(url))) return;
 
         // Seleciona todas as linhas (tr) da agenda que contêm o tooltip com as informações do paciente
         const linhas = document.querySelectorAll('tr[data-original-title], tr[title]');
