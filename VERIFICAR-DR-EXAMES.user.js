@@ -49,6 +49,8 @@
         "IAGO RAFAEL BRITO GUIMARAES": "Clínica Geral",
         "IRACELIS SARA CANDIDO DE PAULA": "Esteticista - Hoc Derma",
         "ISRAEL EMILIANO PACHECO": "Oftalmologia",
+        "JADE JUNQUEIRA EMILIANO": "Oftalmologia",
+        "JADE JUNQUEIRA EMILIANO DE SOUZA": "Dilatar abaixo de 18 anos | Midri, Ciclo, Auto",
         "JOSE ERNESTO GHEDIN SERVIDEI": "Oftalmologia",
         "JOÃO VICTOR DE ALMEIDA WESTPHAL": "Oftalmologia",
         "LARISSA CARDOSO LUCENA ARGUELIO": "Oftalmologia",
