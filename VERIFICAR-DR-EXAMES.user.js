@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name Contar DR. EXAMES com Logs Detalhados e Manter Valor 30 no Select
+// @name Suite Feegow Enhanced
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.3.0.1
+// @version 4.9.3.4
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -49,8 +49,8 @@
         "IAGO RAFAEL BRITO GUIMARAES": "Clínica Geral",
         "IRACELIS SARA CANDIDO DE PAULA": "Esteticista - Hoc Derma",
         "ISRAEL EMILIANO PACHECO": "Oftalmologia",
-        "JADE JUNQUEIRA EMILIANO": "Oftalmologia",
-        "JADE JUNQUEIRA EMILIANO DE SOUZA": "Dilatar abaixo de 18 anos | Midri, Ciclo, Auto",
+        "JADE JUNQUEIRA EMILIANO DE SOUZA": "Oftalmologia",
+        //"JADE JUNQUEIRA EMILIANO DE SOUZA": "Dilatar abaixo de 18 anos | Midri, Ciclo, Auto",
         "JOSE ERNESTO GHEDIN SERVIDEI": "Oftalmologia",
         "JOÃO VICTOR DE ALMEIDA WESTPHAL": "Oftalmologia",
         "LARISSA CARDOSO LUCENA ARGUELIO": "Oftalmologia",
@@ -79,6 +79,33 @@
         "VANESSA MARQUES MENDONÇA": "Oftalmologia",
         "VITOR GUILHERMINO JACOBUCCI": "Oftalmologia",
         "WILLIAN EXPEDITO ALMEIDA DA SILVA": "Nutrição"
+    };
+
+// Dicionário com os protocolos de dilatação específicos de cada médico
+    const protocolosDilatacao = {
+        "ALEXANDRE ARGUELIO SOUTO": "<i>Requer atualização.</i>",
+        "ALEXANDRE SPIRANDELLI RODRIGUES COSTA": "<i>Requer atualização.</i>",
+        "ANDRE LUIZ SITA E SOUZA BRAGANTE": "<b>SUS ILHABELA:</b> Dilatar todos, independente de diabetes ou hipertensão.<br><br><b>Convênios/Particular:</b> Seguir protocolo normal estabelecido.",
+        "BRUNA DA COSTA PEVIDE": "<b>SUS UBATUBA:</b> Dilatar todos, independente da idade.<br><br><b>Todos os Convênios:</b> Dilatar todos os pacientes com problema de retina.",
+        "BRUNA LUIZA PELICER": "Dilatar abaixo de 12 anos:<br><br>• Passar no Autorefrator<br>• Pingar 1 gota de <b>Ciclolato</b><br>• Aguardar 10 minutos<br>• Pingar 1 gota de <b>Ciclomidrin</b><br>• Aguardar 10 minutos<br>• Aplicar 1 gota de <b>Ciclolato</b><br>• Passar no Autorefrator após 10 minutos.",
+        "BRUNO CAMPOS FROES MARANGONI": "Dilatar todos abaixo de 35 anos e acima de 60 anos:<br><br>• Aplicar 1 gota de <b>Ciclomidrin</b> a cada 10 minutos (total de 3 vezes).<br><br><b>Obs:</b> Não dilatar pacientes com grau de Astigmatismo maior que -1,50.",
+        "CAMILA APARECIDA DE ALMEIDA FERREIRA": "• Dilatar todos abaixo de 40 anos.<br>• <b>Pós-operatório:</b> Dilatar apenas o olho operado.",
+        "CAROLINA CASTILHO BOIÇA": "<i>Requer atualização.</i>",
+        "GIAN LUCCA ANGELINI DOS SANTOS": "<i>Requer atualização.</i>",
+        "HAMZE BAHJAT BOU HAMIE": "<i>Requer atualização.</i>",
+        "ISRAEL EMILIANO PACHECO": "<i>Requer atualização.</i>",
+        "JADE JUNQUEIRA EMILIANO DE SOUZA": "Dilatar todos abaixo de 18 anos:<br><br>• Aplicar 1 gota de <b>Ciclomidrin</b><br>• Aguardar 10 minutos<br>• Aplicar 1 gota de <b>Ciclolato</b><br>• Aguardar 10 minutos<br>• Passar no Autorefrator",
+        "JOÃO VICTOR DE ALMEIDA WESTPHAL": "<i>Requer atualização.</i>",
+        "LARISSA CARDOSO LUCENA ARGUELIO": "<i>Requer atualização.</i>",
+        "LEONEL TELLES DE MENEZES MORAIS": "<i>Requer atualização.</i>",
+        "LETÍCIA CARDOSO LUCENA": "<i>Requer atualização.</i>",
+        "LUIS CLAUDIO PIMENTEL DA SILVA": "<b>Pacientes de retorno:</b> Verificar na Anamnese se está escrito que é para dilatar.",
+        "LUIS AUGUSTO RAGAZZO DI PAOLO": "<i>Requer atualização.</i>",
+        "MATHEUS DE SOUZA PRETI": "Entre 09 e 16 anos:<br><br>• Passar no Autorefrator<br>• Aplicar 1 gota de <b>Ciclolato</b><br>• Aguardar 10 minutos<br>• Aplicar 1 gota de <b>Ciclomidrin</b><br>• Aguardar 10 minutos<br>• Aplicar 1 gota de <b>Ciclomidrin</b><br>• Aguardar 10 minutos<br>• Passar no Autorefrator",
+        "NIXON LOPES DE ALMEIDA": "<i>Requer atualização.</i>",
+        "RAPHAEL GHEDIN SERVIDEI SANTANA": "Dilatar crianças conforme critério individual e orientação do doutor (normalmente abaixo de 12 anos).",
+        "RODRIGO LIBERATO GONÇALVES VIANNA": "<i>Requer atualização.</i>",
+        "VITOR GUILHERMINO JACOBUCCI": "<i>Requer atualização.</i>"
     };
 
     // Função para criar e exibir a tela de carregamento customizada
@@ -222,7 +249,7 @@
                 if (html.includes('Este usuário já está conectado em outra máquina.')) {
                     log(`[Bypass Background] Tentativa ${tentativas}: Sessão ainda ocupada. Disparando novamente em 50ms...`);
                     // Espera só 50ms (ultra rápido) e tenta de novo. O visual do usuário fica 100% congelado!
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    await new Promise(resolve => setTimeout(resolve, 800));
                 } else {
                     // A resposta mudou! O login passou!
                     log(`[Bypass Background] SUCESSO na tentativa ${tentativas}! Acesso liberado.`);
@@ -244,9 +271,11 @@
 
     // Verifica se caiu na tela de erro e aciona a tela de loading + loop invisível
     function verificarMensagemLogin() {
-        const urlAtual = window.location.href;
+        // Transforma a URL atual inteira em minúscula para evitar bugs do Feegow
+        const urlAtual = window.location.href.toLowerCase();
 
-        if (urlAtual.includes('feegow.com') && urlAtual.includes('/main/?P=Login')) {
+        // Busca pela versão minúscula do login
+        if (urlAtual.includes('feegow.com') && urlAtual.includes('/main/?p=login')) {
             const mensagem = document.body.textContent || document.body.innerText;
 
             if (mensagem.includes('Este usuário já está conectado em outra máquina.')) {
@@ -269,6 +298,69 @@
         }
     }
 
+// Função para injetar o CSS do Badge e do Tooltip animado
+    function injetarEstilosDilatacao() {
+        if (document.getElementById('css-dilatacao')) return; // Evita duplicar
+        
+        const style = document.createElement('style');
+        style.id = 'css-dilatacao';
+        style.innerHTML = `
+            .badge-dilatacao {
+                background-color: #FF9800; /* Laranja suave, ótimo contraste no fundo branco */
+                color: #333333;
+                border-radius: 4px;
+                padding: 4px 8px;
+                margin-left: 10px;
+                font-size: 12px;
+                font-weight: 600;
+                display: inline-flex;
+                align-items: center;
+                position: relative;
+                cursor: help; /* Muda o cursor para uma interrogação */
+                box-shadow: 0 0 5px rgba(255, 152, 0, 0.4);
+            }
+            .badge-dilatacao .tooltip-texto {
+                visibility: hidden;
+                opacity: 0;
+                width: 220px;
+                background-color: #333333;
+                color: #ffffff;
+                text-align: center;
+                border-radius: 6px;
+                padding: 8px;
+                position: absolute;
+                z-index: 1000;
+                bottom: 130%; /* Joga o balão para cima do botão */
+                left: 50%;
+                margin-left: -110px; /* Centraliza o balão */
+                transform: translateY(10px); /* Começa um pouco para baixo */
+                transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+                font-size: 11px;
+                font-weight: normal;
+                white-space: normal;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            }
+            /* A setinha (triângulo) embaixo do balão preto */
+            .badge-dilatacao .tooltip-texto::after {
+                content: "";
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                margin-left: -5px;
+                border-width: 5px;
+                border-style: solid;
+                border-color: #333333 transparent transparent transparent;
+            }
+            /* A animação mágica de subida e fade-in no hover */
+            .badge-dilatacao:hover .tooltip-texto {
+                visibility: visible;
+                opacity: 1;
+                transform: translateY(0);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     // Funções visuais da tabela de espera
     function adicionarBotaoEspecialidadeTabela() {
         const tds = document.querySelectorAll('#listaespera > tbody > tr > td');
@@ -276,6 +368,8 @@
             const textoTd = td.textContent.trim();
             for (const [nome, especialidade] of Object.entries(profissionais)) {
                 if (textoTd.includes(nome) && !td.querySelector(`.botao-especialidade-${nome.replace(/\s+/g, '-')}`)) {
+                    
+                    // 1. Cria o botão de Especialidade (Verde/Vermelho)
                     const botao = document.createElement('button');
                     botao.className = `botao-especialidade-${nome.replace(/\s+/g, '-')}`;
                     botao.textContent = especialidade;
@@ -293,6 +387,22 @@
                     botao.style.alignItems = 'center';
                     td.appendChild(botao);
                     log(`Botão "${especialidade}" adicionado ao lado de "${nome}" em <td> com cor ${especialidade === 'Oftalmologia' ? 'verde' : 'vermelho'}.`);
+
+                    // 2. Cria o botão de Dilatação (Laranja/Âmbar) se o médico estiver no dicionário
+                    if (typeof protocolosDilatacao !== 'undefined' && protocolosDilatacao[nome]) {
+                        const badgeDilata = document.createElement('div');
+                        badgeDilata.className = 'badge-dilatacao'; // Essa classe puxa a animação do CSS que criamos
+                        badgeDilata.textContent = '👁️ Dilatar'; 
+                        
+                        const tooltip = document.createElement('span');
+                        tooltip.className = 'tooltip-texto';
+                        // COMO VAI FICAR:
+                        // atualizado de textContent para innerHTML
+                        tooltip.innerHTML = protocolosDilatacao[nome]; // Puxa o texto específico daquele médico
+                        
+                        badgeDilata.appendChild(tooltip);
+                        td.appendChild(badgeDilata);
+                    }
                 }
             }
         });
@@ -328,10 +438,8 @@
 
     function adicionarBotaoProntuarioAgenda() {
         // Só executa se estiver na página da Agenda
-        const paginasPermitidas = ['Agenda-1', 'EquipamentosAlocados'];
-
-        // Se a URL não incluir NENHUMA das páginas permitidas, o código para
-        if (!paginasPermitidas.some(url => window.location.href.includes(url))) return;
+        const paginasPermitidas = ['agenda-1', 'equipamentosalocados']; // Deixe os nomes tudo em minúsculo aqui
+        if (!paginasPermitidas.some(url => window.location.href.toLowerCase().includes(url))) return;
 
         // Seleciona todas as linhas (tr) da agenda que contêm o tooltip com as informações do paciente
         const linhas = document.querySelectorAll('tr[data-original-title], tr[title]');
@@ -411,23 +519,34 @@
             mutations.forEach(() => {
                 removerElementosIndesejados();
                 verificarMensagemLogin();
-                adicionarBotaoEspecialidadeTabela();
-                adicionarBotaoEspecialidadeDropdown();
                 adicionarBotaoProntuarioAgenda();
-                adicionarBotaoProntuarioAgenda();
-                manterValor30();
+                
+                // Trava: Só tenta manipular médicos, dilatação e selects na Lista de Espera
+                if (isPaginaListaEspera()) {
+                    adicionarBotaoEspecialidadeTabela();
+                    adicionarBotaoEspecialidadeDropdown();
+                    manterValor30();
+                    adicionarBotaoControleDrExames();
+                }
             });
         });
         observer.observe(document.body, { childList: true, subtree: true });
-        log('MutationObserver configurado para remover elementos, verificar login, especialidades e select.');
+        log('MutationObserver configurado com trava de URL.');
     }
 
     window.onload = function() {
+        injetarEstilosDilatacao();
         removerElementosIndesejados();
         verificarMensagemLogin();
-        adicionarBotaoEspecialidadeTabela();
-        adicionarBotaoEspecialidadeDropdown();
-        manterValor30();
+        adicionarBotaoProntuarioAgenda(); // Prontuário precisa carregar globalmente (Agenda)
+
+        // Trava de página inicial
+        if (isPaginaListaEspera()) {
+            adicionarBotaoEspecialidadeTabela();
+            adicionarBotaoEspecialidadeDropdown();
+            manterValor30();
+            adicionarBotaoControleDrExames();
+        }
         configurarObserver();
     };
 
@@ -436,6 +555,49 @@
     const intervaloVerificacao = 10000;
     const urlApiTodos = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=ALL&EspecialidadeID=';
     const urlApiDrExames = 'https://app.feegow.com/pre-v8/ListaEsperaCont.asp?waitingRoomItemsPerPage=30&Ordem=HoraSta&StatusExibir=4,2,33&Page=1&ProfissionalID=1083&EspecialidadeID=';
+
+    // ==========================================
+    // REGRAS DE PÁGINA E CONTROLE (DR. EXAMES)
+    // ==========================================
+    function isPaginaListaEspera() {
+        // Converte a URL toda para minúscula e verifica (ignora maiúsculas/minúsculas do Feegow)
+        return window.location.href.toLowerCase().includes('p=listaespera&pers=1');
+    }
+
+    function isDrExamesAtivo() {
+        // Lê a memória do navegador (localStorage) daquele PC específico. Padrão é 'true' (ligado).
+        return localStorage.getItem('dr_exames_status') !== 'false';
+    }
+
+    function adicionarBotaoControleDrExames() {
+        if (document.getElementById('btn-controle-dr-exames')) return; // Evita duplicar
+
+        const container = document.querySelector('li.crumb-link.hidden-sm.hidden-xs');
+        if (!container) return; 
+
+        const btn = document.createElement('button');
+        btn.id = 'btn-controle-dr-exames';
+        const ativo = isDrExamesAtivo();
+        
+        btn.innerHTML = ativo ? '<b>🟢 DR. EXAMES: ON</b>' : '<b>🔴 DR. EXAMES: OFF</b>';
+        btn.style.marginLeft = '15px';
+        btn.style.padding = '4px 10px';
+        btn.style.borderRadius = '6px';
+        btn.style.border = ativo ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+        btn.style.backgroundColor = ativo ? '#d4edda' : '#f8d7da';
+        btn.style.color = ativo ? '#155724' : '#721c24';
+        btn.style.fontSize = '12px';
+        btn.style.cursor = 'pointer';
+        btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+
+        btn.addEventListener('click', () => {
+            const novoStatus = !isDrExamesAtivo();
+            localStorage.setItem('dr_exames_status', novoStatus);
+            location.reload(); // Recarrega a página para ligar/desligar a API de forma limpa
+        });
+
+        container.parentNode.insertBefore(btn, container.nextSibling);
+    }
 
     function log(message) {
         if (debugMode) {
@@ -459,7 +621,7 @@
             const pacientes = [];
             const linhas = doc.querySelectorAll('#listaespera > tbody > tr');
             linhas.forEach(linha => {
-                const linkElement = linha.querySelector('a[href*="./?P=Pacientes&Pers=1&I="]');
+                const linkElement = linha.querySelector('a[href*="./?P=Pacientes&Pers=1&I=" i]'); // <--- Note o " i" antes de fechar o colchete
                 const nome = linkElement ? linkElement.textContent.trim() : '';
                 const href = linkElement ? linkElement.getAttribute('href') : '';
                 const smallElement = linkElement ? linkElement.parentElement.querySelector('small') : null;
@@ -810,14 +972,24 @@
     }
 
     async function executarVerificacao() {
-        log('Executando verificação e contagem (comparando listas estritamente da API).');
+        log('Executando verificação periódica geral.');
         removerElementosIndesejados();
         verificarMensagemLogin();
-        adicionarBotaoEspecialidadeTabela();
-        adicionarBotaoEspecialidadeDropdown();
         adicionarBotaoProntuarioAgenda();
-        manterValor30(); // Verifica o valor 30 no select durante a verificação periódica
-        await contarDrExames();
+
+        if (isPaginaListaEspera()) {
+            adicionarBotaoEspecialidadeTabela();
+            adicionarBotaoEspecialidadeDropdown();
+            manterValor30();
+            adicionarBotaoControleDrExames();
+            
+            // Só consome internet e API se o botão deste PC estiver "ON"
+            if (isDrExamesAtivo()) {
+                await contarDrExames();
+            } else {
+                log('Verificação DR. EXAMES ignorada: Função desativada neste PC.');
+            }
+        }
     }
 
     log('Chamando funções iniciais.');
