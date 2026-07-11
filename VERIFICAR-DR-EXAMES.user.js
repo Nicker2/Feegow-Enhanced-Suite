@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Suite Feegow Enhanced
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.3.5
+// @version 4.9.3.6
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -49,7 +49,7 @@
         "IAGO RAFAEL BRITO GUIMARAES": "Clínica Geral",
         "IRACELIS SARA CANDIDO DE PAULA": "Esteticista - Hoc Derma",
         "ISRAEL EMILIANO PACHECO": "Oftalmologia",
-        "JADE JUNQUEIRA EMILIANO DE SOUZA": "Oftalmologia",
+        "JADE JUNQUEIRA EMILIANO": "Oftalmologia",
         //"JADE JUNQUEIRA EMILIANO DE SOUZA": "Dilatar abaixo de 18 anos | Midri, Ciclo, Auto",
         "JOSE ERNESTO GHEDIN SERVIDEI": "Oftalmologia",
         "JOÃO VICTOR DE ALMEIDA WESTPHAL": "Oftalmologia",
@@ -94,7 +94,7 @@
         "GIAN LUCCA ANGELINI DOS SANTOS": "<i>Requer atualização.</i>",
         "HAMZE BAHJAT BOU HAMIE": "<i>Requer atualização.</i>",
         "ISRAEL EMILIANO PACHECO": "<i>Requer atualização.</i>",
-        "JADE JUNQUEIRA EMILIANO DE SOUZA": "Dilatar todos abaixo de 18 anos:<br><br>• Aplicar 1 gota de <b>Ciclomidrin</b><br>• Aguardar 10 minutos<br>• Aplicar 1 gota de <b>Ciclolato</b><br>• Aguardar 10 minutos<br>• Passar no Autorefrator",
+        "JADE JUNQUEIRA EMILIANO": "Dilatar todos abaixo de 18 anos:<br><br>• Aplicar 1 gota de <b>Ciclomidrin</b><br>• Aguardar 10 minutos<br>• Aplicar 1 gota de <b>Ciclolato</b><br>• Aguardar 10 minutos<br>• Passar no Autorefrator",
         "JOÃO VICTOR DE ALMEIDA WESTPHAL": "<i>Requer atualização.</i>",
         "LARISSA CARDOSO LUCENA ARGUELIO": "<i>Requer atualização.</i>",
         "LEONEL TELLES DE MENEZES MORAIS": "<i>Requer atualização.</i>",
@@ -570,33 +570,39 @@
     }
 
     function adicionarBotaoControleDrExames() {
-        if (document.getElementById('btn-controle-dr-exames')) return; // Evita duplicar
+        // Procura pelo título "Configurações" na sidebar
+        const sidebarTitle = Array.from(document.querySelectorAll('.sidebar-title')).find(el => el.textContent.includes('Configurações'));
+        if (!sidebarTitle || document.getElementById('btn-controle-dr-exames')) return;
 
-        const container = document.querySelector('li.crumb-link.hidden-sm.hidden-xs');
-        if (!container) return; 
+        // Cria o elemento com o estilo do menu lateral (mais elegante)
+        const li = document.createElement('li');
+        li.id = 'btn-controle-dr-exames';
+        li.style.padding = '10px 15px';
+        li.style.cursor = 'pointer';
+        li.style.fontSize = '12px';
+        li.style.color = '#555';
+        li.style.display = 'flex';
+        li.style.alignItems = 'center';
+        li.style.borderLeft = '3px solid transparent'; // Ajuste fino para combinar com o tema do Feegow
 
-        const btn = document.createElement('button');
-        btn.id = 'btn-controle-dr-exames';
         const ativo = isDrExamesAtivo();
         
-        btn.innerHTML = ativo ? '<b>🟢 DR. EXAMES: ON</b>' : '<b>🔴 DR. EXAMES: OFF</b>';
-        btn.style.marginLeft = '15px';
-        btn.style.padding = '4px 10px';
-        btn.style.borderRadius = '6px';
-        btn.style.border = ativo ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
-        btn.style.backgroundColor = ativo ? '#d4edda' : '#f8d7da';
-        btn.style.color = ativo ? '#155724' : '#721c24';
-        btn.style.fontSize = '12px';
-        btn.style.cursor = 'pointer';
-        btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        // Mantém a lógica, mas com ícone e texto sóbrio
+        li.innerHTML = `
+            <i class="far fa-user-md" style="margin-right: 10px;"></i>
+            <span>Verificar DR. EXAMES: <b>${ativo ? 'ON' : 'OFF'}</b></span>
+        `;
 
-        btn.addEventListener('click', () => {
+        // Evento de clique para alternar
+        li.addEventListener('click', () => {
             const novoStatus = !isDrExamesAtivo();
             localStorage.setItem('dr_exames_status', novoStatus);
-            location.reload(); // Recarrega a página para ligar/desligar a API de forma limpa
+            location.reload(); 
         });
 
-        container.parentNode.insertBefore(btn, container.nextSibling);
+        // Insere logo abaixo do título de configurações
+        sidebarTitle.parentNode.parentNode.insertBefore(li, sidebarTitle.parentNode.nextSibling);
+        log('Botão de controle DR. EXAMES adicionado discretamente no menu lateral.');
     }
 
     function log(message) {
