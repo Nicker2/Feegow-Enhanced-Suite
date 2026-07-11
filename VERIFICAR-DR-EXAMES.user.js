@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Suite Feegow Enhanced
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.3.6
+// @version 4.9.3.7
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -301,7 +301,7 @@
 // Função para injetar o CSS do Badge e do Tooltip animado
     function injetarEstilosDilatacao() {
         if (document.getElementById('css-dilatacao')) return; // Evita duplicar
-        
+
         const style = document.createElement('style');
         style.id = 'css-dilatacao';
         style.innerHTML = `
@@ -368,7 +368,7 @@
             const textoTd = td.textContent.trim();
             for (const [nome, especialidade] of Object.entries(profissionais)) {
                 if (textoTd.includes(nome) && !td.querySelector(`.botao-especialidade-${nome.replace(/\s+/g, '-')}`)) {
-                    
+
                     // 1. Cria o botão de Especialidade (Verde/Vermelho)
                     const botao = document.createElement('button');
                     botao.className = `botao-especialidade-${nome.replace(/\s+/g, '-')}`;
@@ -392,14 +392,14 @@
                     if (typeof protocolosDilatacao !== 'undefined' && protocolosDilatacao[nome]) {
                         const badgeDilata = document.createElement('div');
                         badgeDilata.className = 'badge-dilatacao'; // Essa classe puxa a animação do CSS que criamos
-                        badgeDilata.textContent = '👁️ Dilatar'; 
-                        
+                        badgeDilata.textContent = '👁️ Dilatar';
+
                         const tooltip = document.createElement('span');
                         tooltip.className = 'tooltip-texto';
                         // COMO VAI FICAR:
                         // atualizado de textContent para innerHTML
                         tooltip.innerHTML = protocolosDilatacao[nome]; // Puxa o texto específico daquele médico
-                        
+
                         badgeDilata.appendChild(tooltip);
                         td.appendChild(badgeDilata);
                     }
@@ -520,7 +520,7 @@
                 removerElementosIndesejados();
                 verificarMensagemLogin();
                 adicionarBotaoProntuarioAgenda();
-                
+
                 // Trava: Só tenta manipular médicos, dilatação e selects na Lista de Espera
                 if (isPaginaListaEspera()) {
                     adicionarBotaoEspecialidadeTabela();
@@ -570,39 +570,41 @@
     }
 
     function adicionarBotaoControleDrExames() {
-        // Procura pelo título "Configurações" na sidebar
-        const sidebarTitle = Array.from(document.querySelectorAll('.sidebar-title')).find(el => el.textContent.includes('Configurações'));
-        if (!sidebarTitle || document.getElementById('btn-controle-dr-exames')) return;
+        const container = document.querySelector('li.crumb-link.hidden-sm.hidden-xs');
+        if (!container || document.getElementById('btn-controle-dr-exames')) return;
 
-        // Cria o elemento com o estilo do menu lateral (mais elegante)
-        const li = document.createElement('li');
-        li.id = 'btn-controle-dr-exames';
-        li.style.padding = '10px 15px';
-        li.style.cursor = 'pointer';
-        li.style.fontSize = '12px';
-        li.style.color = '#555';
-        li.style.display = 'flex';
-        li.style.alignItems = 'center';
-        li.style.borderLeft = '3px solid transparent'; // Ajuste fino para combinar com o tema do Feegow
+        // 1. Cria o wrapper do dropdown
+        const btn = document.createElement('span');
+        btn.id = 'btn-controle-dr-exames';
+        btn.className = 'dropdown'; // Classe nativa para abrir menus
+        btn.style.marginLeft = '15px';
+        btn.style.cursor = 'pointer';
 
         const ativo = isDrExamesAtivo();
-        
-        // Mantém a lógica, mas com ícone e texto sóbrio
-        li.innerHTML = `
-            <i class="far fa-user-md" style="margin-right: 10px;"></i>
-            <span>Verificar DR. EXAMES: <b>${ativo ? 'ON' : 'OFF'}</b></span>
+
+        // 2. O ícone que serve como gatilho
+        btn.innerHTML = `
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown" style="color: #555;">
+                <i class="far fa-cog"></i>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-right" style="min-width: 150px; padding: 5px;">
+                <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee;">DR. EXAMES</li>
+                <li id="toggle-status" style="padding: 5px 10px; cursor: pointer; color: ${ativo ? 'green' : 'red'};">
+                    ${ativo ? 'Ativado (ON)' : 'Desativado (OFF)'}
+                </li>
+            </ul>
         `;
 
-        // Evento de clique para alternar
-        li.addEventListener('click', () => {
+        // 3. Evento de clique no item do menu
+        btn.querySelector('#toggle-status').addEventListener('click', (e) => {
+            e.preventDefault();
             const novoStatus = !isDrExamesAtivo();
             localStorage.setItem('dr_exames_status', novoStatus);
-            location.reload(); 
+            location.reload();
         });
 
-        // Insere logo abaixo do título de configurações
-        sidebarTitle.parentNode.parentNode.insertBefore(li, sidebarTitle.parentNode.nextSibling);
-        log('Botão de controle DR. EXAMES adicionado discretamente no menu lateral.');
+        // 4. Insere no container
+        container.parentNode.insertBefore(btn, container.nextSibling);
     }
 
     function log(message) {
@@ -988,7 +990,7 @@
             adicionarBotaoEspecialidadeDropdown();
             manterValor30();
             adicionarBotaoControleDrExames();
-            
+
             // Só consome internet e API se o botão deste PC estiver "ON"
             if (isDrExamesAtivo()) {
                 await contarDrExames();
