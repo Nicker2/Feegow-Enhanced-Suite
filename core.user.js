@@ -4,6 +4,8 @@
 // @version      1.0
 // @description  Puxa o código fonte em tempo real do GitHub.
 // @author Nicolas Bonza Cavalari Borges
+// @downloadURL https://github.com/Nicker2/Verificar-DR.EXAMES/raw/refs/heads/main/core.user.js
+// @updateURL https://github.com/Nicker2/Verificar-DR.EXAMES/raw/refs/heads/main/core.meta.js
 // @match        https://*.feegow.com/*/*
 // @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
 // @grant        GM_xmlhttpRequest
