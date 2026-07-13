@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Suite Feegow Enhanced
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.3.8
+// @version 4.9.3.9
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -82,8 +82,6 @@
 
 // Dicionário com os protocolos de dilatação específicos de cada médico
 const protocolosDilatacao = {
-        "ALEXANDRE ARGUELIO SOUTO": "<i>Requer atualização.</i>",
-        "ALEXANDRE SPIRANDELLI RODRIGUES COSTA": "<i>Requer atualização.</i>",
         "ANA CAROLINA BUHLER": "Dilatar todos os pacientes até 25 anos<br><br><b>Antes:</b> Auto-refrator + Medir PIO<br><br>• Instilar 1 gota (Ciclomidrin/Tropicamida).<br>• Aguardar 5 minutos.<br>• Instilar +1 gota<br>• Aguardar 20 minutos.<br><br><b>Depois:</b> Passar no auto-refrator novamente (desta vez, sem medir a PIO).",
         "ANDRE LUIZ SITA E SOUZA BRAGANTE": "Dilatar pacientes acima de 60 anos:<br>• Aplique apenas o colírio Ciclomidrin uma vez a cada 5 minutos (3x no total).<br>• Realize o exame no Autorefrator 5 minutos após a última gota.<br><br><b>Atenção:</b> Não dilatar diabéticos e hipertensos.<br><br><b>SUS ILHABELA:</b> Dilatar todos, independente de diabetes ou hipertensão.<br><br><b>Convênios/Particular:</b> Seguir protocolo normal estabelecido.",
         "ANTONIO ADOLFO COELHO OLIVEIRA": "Dilatar todos até 25 anos com MIDRY-CICLO-MIDRY.<br>Auto refrator antes e após.<br><br>Dilatar todos acima de 60 anos com FENIL-MIDRY-FENIL, liberar sem repetir Auto refrator.",
@@ -92,15 +90,9 @@ const protocolosDilatacao = {
         "BRUNA LUIZA PELICER": "Dilatar pacientes até 12 anos:<br><br>• Realizar o exame no Autorefrator antes.<br>• Aplique apenas o colírio Ciclolato uma vez a cada 10 minutos (3x no total).<br>• Realize o exame no Autorefrator 5 minutos após a última gota.",
         "BRUNO CAMPOS FROES MARANGONI": "Pacientes até 35 anos passar no auto refrator, dilatar com MYDRI 1 gota a cada 10min.<br><br>Pacientes acima de 60 anos passar no auto refrator, dilatar todos MYDRI 1 gota a cada 10 min.<br><br><b>OBS:</b> NÃO DILATAR PACIENTES COM ASTIGMATISMO COM GRAU MAIOR QUE 1,50.",
         "CAMILA APARECIDA DE ALMEIDA FERREIRA": "Dilatar pacientes até 39 anos:<br><br>• Realizar o exame no Autorefrator antes.<br>• Aplique apenas o colírio Ciclomidrin uma vez a cada 10 minutos (3x no total).<br>• Realize o exame no Autorefrator 5 minutos após a última gota.",
-        "CAROLINA CASTILHO BOIÇA": "<i>Requer atualização.</i>",
-        "GIAN LUCCA ANGELINI DOS SANTOS": "<i>Requer atualização.</i>",
         "HAMZE BAHJAT BOU HAMIE": "Dilatar pacientes até 18 anos:<br><br>• Não realizar o exame no Autorefrator antes.<br>• Aplique apenas o colírio Ciclolato uma vez a cada 5 minutos (3x no total).<br>• Realize o exame no Autorefrator após 15 minutos da última gota.",
         "ISRAEL EMILIANO PACHECO": "Dilatar pacientes até 25 anos:<br><br>• Realizar o exame no Autorefrator antes.<br>• Aplique apenas o colírio Ciclolato uma vez a cada 10 minutos (3x no total)<br>• Realize o exame no Autorefrator 5 minutos após a última gota.",
         "JADE JUNQUEIRA EMILIANO": "Dilatar todos abaixo de 18 anos:<br><br>• Aplicar 1 gota de <b>Ciclomidrin</b><br>• Aguardar 10 minutos<br>• Aplicar 1 gota de <b>Ciclolato</b><br>• Aguardar 10 minutos<br>• Passar no Autorefrator",
-        "JOÃO VICTOR DE ALMEIDA WESTPHAL": "<i>Requer atualização.</i>",
-        "LARISSA CARDOSO LUCENA ARGUELIO": "<i>Requer atualização.</i>",
-        "LEONEL TELLES DE MENEZES MORAIS": "<i>Requer atualização.</i>",
-        "LETÍCIA CARDOSO LUCENA": "<i>Requer atualização.</i>",
         "LUIS CLAUDIO PIMENTEL DA SILVA": "Dilatar pacientes até 40 anos:<br><br>• Realizar o exame no Autorefrator antes.<br>• Aplique o colírio Ciclomidrin.<br>• Após 5 minutos, aplique o colírio Fenilefrina.<br>• Após 5 minutos, aplique o colírio Ciclomidrin.<br>• Realize o exame no Autorefrator 5 minutos após a última gota.",
         "LUIS AUGUSTO RAGAZZO DI PAOLO": "Dilatar pacientes até 30 anos com miopia (grau esférico negativo no Autorefrator):<br><br>• Realizar o exame no Autorefrator antes.<br>• Aplique os colírios Ciclomidrin + Ciclolato (juntos) duas vezes a cada 10 min.<br>• Após 10 minutos da última gota, se ainda não estiver dilatado, aplique (uma terceira vez) os colírios Ciclomidrin + Ciclolato (juntos).<br>• Realize o exame no Autorefrator 5 minutos após a última gota.",
         "MATHEUS DE SOUZA PRETI": "Dilatar pacientes entre 09 e 16 anos:<br><br>• Realizar o exame no Autorefrator antes.<br>• Aplique o colírio Ciclolato.<br>• Após 10 minutos, aplique o colírio Ciclomidrin e repita mais 1 vez após 10 min.<br>• Realize o exame no Autorefrator 5 minutos após a última gota.",
