@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Suite Feegow Enhanced
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.3.9
+// @version 4.9.4.0
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -486,26 +486,35 @@ const protocolosDilatacao = {
     }
 
     function removerElementosIndesejados() {
-        const elementos = [
-            ...document.querySelectorAll('.alert-warning'),
-            ...document.querySelectorAll('.ui-pnotify'),
-            document.querySelector('#dp-spaces-header-container'),
-            document.querySelector('#ai-assistant-plugin')
-        ];
-        elementos.forEach(elemento => {
-            if (elemento) {
-                elemento.remove();
-                log(`Elemento removido: ${elemento.className || elemento.id}`);
-            }
-        });
+        // Alertas Amarelos
+        if (localStorage.getItem('remove_alert_warning') !== 'false') {
+            document.querySelectorAll('.alert-warning').forEach(el => { el.remove(); log('Removido: .alert-warning'); });
+        }
+        // Notificações Flutuantes Pnotify
+        if (localStorage.getItem('remove_pnotify') !== 'false') {
+            document.querySelectorAll('.ui-pnotify').forEach(el => { el.remove(); log('Removido: .ui-pnotify'); });
+        }
+        // DP Spaces Header
+        if (localStorage.getItem('remove_dp_spaces') !== 'false') {
+            const el = document.querySelector('#dp-spaces-header-container');
+            if (el) { el.remove(); log('Removido: #dp-spaces-header-container'); }
+        }
+        // AI Assistant
+        if (localStorage.getItem('remove_ai_assistant') !== 'false') {
+            const el = document.querySelector('#ai-assistant-plugin');
+            if (el) { el.remove(); log('Removido: #ai-assistant-plugin'); }
+        }
     }
 
     function manterValor30() {
+        // Trava absoluta: aborta a função imediatamente se não for a Lista de Espera
+        if (!isPaginaListaEspera()) return;
+
         const selectElement = document.getElementById('waitingRoomItemsPerPage');
         if (selectElement && selectElement.value !== '30') {
             selectElement.value = '30';
             selectElement.dispatchEvent(new Event('change'));
-            log('Valor do select waitingRoomItemsPerPage alterado para 30.');
+            log('Valor do select waitingRoomItemsPerPage alterado para 30 na Lista de Espera.');
         }
     }
 
@@ -566,48 +575,69 @@ const protocolosDilatacao = {
 
     function adicionarBotaoControleDrExames() {
         const container = document.querySelector('li.crumb-link.hidden-sm.hidden-xs');
-        if (!container || document.getElementById('btn-controle-dr-exames')) return;
+        // Alterei o ID do botão para btn-controle-feegow para refletir que agora é geral
+        if (!container || document.getElementById('btn-controle-feegow')) return;
 
-        // 1. Cria o wrapper do dropdown
         const btn = document.createElement('span');
-        btn.id = 'btn-controle-dr-exames';
-        btn.className = 'dropdown'; // Classe nativa para abrir menus
+        btn.id = 'btn-controle-feegow';
+        btn.className = 'dropdown'; 
         btn.style.marginLeft = '15px';
         btn.style.cursor = 'pointer';
 
-        const ativo = isDrExamesAtivo();
+        // Puxa o status de cada um (Padrão é true/ativo se não existir)
+        const drExamesAtivo = localStorage.getItem('dr_exames_status') !== 'false';
+        const alertAtivo = localStorage.getItem('remove_alert_warning') !== 'false';
+        const pnotifyAtivo = localStorage.getItem('remove_pnotify') !== 'false';
+        const dpSpacesAtivo = localStorage.getItem('remove_dp_spaces') !== 'false';
+        const aiAtivo = localStorage.getItem('remove_ai_assistant') !== 'false';
 
-        // 2. O ícone que serve como gatilho
         btn.innerHTML = `
-            <a href="#" class="dropdown-toggle" data-toggle="dropdown" style="color: #555;">
-                <i class="far fa-cog"></i>
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown" style="color: #555;" title="Configurações do Script">
+                <i class="far fa-cog"></i> Configs
             </a>
-            <ul class="dropdown-menu dropdown-menu-right" style="min-width: 150px; padding: 5px;">
-                <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee;">DR. EXAMES</li>
-                <li id="toggle-status" style="padding: 5px 10px; cursor: pointer; color: ${ativo ? 'green' : 'red'};">
-                    ${ativo ? 'Ativado (ON)' : 'Desativado (OFF)'}
+            <ul class="dropdown-menu dropdown-menu-right" style="min-width: 220px; padding: 5px; z-index: 9999;">
+                <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; font-size: 11px;">DR. EXAMES</li>
+                <li id="toggle-dr-exames" style="padding: 5px 10px; cursor: pointer; color: ${drExamesAtivo ? 'green' : 'red'};">
+                    ${drExamesAtivo ? 'Ativado (ON)' : 'Desativado (OFF)'}
+                </li>
+                
+                <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; border-top: 1px solid #eee; font-size: 11px; margin-top: 5px;">REMOVER ELEMENTOS</li>
+                
+                <li class="toggle-remover" data-key="remove_alert_warning" style="padding: 5px 10px; cursor: pointer; color: ${alertAtivo ? 'green' : 'red'};">
+                    Avisos Amarelos: ${alertAtivo ? 'ON' : 'OFF'}
+                </li>
+                <li class="toggle-remover" data-key="remove_pnotify" style="padding: 5px 10px; cursor: pointer; color: ${pnotifyAtivo ? 'green' : 'red'};">
+                    Notificações Flutuantes: ${pnotifyAtivo ? 'ON' : 'OFF'}
+                </li>
+                <li class="toggle-remover" data-key="remove_dp_spaces" style="padding: 5px 10px; cursor: pointer; color: ${dpSpacesAtivo ? 'green' : 'red'};">
+                    Barra DP Spaces: ${dpSpacesAtivo ? 'ON' : 'OFF'}
+                </li>
+                <li class="toggle-remover" data-key="remove_ai_assistant" style="padding: 5px 10px; cursor: pointer; color: ${aiAtivo ? 'green' : 'red'};">
+                    IA Feegow: ${aiAtivo ? 'ON' : 'OFF'}
                 </li>
             </ul>
         `;
 
-        // 3. Evento de clique no item do menu
-        btn.querySelector('#toggle-status').addEventListener('click', (e) => {
+        // Evento do botão Dr. Exames
+        btn.querySelector('#toggle-dr-exames').addEventListener('click', (e) => {
             e.preventDefault();
-            const novoStatus = !isDrExamesAtivo();
-            localStorage.setItem('dr_exames_status', novoStatus);
+            localStorage.setItem('dr_exames_status', !drExamesAtivo);
             location.reload();
         });
 
-        // 4. Insere no container
-        container.parentNode.insertBefore(btn, container.nextSibling);
-    }
+        // Eventos para os botões de remover elementos
+        btn.querySelectorAll('.toggle-remover').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Evita que o menu feche ao clicar, caso queira mudar mais de um
+                const key = item.getAttribute('data-key');
+                const currentState = localStorage.getItem(key) !== 'false';
+                localStorage.setItem(key, !currentState);
+                location.reload(); 
+            });
+        });
 
-    function log(message) {
-        if (debugMode) {
-            const now = new Date();
-            const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-            console.log(`[Script Tampermonkey] [${timestamp}] ${message}`);
-        }
+        container.parentNode.insertBefore(btn, container.nextSibling);
     }
 
     log('Script iniciado.');
