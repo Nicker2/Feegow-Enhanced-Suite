@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Suite Feegow Enhanced
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.4.3
+// @version 4.9.4.4
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -317,7 +317,7 @@ const protocolosDilatacao = {
             .badge-dilatacao .tooltip-texto {
                 visibility: hidden;
                 opacity: 0;
-                width: 220px;
+                width: 300px;
                 background-color: #333333;
                 color: #ffffff;
                 text-align: center;
@@ -330,7 +330,7 @@ const protocolosDilatacao = {
                 margin-left: -110px;
                 transform: translateY(10px);
                 transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
-                font-size: 11px;
+                font-size: 16px;
                 font-weight: normal;
                 white-space: normal;
                 box-shadow: 0 4px 8px rgba(0,0,0,0.2);
@@ -439,11 +439,11 @@ const protocolosDilatacao = {
                         if (verificarIdadeCompativel(nome, textoIdade)) {
                             const badgeDilata = document.createElement('div');
                             badgeDilata.className = 'badge-dilatacao'; 
-                            badgeDilata.textContent = '👁️ Dilatar';
+                            badgeDilata.textContent = '👁️ Dilatar (clique aqui)';
 
                             const tooltip = document.createElement('span');
                             tooltip.className = 'tooltip-texto';
-                            tooltip.innerHTML = protocolosDilatacao[nome]; 
+                            tooltip.innerHTML = protocolosDilatacao[nome];
 
                             badgeDilata.appendChild(tooltip);
                             
@@ -541,6 +541,12 @@ const protocolosDilatacao = {
                     btn.style.verticalAlign = 'middle';
                     btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
 
+                    // ================================
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Cria a barreira: impede o clique de vazar pra linha (tr)
+                    });
+                    // ================================
+
                     // Insere o botão logo após o elemento <span class="nomePac">
                     spanNome.parentNode.insertBefore(btn, spanNome.nextSibling);
                     log(`Botão de prontuário adicionado na Agenda ao lado de ${spanNome.textContent.trim()} (ID: ${pacienteId})`);
@@ -558,15 +564,31 @@ const protocolosDilatacao = {
         if (localStorage.getItem('remove_pnotify') !== 'false') {
             document.querySelectorAll('.ui-pnotify').forEach(el => { el.remove(); log('Removido: .ui-pnotify'); });
         }
-        // DP Spaces Header
+        // DP Spaces Header (Barra Doctoralia)
         if (localStorage.getItem('remove_dp_spaces') !== 'false') {
-            const el = document.querySelector('#dp-spaces-header-container');
-            if (el) { el.remove(); log('Removido: #dp-spaces-header-container'); }
+            document.querySelectorAll('#dp-spaces-header-container, #dp-spaces-header, .dp-remote').forEach(el => { 
+                el.remove(); 
+                log('Removido: Barra DP Spaces / Doctoralia'); 
+            });
         }
         // AI Assistant
         if (localStorage.getItem('remove_ai_assistant') !== 'false') {
             const el = document.querySelector('#ai-assistant-plugin');
             if (el) { el.remove(); log('Removido: #ai-assistant-plugin'); }
+        }
+        // Anúncios Beamer (Pop-ups de desconto, novidades, etc)
+        if (localStorage.getItem('remove_beamer') !== 'false') {
+            document.querySelectorAll('.beamerAnnouncementSnippet, #beamerAnnouncementSnippet').forEach(el => { 
+                el.remove(); 
+                log('Removido: Anúncio Beamer'); 
+            });
+        }
+        // Modal de Permissão de Notificação Push
+        if (localStorage.getItem('remove_beamer_push') !== 'false') {
+            document.querySelectorAll('#beamerPushModal, .pushModal').forEach(el => { 
+                el.remove(); 
+                log('Removido: Modal Push Beamer'); 
+            });
         }
     }
 
@@ -588,13 +610,16 @@ const protocolosDilatacao = {
                 removerElementosIndesejados();
                 verificarMensagemLogin();
                 adicionarBotaoProntuarioAgenda();
+                
+                //O botão de configs agora carrega em qualquer tela
+                adicionarBotaoControleDrExames(); 
 
                 // Trava: Só tenta manipular médicos, dilatação e selects na Lista de Espera
                 if (isPaginaListaEspera()) {
                     adicionarBotaoEspecialidadeTabela();
                     adicionarBotaoEspecialidadeDropdown();
                     manterValor30();
-                    adicionarBotaoControleDrExames();
+                    // (A linha do botão de configs saiu daqui!)
                 }
             });
         });
@@ -607,13 +632,16 @@ const protocolosDilatacao = {
         removerElementosIndesejados();
         verificarMensagemLogin();
         adicionarBotaoProntuarioAgenda(); // Prontuário precisa carregar globalmente (Agenda)
+        
+        //O botão de configs no onload
+        adicionarBotaoControleDrExames(); 
 
         // Trava de página inicial
         if (isPaginaListaEspera()) {
             adicionarBotaoEspecialidadeTabela();
             adicionarBotaoEspecialidadeDropdown();
             manterValor30();
-            adicionarBotaoControleDrExames();
+            // (A linha do botão de configs saiu daqui!)
         }
         configurarObserver();
     };
@@ -647,15 +675,14 @@ const protocolosDilatacao = {
     }
 
     function adicionarBotaoControleDrExames() {
-        const container = document.querySelector('li.crumb-link.hidden-sm.hidden-xs');
-        // Alterei o ID do botão para btn-controle-feegow para refletir que agora é geral
-        if (!container || document.getElementById('btn-controle-feegow')) return;
+        // NOVO ALVO: O botão de "Meu Caixa" lá no menu do topo
+        const alvoCaixa = document.getElementById('licaixa');
+        if (!alvoCaixa || document.getElementById('btn-controle-feegow')) return;
 
-        const btn = document.createElement('span');
+        // Muda de 'span' para 'li' para encaixar perfeitamente na barra (ul) do Feegow
+        const btn = document.createElement('li');
         btn.id = 'btn-controle-feegow';
-        btn.className = 'dropdown'; 
-        btn.style.marginLeft = '15px';
-        btn.style.cursor = 'pointer';
+        btn.className = 'dropdown menu-merge hidden-sm hidden-xs'; 
 
         // Puxa o status de cada um (Padrão é true/ativo se não existir)
         const drExamesAtivo = localStorage.getItem('dr_exames_status') !== 'false';
@@ -663,13 +690,17 @@ const protocolosDilatacao = {
         const pnotifyAtivo = localStorage.getItem('remove_pnotify') !== 'false';
         const dpSpacesAtivo = localStorage.getItem('remove_dp_spaces') !== 'false';
         const aiAtivo = localStorage.getItem('remove_ai_assistant') !== 'false';
+        const beamerAtivo = localStorage.getItem('remove_beamer') !== 'false';
+        const pushAtivo = localStorage.getItem('remove_beamer_push') !== 'false';
 
+        // O HTML agora imita 100% o design nativo dos botões do Feegow (sem texto, apenas a engrenagem)
         btn.innerHTML = `
-            <a href="#" class="dropdown-toggle" data-toggle="dropdown" style="color: #555;" title="Configurações do Script">
-                <i class="far fa-cog"></i>
-            </a>
+          <div class="navbar-btn btn-group">
+            <button data-toggle="dropdown" class="btn btn-sm dropdown-toggle btn-menu-left" title="Configurações do Script">
+              <span class="far fa-cog fs14 va-m"></span>
+            </button>
             <ul class="dropdown-menu dropdown-menu-right" style="min-width: 220px; padding: 5px; z-index: 9999;">
-                <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; font-size: 11px;">DR. EXAMES</li>
+                <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; font-size: 11px;">DR. EXAMES (Lista de Espera)</li>
                 <li id="toggle-dr-exames" style="padding: 5px 10px; cursor: pointer; color: ${drExamesAtivo ? 'green' : 'red'};">
                     ${drExamesAtivo ? 'Ativado (ON)' : 'Desativado (OFF)'}
                 </li>
@@ -688,12 +719,20 @@ const protocolosDilatacao = {
                 <li class="toggle-remover" data-key="remove_ai_assistant" style="padding: 5px 10px; cursor: pointer; color: ${aiAtivo ? 'green' : 'red'};">
                     IA Feegow: ${aiAtivo ? 'ON' : 'OFF'}
                 </li>
+                <li class="toggle-remover" data-key="remove_beamer" style="padding: 5px 10px; cursor: pointer; color: ${beamerAtivo ? 'green' : 'red'};">
+                    Anúncios Feegow: ${beamerAtivo ? 'ON' : 'OFF'}
+                </li>
+                <li class="toggle-remover" data-key="remove_beamer_push" style="padding: 5px 10px; cursor: pointer; color: ${pushAtivo ? 'green' : 'red'};">
+                    Pedir Notificações: ${pushAtivo ? 'ON' : 'OFF'}
+                </li>
             </ul>
+          </div>
         `;
 
         // Evento do botão Dr. Exames
         btn.querySelector('#toggle-dr-exames').addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             localStorage.setItem('dr_exames_status', !drExamesAtivo);
             location.reload();
         });
@@ -702,7 +741,7 @@ const protocolosDilatacao = {
         btn.querySelectorAll('.toggle-remover').forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
-                e.stopPropagation(); // Evita que o menu feche ao clicar, caso queira mudar mais de um
+                e.stopPropagation(); 
                 const key = item.getAttribute('data-key');
                 const currentState = localStorage.getItem(key) !== 'false';
                 localStorage.setItem(key, !currentState);
@@ -710,7 +749,8 @@ const protocolosDilatacao = {
             });
         });
 
-        container.parentNode.insertBefore(btn, container.nextSibling);
+        // Insere o botão EXATAMENTE à esquerda do "Meu Caixa"
+        alvoCaixa.parentNode.insertBefore(btn, alvoCaixa);
     }
 
     log('Script iniciado.');
@@ -1082,12 +1122,12 @@ const protocolosDilatacao = {
         removerElementosIndesejados();
         verificarMensagemLogin();
         adicionarBotaoProntuarioAgenda();
+        adicionarBotaoControleDrExames();
 
         if (isPaginaListaEspera()) {
             adicionarBotaoEspecialidadeTabela();
             adicionarBotaoEspecialidadeDropdown();
             manterValor30();
-            adicionarBotaoControleDrExames();
 
             // Só consome internet e API se o botão deste PC estiver "ON"
             if (isDrExamesAtivo()) {
