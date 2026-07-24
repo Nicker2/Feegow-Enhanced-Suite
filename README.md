@@ -1,4 +1,4 @@
-# 🩺 Feegow: Suíte de Aprimoramentos - Monitor 'Dr. Exames'
+# 🩺 Feegow: Suíte de Aprimoramentos
 
 <div align="center">
 
