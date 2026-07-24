@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name Suite Feegow Enhanced
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.4.4
+// @version 4.9.4.5
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.user.js
 // @updateURL https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.meta.js
 // @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
-// @grant none
+// @grant GM_getValue
+// @grant GM_setValue
 // ==/UserScript==
 
 (function() {
@@ -557,34 +558,34 @@ const protocolosDilatacao = {
 
     function removerElementosIndesejados() {
         // Alertas Amarelos
-        if (localStorage.getItem('remove_alert_warning') !== 'false') {
+        if (GM_getValue('remove_alert_warning', true)) {
             document.querySelectorAll('.alert-warning').forEach(el => { el.remove(); log('Removido: .alert-warning'); });
         }
         // Notificações Flutuantes Pnotify
-        if (localStorage.getItem('remove_pnotify') !== 'false') {
+        if (GM_getValue('remove_pnotify', true)) {
             document.querySelectorAll('.ui-pnotify').forEach(el => { el.remove(); log('Removido: .ui-pnotify'); });
         }
         // DP Spaces Header (Barra Doctoralia)
-        if (localStorage.getItem('remove_dp_spaces') !== 'false') {
+        if (GM_getValue('remove_dp_spaces', true)) {
             document.querySelectorAll('#dp-spaces-header-container, #dp-spaces-header, .dp-remote').forEach(el => { 
                 el.remove(); 
                 log('Removido: Barra DP Spaces / Doctoralia'); 
             });
         }
         // AI Assistant
-        if (localStorage.getItem('remove_ai_assistant') !== 'false') {
+        if (GM_getValue('remove_ai_assistant', true)) {
             const el = document.querySelector('#ai-assistant-plugin');
             if (el) { el.remove(); log('Removido: #ai-assistant-plugin'); }
         }
         // Anúncios Beamer (Pop-ups de desconto, novidades, etc)
-        if (localStorage.getItem('remove_beamer') !== 'false') {
+        if (GM_getValue('remove_beamer', true)) {
             document.querySelectorAll('.beamerAnnouncementSnippet, #beamerAnnouncementSnippet').forEach(el => { 
                 el.remove(); 
                 log('Removido: Anúncio Beamer'); 
             });
         }
         // Modal de Permissão de Notificação Push
-        if (localStorage.getItem('remove_beamer_push') !== 'false') {
+        if (GM_getValue('remove_beamer_push', true)) {
             document.querySelectorAll('#beamerPushModal, .pushModal').forEach(el => { 
                 el.remove(); 
                 log('Removido: Modal Push Beamer'); 
@@ -670,8 +671,7 @@ const protocolosDilatacao = {
     }
 
     function isDrExamesAtivo() {
-        // Lê a memória do navegador (localStorage) daquele PC específico. Padrão é 'true' (ligado).
-        return localStorage.getItem('dr_exames_status') !== 'false';
+        return GM_getValue('dr_exames_status', true);
     }
 
     function adicionarBotaoControleDrExames() {
@@ -684,14 +684,14 @@ const protocolosDilatacao = {
         btn.id = 'btn-controle-feegow';
         btn.className = 'dropdown menu-merge hidden-sm hidden-xs'; 
 
-        // Puxa o status de cada um (Padrão é true/ativo se não existir)
-        const drExamesAtivo = localStorage.getItem('dr_exames_status') !== 'false';
-        const alertAtivo = localStorage.getItem('remove_alert_warning') !== 'false';
-        const pnotifyAtivo = localStorage.getItem('remove_pnotify') !== 'false';
-        const dpSpacesAtivo = localStorage.getItem('remove_dp_spaces') !== 'false';
-        const aiAtivo = localStorage.getItem('remove_ai_assistant') !== 'false';
-        const beamerAtivo = localStorage.getItem('remove_beamer') !== 'false';
-        const pushAtivo = localStorage.getItem('remove_beamer_push') !== 'false';
+        // Puxa o status de cada um do cofre do Tampermonkey (Padrão é true se não existir)
+        const drExamesAtivo = GM_getValue('dr_exames_status', true);
+        const alertAtivo = GM_getValue('remove_alert_warning', true);
+        const pnotifyAtivo = GM_getValue('remove_pnotify', true);
+        const dpSpacesAtivo = GM_getValue('remove_dp_spaces', true);
+        const aiAtivo = GM_getValue('remove_ai_assistant', true);
+        const beamerAtivo = GM_getValue('remove_beamer', true);
+        const pushAtivo = GM_getValue('remove_beamer_push', true);
 
         // O HTML agora imita 100% o design nativo dos botões do Feegow (sem texto, apenas a engrenagem)
         btn.innerHTML = `
@@ -733,7 +733,7 @@ const protocolosDilatacao = {
         btn.querySelector('#toggle-dr-exames').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            localStorage.setItem('dr_exames_status', !drExamesAtivo);
+            GM_setValue('dr_exames_status', !drExamesAtivo);
             location.reload();
         });
 
@@ -743,8 +743,8 @@ const protocolosDilatacao = {
                 e.preventDefault();
                 e.stopPropagation(); 
                 const key = item.getAttribute('data-key');
-                const currentState = localStorage.getItem(key) !== 'false';
-                localStorage.setItem(key, !currentState);
+                const currentState = GM_getValue(key, true);
+                GM_setValue(key, !currentState);
                 location.reload(); 
             });
         });
