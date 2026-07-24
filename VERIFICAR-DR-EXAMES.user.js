@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Suite Feegow Enhanced
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.4.0
+// @version 4.9.4.1
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -301,7 +301,7 @@ const protocolosDilatacao = {
         style.id = 'css-dilatacao';
         style.innerHTML = `
             .badge-dilatacao {
-                background-color: #FF9800; /* Laranja suave, ótimo contraste no fundo branco */
+                background-color: #FF9800;
                 color: #333333;
                 border-radius: 4px;
                 padding: 4px 8px;
@@ -311,7 +311,7 @@ const protocolosDilatacao = {
                 display: inline-flex;
                 align-items: center;
                 position: relative;
-                cursor: help; /* Muda o cursor para uma interrogação */
+                cursor: pointer; /* Mudado de help para pointer (mãozinha de clique) */
                 box-shadow: 0 0 5px rgba(255, 152, 0, 0.4);
             }
             .badge-dilatacao .tooltip-texto {
@@ -325,17 +325,16 @@ const protocolosDilatacao = {
                 padding: 8px;
                 position: absolute;
                 z-index: 1000;
-                bottom: 130%; /* Joga o balão para cima do botão */
+                bottom: 130%;
                 left: 50%;
-                margin-left: -110px; /* Centraliza o balão */
-                transform: translateY(10px); /* Começa um pouco para baixo */
+                margin-left: -110px;
+                transform: translateY(10px);
                 transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
                 font-size: 11px;
                 font-weight: normal;
                 white-space: normal;
                 box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             }
-            /* A setinha (triângulo) embaixo do balão preto */
             .badge-dilatacao .tooltip-texto::after {
                 content: "";
                 position: absolute;
@@ -346,14 +345,55 @@ const protocolosDilatacao = {
                 border-style: solid;
                 border-color: #333333 transparent transparent transparent;
             }
-            /* A animação mágica de subida e fade-in no hover */
-            .badge-dilatacao:hover .tooltip-texto {
+            /* A nova classe que será ativada via clique no JS, no lugar do :hover */
+            .badge-dilatacao .tooltip-texto.ativo {
                 visibility: visible;
                 opacity: 1;
                 transform: translateY(0);
             }
         `;
         document.head.appendChild(style);
+
+        // Adiciona um gatilho global para fechar o balão se você clicar em qualquer outro lugar da tela
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.badge-dilatacao')) {
+                document.querySelectorAll('.tooltip-texto.ativo').forEach(t => t.classList.remove('ativo'));
+            }
+        });
+    }
+
+// Função para checar se a idade bate com a regra do médico específico
+    function verificarIdadeCompativel(nomeMedico, textoIdade) {
+        if (!textoIdade) return true; // Se não achar a idade por algum bug do Feegow, exibe o botão por segurança
+
+        // Extrai o número e converte tudo para "anos" (ex: 6 meses vira 0.5 anos)
+        let idade = parseFloat(textoIdade.match(/\d+/)?.[0] || 0);
+        const ehMeses = textoIdade.toLowerCase().includes('mes') || textoIdade.toLowerCase().includes('mês');
+        if (ehMeses) idade = idade / 12;
+
+        // Regras extraídas do seu dicionário de protocolos
+        switch (nomeMedico) {
+            case "ANA CAROLINA BUHLER": return idade <= 25;
+            case "ANDRE LUIZ SITA E SOUZA BRAGANTE": return idade >= 60; // OBS: SUS Ilhabela quebra essa regra, mas atende a maioria
+            case "ANTONIO ADOLFO COELHO OLIVEIRA": return idade <= 25 || idade >= 60;
+            case "BIANCA QUINTAS DA SILVA": return idade <= 18;
+            case "BRUNA DA COSTA PEVIDE": return true; // SUS/Convênio (todas as idades)
+            case "BRUNA LUIZA PELICER": return idade <= 12;
+            case "BRUNO CAMPOS FROES MARANGONI": return idade <= 35 || idade >= 60;
+            case "CAMILA APARECIDA DE ALMEIDA FERREIRA": return idade <= 39;
+            case "HAMZE BAHJAT BOU HAMIE": return idade <= 18;
+            case "ISRAEL EMILIANO PACHECO": return idade <= 25;
+            case "JADE JUNQUEIRA EMILIANO": return idade < 18;
+            case "LUIS CLAUDIO PIMENTEL DA SILVA": return idade <= 40;
+            case "LUIS AUGUSTO RAGAZZO DI PAOLO": return idade <= 30;
+            case "MATHEUS DE SOUZA PRETI": return idade >= 9 && idade <= 16;
+            case "NIXON LOPES DE ALMEIDA": return true; // Tem regra para meses e anos (todas idades)
+            case "OCI AVALIAÇÃO": return true;
+            case "RAPHAEL GHEDIN SERVIDEI SANTANA": return idade <= 12;
+            case "RODRIGO LIBERATO GONÇALVES VIANNA": return idade <= 25;
+            case "VITOR GUILHERMINO JACOBUCCI": return idade <= 35;
+            default: return true; // Se o médico não tiver filtro específico de idade, exibe o botão
+        }
     }
 
     // Funções visuais da tabela de espera
@@ -383,20 +423,44 @@ const protocolosDilatacao = {
                     td.appendChild(botao);
                     log(`Botão "${especialidade}" adicionado ao lado de "${nome}" em <td> com cor ${especialidade === 'Oftalmologia' ? 'verde' : 'vermelho'}.`);
 
-                    // 2. Cria o botão de Dilatação (Laranja/Âmbar) se o médico estiver no dicionário
+                    // 2. Cria o botão de Dilatação SE o médico tiver protocolo E a idade bater
                     if (typeof protocolosDilatacao !== 'undefined' && protocolosDilatacao[nome]) {
-                        const badgeDilata = document.createElement('div');
-                        badgeDilata.className = 'badge-dilatacao'; // Essa classe puxa a animação do CSS que criamos
-                        badgeDilata.textContent = '👁️ Dilatar';
+                        
+                        // --- CAPTURA DA IDADE ---
+                        const tr = td.closest('tr');
+                        let textoIdade = '';
+                        if (tr) {
+                            // Procura a TD que tem o texto "X anos" ou "X meses"
+                            const tdIdade = Array.from(tr.querySelectorAll('td')).find(el => /\d+\s+(anos?|meses?|mês)/i.test(el.textContent));
+                            if (tdIdade) textoIdade = tdIdade.textContent.trim();
+                        }
 
-                        const tooltip = document.createElement('span');
-                        tooltip.className = 'tooltip-texto';
-                        // COMO VAI FICAR:
-                        // atualizado de textContent para innerHTML
-                        tooltip.innerHTML = protocolosDilatacao[nome]; // Puxa o texto específico daquele médico
+                        // --- VERIFICAÇÃO DE IDADE E CRIAÇÃO DO BOTÃO ---
+                        if (verificarIdadeCompativel(nome, textoIdade)) {
+                            const badgeDilata = document.createElement('div');
+                            badgeDilata.className = 'badge-dilatacao'; 
+                            badgeDilata.textContent = '👁️ Dilatar';
 
-                        badgeDilata.appendChild(tooltip);
-                        td.appendChild(badgeDilata);
+                            const tooltip = document.createElement('span');
+                            tooltip.className = 'tooltip-texto';
+                            tooltip.innerHTML = protocolosDilatacao[nome]; 
+
+                            badgeDilata.appendChild(tooltip);
+                            
+                            // Lógica de clique
+                            badgeDilata.addEventListener('click', function(e) {
+                                e.stopPropagation(); 
+                                document.querySelectorAll('.tooltip-texto.ativo').forEach(t => {
+                                    if (t !== tooltip) t.classList.remove('ativo');
+                                });
+                                tooltip.classList.toggle('ativo');
+                            });
+
+                            td.appendChild(badgeDilata);
+                        } else {
+                            // Idade não bateu com o protocolo
+                            log(`Botão de dilatação OCULTO para ${nome}. Idade do paciente: ${textoIdade}`);
+                        }
                     }
                 }
             }
