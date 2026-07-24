@@ -666,7 +666,7 @@ const protocolosDilatacao = {
 
         btn.innerHTML = `
             <a href="#" class="dropdown-toggle" data-toggle="dropdown" style="color: #555;" title="Configurações do Script">
-                <i class="far fa-cog"></i> Configs
+                <i class="far fa-cog"></i>
             </a>
             <ul class="dropdown-menu dropdown-menu-right" style="min-width: 220px; padding: 5px; z-index: 9999;">
                 <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; font-size: 11px;">DR. EXAMES</li>
