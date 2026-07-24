@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Suite Feegow Enhanced
 // @namespace https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version 4.9.4.5
+// @version 4.9.4.6
 // @description Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade e mantém valor 30.
 // @author Nicolas Bonza Cavalari Borges
 // @match https://*.feegow.com/*/*
@@ -675,82 +675,91 @@ const protocolosDilatacao = {
     }
 
     function adicionarBotaoControleDrExames() {
-        // NOVO ALVO: O botão de "Meu Caixa" lá no menu do topo
-        const alvoCaixa = document.getElementById('licaixa');
-        if (!alvoCaixa || document.getElementById('btn-controle-feegow')) return;
+        console.log("🕵️‍♂️ [DEBUG] Iniciando criação do botão de configurações...");
 
-        // Muda de 'span' para 'li' para encaixar perfeitamente na barra (ul) do Feegow
-        const btn = document.createElement('li');
-        btn.id = 'btn-controle-feegow';
-        btn.className = 'dropdown menu-merge hidden-sm hidden-xs'; 
+        if (document.getElementById('btn-controle-feegow')) return; // Já existe, não faz nada
 
-        // Puxa o status de cada um do cofre do Tampermonkey (Padrão é true se não existir)
-        const drExamesAtivo = GM_getValue('dr_exames_status', true);
-        const alertAtivo = GM_getValue('remove_alert_warning', true);
-        const pnotifyAtivo = GM_getValue('remove_pnotify', true);
-        const dpSpacesAtivo = GM_getValue('remove_dp_spaces', true);
-        const aiAtivo = GM_getValue('remove_ai_assistant', true);
-        const beamerAtivo = GM_getValue('remove_beamer', true);
-        const pushAtivo = GM_getValue('remove_beamer_push', true);
+        // SISTEMA DE BUSCA INTELIGENTE: Tenta achar o Caixa, depois Tarefas, depois o Sino
+        const alvo = document.getElementById('licaixa') || 
+                     document.getElementById('liTarefasX') || 
+                     document.getElementById('box-bell');
+        
+        if (!alvo) {
+            console.error("❌ [ERRO] Nenhum ponto de ancoragem encontrado na barra superior!");
+            return; 
+        }
 
-        // O HTML agora imita 100% o design nativo dos botões do Feegow (sem texto, apenas a engrenagem)
-        btn.innerHTML = `
-          <div class="navbar-btn btn-group">
-            <button data-toggle="dropdown" class="btn btn-sm dropdown-toggle btn-menu-left" title="Configurações do Script">
-              <span class="far fa-cog fs14 va-m"></span>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-right" style="min-width: 220px; padding: 5px; z-index: 9999;">
-                <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; font-size: 11px;">DR. EXAMES (Lista de Espera)</li>
-                <li id="toggle-dr-exames" style="padding: 5px 10px; cursor: pointer; color: ${drExamesAtivo ? 'green' : 'red'};">
-                    ${drExamesAtivo ? 'Ativado (ON)' : 'Desativado (OFF)'}
-                </li>
-                
-                <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; border-top: 1px solid #eee; font-size: 11px; margin-top: 5px;">REMOVER ELEMENTOS</li>
-                
-                <li class="toggle-remover" data-key="remove_alert_warning" style="padding: 5px 10px; cursor: pointer; color: ${alertAtivo ? 'green' : 'red'};">
-                    Avisos Amarelos: ${alertAtivo ? 'ON' : 'OFF'}
-                </li>
-                <li class="toggle-remover" data-key="remove_pnotify" style="padding: 5px 10px; cursor: pointer; color: ${pnotifyAtivo ? 'green' : 'red'};">
-                    Notificações Flutuantes: ${pnotifyAtivo ? 'ON' : 'OFF'}
-                </li>
-                <li class="toggle-remover" data-key="remove_dp_spaces" style="padding: 5px 10px; cursor: pointer; color: ${dpSpacesAtivo ? 'green' : 'red'};">
-                    Barra DP Spaces: ${dpSpacesAtivo ? 'ON' : 'OFF'}
-                </li>
-                <li class="toggle-remover" data-key="remove_ai_assistant" style="padding: 5px 10px; cursor: pointer; color: ${aiAtivo ? 'green' : 'red'};">
-                    IA Feegow: ${aiAtivo ? 'ON' : 'OFF'}
-                </li>
-                <li class="toggle-remover" data-key="remove_beamer" style="padding: 5px 10px; cursor: pointer; color: ${beamerAtivo ? 'green' : 'red'};">
-                    Anúncios Feegow: ${beamerAtivo ? 'ON' : 'OFF'}
-                </li>
-                <li class="toggle-remover" data-key="remove_beamer_push" style="padding: 5px 10px; cursor: pointer; color: ${pushAtivo ? 'green' : 'red'};">
-                    Pedir Notificações: ${pushAtivo ? 'ON' : 'OFF'}
-                </li>
-            </ul>
-          </div>
-        `;
+        try {
+            const btn = document.createElement('li');
+            btn.id = 'btn-controle-feegow';
+            btn.className = 'dropdown menu-merge hidden-sm hidden-xs'; 
 
-        // Evento do botão Dr. Exames
-        btn.querySelector('#toggle-dr-exames').addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            GM_setValue('dr_exames_status', !drExamesAtivo);
-            location.reload();
-        });
+            const drExamesAtivo = GM_getValue('dr_exames_status', true);
+            const alertAtivo = GM_getValue('remove_alert_warning', true);
+            const pnotifyAtivo = GM_getValue('remove_pnotify', true);
+            const dpSpacesAtivo = GM_getValue('remove_dp_spaces', true);
+            const aiAtivo = GM_getValue('remove_ai_assistant', true);
+            const beamerAtivo = GM_getValue('remove_beamer', true);
+            const pushAtivo = GM_getValue('remove_beamer_push', true);
 
-        // Eventos para os botões de remover elementos
-        btn.querySelectorAll('.toggle-remover').forEach(item => {
-            item.addEventListener('click', (e) => {
+            btn.innerHTML = `
+              <div class="navbar-btn btn-group">
+                <button data-toggle="dropdown" class="btn btn-sm dropdown-toggle btn-menu-left" title="Configurações do Script">
+                  <span class="far fa-cog fs14 va-m"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-right" style="min-width: 220px; padding: 5px; z-index: 9999;">
+                    <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; font-size: 11px;">DR. EXAMES (Lista de Espera)</li>
+                    <li id="toggle-dr-exames" style="padding: 5px 10px; cursor: pointer; color: ${drExamesAtivo ? 'green' : 'red'};">
+                        ${drExamesAtivo ? 'Ativado (ON)' : 'Desativado (OFF)'}
+                    </li>
+                    <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; border-top: 1px solid #eee; font-size: 11px; margin-top: 5px;">REMOVER ELEMENTOS</li>
+                    <li class="toggle-remover" data-key="remove_alert_warning" style="padding: 5px 10px; cursor: pointer; color: ${alertAtivo ? 'green' : 'red'};">
+                        Avisos Amarelos: ${alertAtivo ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="remove_pnotify" style="padding: 5px 10px; cursor: pointer; color: ${pnotifyAtivo ? 'green' : 'red'};">
+                        Notificações Flutuantes: ${pnotifyAtivo ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="remove_dp_spaces" style="padding: 5px 10px; cursor: pointer; color: ${dpSpacesAtivo ? 'green' : 'red'};">
+                        Barra DP Spaces: ${dpSpacesAtivo ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="remove_ai_assistant" style="padding: 5px 10px; cursor: pointer; color: ${aiAtivo ? 'green' : 'red'};">
+                        IA Feegow: ${aiAtivo ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="remove_beamer" style="padding: 5px 10px; cursor: pointer; color: ${beamerAtivo ? 'green' : 'red'};">
+                        Anúncios Feegow: ${beamerAtivo ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="remove_beamer_push" style="padding: 5px 10px; cursor: pointer; color: ${pushAtivo ? 'green' : 'red'};">
+                        Pedir Notificações: ${pushAtivo ? 'ON' : 'OFF'}
+                    </li>
+                </ul>
+              </div>
+            `;
+
+            btn.querySelector('#toggle-dr-exames').addEventListener('click', (e) => {
                 e.preventDefault();
-                e.stopPropagation(); 
-                const key = item.getAttribute('data-key');
-                const currentState = GM_getValue(key, true);
-                GM_setValue(key, !currentState);
-                location.reload(); 
+                e.stopPropagation();
+                GM_setValue('dr_exames_status', !drExamesAtivo);
+                location.reload();
             });
-        });
 
-        // Insere o botão EXATAMENTE à esquerda do "Meu Caixa"
-        alvoCaixa.parentNode.insertBefore(btn, alvoCaixa);
+            btn.querySelectorAll('.toggle-remover').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); 
+                    const key = item.getAttribute('data-key');
+                    const currentState = GM_getValue(key, true);
+                    GM_setValue(key, !currentState);
+                    location.reload(); 
+                });
+            });
+
+            // Insere antes do primeiro elemento que ele conseguiu achar na lista de prioridades
+            alvo.parentNode.insertBefore(btn, alvo);
+            console.log("✅ [SUCESSO] Botão de configurações injetado na interface!");
+
+        } catch (erroGrave) {
+            console.error("💥 [ERRO FATAL] Falha ao construir o botão de configurações:", erroGrave);
+        }
     }
 
     log('Script iniciado.');
