@@ -35,7 +35,7 @@
     };
 
     // Configura o worker do PDF.js
-    const libPdf = window.pdfjsLib;
+    const libPdf = pdfjsLib;
     libPdf.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     // =========================================================================
