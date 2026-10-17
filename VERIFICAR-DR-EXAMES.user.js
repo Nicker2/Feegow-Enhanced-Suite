@@ -856,7 +856,7 @@ const protocolosDilatacao = {
                     e.preventDefault();
                     e.stopPropagation(); 
                     const key = item.getAttribute('data-key');
-                    const currentState = GM_getValue(key, true);
+                    const currentState = GM_getValue(key, true); // <-- O PROBLEMA ESTÁ AQUI
                     GM_setValue(key, !currentState);
                     location.reload(); 
                 });
