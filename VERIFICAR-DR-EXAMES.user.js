@@ -856,7 +856,11 @@ const protocolosDilatacao = {
                     e.preventDefault();
                     e.stopPropagation(); 
                     const key = item.getAttribute('data-key');
-                    const currentState = GM_getValue(key, true); // <-- O PROBLEMA ESTÁ AQUI
+                    
+                    // Define que o PDF HOC é o único que começa como OFF (false), os outros começam como ON (true)
+                    const valorPorDefeito = (key === 'pdf_hoc_derma') ? false : true;
+                    
+                    const currentState = GM_getValue(key, valorPorDefeito);
                     GM_setValue(key, !currentState);
                     location.reload(); 
                 });
