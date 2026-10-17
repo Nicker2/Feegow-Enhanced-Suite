@@ -34,8 +34,8 @@
         pdfScale: 96
     };
 
-    // Configura o worker do PDF.js
-    const libPdf = pdfjsLib;
+    // Configura o worker do PDF.js - Puxa a variável de onde quer que ela esteja
+    const libPdf = typeof pdfjsLib !== 'undefined' ? pdfjsLib : window.pdfjsLib;
     libPdf.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     // =========================================================================
