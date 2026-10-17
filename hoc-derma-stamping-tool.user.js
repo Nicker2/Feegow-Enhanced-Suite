@@ -163,7 +163,7 @@
                 document.getElementById('pdf-container').innerHTML = '<h3 style="color:white;">Gerando páginas...</h3>';
 
                 try {
-                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    const pdf = await libPdf.getDocument(typedarray).promise;
                     document.getElementById('pdf-container').innerHTML = ''; // Limpa aviso
 
                     // Renderiza página por página e injeta imagens nelas
