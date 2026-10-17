@@ -246,7 +246,8 @@
 
                     <label style="display: flex; justify-content: space-between;">🔍 Tamanho: <span id="v-rodH">${CFG.rodH}px</span></label>
                     <input type="range" id="rng-rodH" min="20" max="250" value="${CFG.rodH}" style="width: 100%;">
-
+                </div>
+                
                     <div style="background: #f8f9fa; padding: 5px; border-radius: 4px;">
                     <strong style="display:block; margin-bottom: 5px;">CONTEÚDO DO PDF:</strong>
                     <label style="display: flex; justify-content: space-between;">↕️ Sobe/Desce (Y): <span id="v-pdfY">${CFG.pdfY}px</span></label>
