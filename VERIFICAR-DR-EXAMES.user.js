@@ -1,19 +1,15 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.4.7
-// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e agora renderiza PDFs com cabeçalho/rodapé, calibração X/Y ao vivo e ajuste de escala do conteúdo.
+// @version      4.9.4.8
+// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra o PDF HOC Derma v3 (atalho vermelho abre a janela flutuante do timbrador).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
-// @match        https://example.com/*
-// @downloadURL  https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.user.js
-// @updateURL    https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/refs/heads/main/VERIFICAR-DR-EXAMES.meta.js
+// @downloadURL  https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js
+// @updateURL    https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.meta.js
 // @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
-// @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        GM_xmlhttpRequest
-// @connect      raw.githubusercontent.com
 // ==/UserScript==
 
 (function() {
@@ -23,48 +19,89 @@
     const featurePdfHocAtiva = GM_getValue('pdf_hoc_derma', false);
 
     // =========================================================================
-    // EXAMPLE.COM (TIMBRADOR PDF VIA CACHE)
+    // PDF HOC DERMA v3 — INTEGRAÇÃO COM O TIMBRADOR (userscript separado)
     // =========================================================================
-    if (window.location.hostname === 'example.com') {
-        if (!featurePdfHocAtiva) return; // Se estiver OFF, aborta silenciosamente
-        
-        console.log("🚀 [Feegow Suite] Domínio Timbrador detectado. Verificando cache...");
-        
-        const TEMPO_CACHE_MINUTOS = 60; 
-        const agora = new Date().getTime();
-        const ultimoFetch = GM_getValue('last_fetch_time_pdf_hoc', 0);
-        const scriptEmCache = GM_getValue('cached_script_pdf_hoc', '');
-        
-        // URL direta do seu outro script
-        const url = "https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js?nocache=" + agora;
+    // Até a 4.9.4.7 esta Suite abria o example.com, baixava o timbrador do
+    // GitHub e rodava um eval() de ~460 KB dentro do Feegow. O botão vermelho
+    // era só um <a href="https://example.com/"> — rota morta.
+    // Agora o timbrador é um userscript independente (v3), com janela
+    // flutuante e API pública window.HOC_DERMA. A Suite só conversa com ele:
+    //   • instalado → o clique abre a janela flutuante v3;
+    //   • ausente   → o clique abre o raw do .user.js para instalar (1 clique).
+    const HOC_DERMA_URL_RAW  = 'https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js'; // instalar/atualizar
+    const HOC_DERMA_URL_META = 'https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.meta.js'; // @updateURL do timbrador
 
-        if (agora - ultimoFetch > (TEMPO_CACHE_MINUTOS * 60 * 1000) || !scriptEmCache) {
-            GM_xmlhttpRequest({
-                method: "GET",
-                url: url,
-                onload: function(response) {
-                    try {
-                        const novoCodigo = response.responseText;
-                        GM_setValue('cached_script_pdf_hoc', novoCodigo);
-                        GM_setValue('last_fetch_time_pdf_hoc', agora);
-                        // eslint-disable-next-line no-eval
-                        eval(novoCodigo);
-                        console.log("✅ [Core Injector] Timbrador PDF baixado e executado!");
-                    } catch (e) { console.error("Erro ao carregar o timbrador remoto:", e); }
-                }
-            });
-        } else {
-            try {
-                // eslint-disable-next-line no-eval
-                eval(scriptEmCache);
-                console.log(`⚡ [Core Injector] Timbrador PDF rodando do cache (Atualiza em ${Math.round((TEMPO_CACHE_MINUTOS * 60 * 1000 - (agora - ultimoFetch)) / 60000)} min).`);
-            } catch (e) { console.error("Erro ao rodar timbrador salvo no cache:", e); }
-        }
-        
-        // Retorna para NÃO rodar as lógicas do Feegow dentro do example.com
-        return; 
+    function hocDermaDisponivel() {
+        return !!(window.HOC_DERMA && typeof window.HOC_DERMA.abrir === 'function');
     }
-    
+
+    // Abre a janela v3 ou manda instalar o timbrador (fallback seguro).
+    function abrirHocDerma() {
+        if (hocDermaDisponivel()) {
+            try {
+                window.HOC_DERMA.abrir();
+                log('PDF HOC Derma v' + (window.HOC_DERMA.versao || '?') + ' aberto pela Suite.');
+                return true;
+            } catch (e) {
+                console.error('[Feegow Suite] Falha em HOC_DERMA.abrir():', e);
+            }
+        }
+        const url = HOC_DERMA_URL_RAW + '?v=' + Date.now();
+        const win = window.open(url, '_blank');
+        if (win) { try { win.opener = null; } catch (e) {} }
+        else { window.location.href = url; } // pop-up bloqueado
+        console.warn('[Feegow Suite] PDF HOC Derma v3 não instalado — abrindo o raw para instalar.');
+        return false;
+    }
+
+    // Botão pequeno e vermelho, no estilo do atalho antigo da Suite.
+    function criarBotaoHocDerma(rotulo, compacto) {
+        const a = document.createElement('a');
+        a.href = HOC_DERMA_URL_RAW;   // fallback real (clique do meio / copiar link)
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.dataset.hocDermaTrigger = '1';
+        a.className = compacto ? 'btn btn-sm' : 'btn btn-xs';
+        a.innerHTML = '<i class="far fa-file-pdf"></i> ' + (rotulo || 'PDF HOC');
+        a.title = hocDermaDisponivel()
+            ? 'PDF HOC Derma — abre a janela flutuante v3'
+            : 'PDF HOC Derma v3 não instalado — clique para instalar';
+        a.style.cssText = compacto
+            ? 'background-color:#d9534f;border:1px solid #c9302c;color:#fff;font-weight:bold;font-size:11px;line-height:16px;padding:3px 9px;border-radius:12px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);white-space:nowrap;'
+            : 'margin-right:15px;font-weight:bold;background-color:#d9534f;border:1px solid #d43f3a;color:white;padding:3px 12px;border-radius:15px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 4px rgba(0,0,0,0.2);';
+
+        a.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (abrirHocDerma()) return;
+            a.innerHTML = '<i class="far fa-file-pdf"></i> Instalar PDF HOC';
+            a.title = 'Instale o PDF HOC Derma v3 no Tampermonkey e recarregue o Feegow.';
+        });
+        return a;
+    }
+
+    // Atalho fixo ao lado do botão de Configurações da Suite (navbar do Feegow).
+    function garantirBotaoHocDermaNavbar() {
+        if (!featurePdfHocAtiva) return;
+        if (document.getElementById('li-hoc-derma')) return;
+
+        const btnConfigs = document.getElementById('btn-controle-feegow');
+        if (!btnConfigs || !btnConfigs.parentNode) return; // Configs ainda não foi injetado
+
+        const li = document.createElement('li');
+        li.id = 'li-hoc-derma';
+        li.className = 'menu-merge hidden-sm hidden-xs';
+
+        const grupo = document.createElement('div');
+        grupo.className = 'navbar-btn btn-group';
+        grupo.appendChild(criarBotaoHocDerma('PDF HOC', true));
+        li.appendChild(grupo);
+
+        // fica imediatamente à direita do botão de configurações
+        btnConfigs.parentNode.insertBefore(li, btnConfigs.nextSibling);
+        log('Botão "PDF HOC Derma" injetado ao lado de Configurações.');
+    }
+
     // Lista de profissionais e suas especialidades
     const profissionais = {
         "AIMEE CALVI ASAM": "Oftalmologia",
@@ -609,58 +646,59 @@ const protocolosDilatacao = {
     // =========================================================================
     // O BOTÃO NA ABA "ARQUIVOS DO PACIENTE"
     // =========================================================================
+    // Varre os paineis ja renderizados (o MutationObserver so ve o que vem depois)
+    function processarPaineisHoc() {
+        // Procura o cabeçalho do painel que AINDA NÃO foi processado por nós
+        let paineis = document.querySelectorAll(".panel-heading:not(.hoc-pdf-processado)");
+
+        if (paineis.length > 0) {
+            paineis.forEach(painel => {
+                // Confirma que este panel-heading é exatamente o de "Arquivos do Paciente"
+                let spanTitulo = painel.querySelector("span.panel-title");
+                if (spanTitulo && spanTitulo.textContent.includes("Arquivos do Paciente")) {
+                    
+                    painel.classList.add('hoc-pdf-processado'); // Marca como processado
+                    
+                    let btnInfo = painel.querySelector("span.btn-info");
+
+                    // Botão pequeno e vermelho (mesmo estilo do atalho da navbar)
+                    const btnAtalho = criarBotaoHocDerma('PDF HOC Derma', false);
+
+                    if (btnInfo) {
+                        // TRUQUE DO FLEXBOX: Cria um "container" para os botões ficarem juntos na direita
+                        let containerBotoes = document.createElement('div');
+                        containerBotoes.style.display = 'flex';
+                        containerBotoes.style.alignItems = 'center';
+                        
+                        // Insere o container vazio antes do btnInfo
+                        painel.insertBefore(containerBotoes, btnInfo);
+                        
+                        // Move os dois botões para dentro do container
+                        containerBotoes.appendChild(btnAtalho);
+                        containerBotoes.appendChild(btnInfo);
+                    } else {
+                        // Fallback caso o feegow tire o botão de info um dia
+                        painel.appendChild(btnAtalho);
+                    }
+                }
+            });
+        }
+    }
+
     function iniciarModuloPdfHoc() {
         if (!featurePdfHocAtiva) return; // Se o usuário deixou OFF, nem carrega o vigia
+        garantirBotaoHocDermaNavbar();   // atalho global ao lado do botão de Configurações
 
-        const observer = new MutationObserver((mutations) => {
-            // Procura o cabeçalho do painel que AINDA NÃO foi processado por nós
-            let paineis = document.querySelectorAll(".panel-heading:not(.hoc-pdf-processado)");
-
-            if (paineis.length > 0) {
-                paineis.forEach(painel => {
-                    // Confirma que este panel-heading é exatamente o de "Arquivos do Paciente"
-                    let spanTitulo = painel.querySelector("span.panel-title");
-                    if (spanTitulo && spanTitulo.textContent.includes("Arquivos do Paciente")) {
-                        
-                        painel.classList.add('hoc-pdf-processado'); // Marca como processado
-                        
-                        let btnInfo = painel.querySelector("span.btn-info");
-
-                        // Cria o botão arredondado (Visual vermelho, ícone de PDF)
-                        let btnAtalho = document.createElement('a');
-                        btnAtalho.href = "https://example.com/";
-                        btnAtalho.target = "_blank";
-                        btnAtalho.innerHTML = '<i class="far fa-file-pdf"></i> PDF HOC Derma';
-                        btnAtalho.className = "btn btn-xs";
-                        btnAtalho.title = "Abre o Timbrador de Receitas / Exames";
-                        // Borda arredondada (border-radius: 15px) igual planejado
-                        btnAtalho.style.cssText = "margin-right: 15px; font-weight: bold; background-color: #d9534f; border-color: #d43f3a; color: white; padding: 3px 12px; border-radius: 15px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);";
-
-                        if (btnInfo) {
-                            // TRUQUE DO FLEXBOX: Cria um "container" para os botões ficarem juntos na direita
-                            let containerBotoes = document.createElement('div');
-                            containerBotoes.style.display = 'flex';
-                            containerBotoes.style.alignItems = 'center';
-                            
-                            // Insere o container vazio antes do btnInfo
-                            painel.insertBefore(containerBotoes, btnInfo);
-                            
-                            // Move os dois botões para dentro do container
-                            containerBotoes.appendChild(btnAtalho);
-                            containerBotoes.appendChild(btnInfo);
-                        } else {
-                            // Fallback caso o feegow tire o botão de info um dia
-                            painel.appendChild(btnAtalho);
-                        }
-                    }
-                });
-            }
+        const observer = new MutationObserver(() => {
+            garantirBotaoHocDermaNavbar(); // a navbar do Feegow é re-renderizada com frequência
+            processarPaineisHoc();
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
+        processarPaineisHoc(); // o painel pode já estar na tela quando o script roda
         console.log("🚀 [HOC Auto] Vigia da Aba 'Arquivos do Paciente' ativado!");
     }
-    
+
     function removerElementosIndesejados() {
         // Alertas Amarelos
         if (GM_getValue('remove_alert_warning', true)) {
@@ -719,6 +757,7 @@ const protocolosDilatacao = {
                 
                 //O botão de configs agora carrega em qualquer tela
                 adicionarBotaoControleDrExames(); 
+                garantirBotaoHocDermaNavbar(); // atalho PDF HOC ao lado do Configs
 
                 // Trava: Só tenta manipular médicos, dilatação e selects na Lista de Espera
                 if (isPaginaListaEspera()) {
@@ -837,8 +876,8 @@ const protocolosDilatacao = {
                     <li class="toggle-remover" data-key="remove_beamer_push" style="padding: 5px 10px; cursor: pointer; color: ${pushAtivo ? 'green' : 'red'};">
                         Pedir Notificações: ${pushAtivo ? 'ON' : 'OFF'}
                     </li>
-                    <li class="toggle-remover" data-key="pdf_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePdfHocAtiva ? 'green' : 'red'}; border-top: 1px solid #eee; margin-top: 5px;">
-                        PDF HOC Derma: ${featurePdfHocAtiva ? 'ON' : 'OFF'}
+                    <li class="toggle-remover" data-key="pdf_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePdfHocAtiva ? 'green' : 'red'}; border-top: 1px solid #eee; margin-top: 5px;" title="Mostra o atalho vermelho 'PDF HOC Derma' ao lado de Configurações">
+                        PDF HOC Derma (v3): ${featurePdfHocAtiva ? 'ON' : 'OFF'}
                     </li>
                 </ul>
               </div>
