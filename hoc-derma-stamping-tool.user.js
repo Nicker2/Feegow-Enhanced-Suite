@@ -2,7 +2,7 @@
 // @name         PDF HOC Derma — Timbrador (Feegow)
 // @name:pt-BR   PDF HOC Derma — Timbrador
 // @namespace    https://github.com/Nicker2
-// @version      3.0.0
+// @version      3.0.1
 // @description  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @description:pt-BR  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @author       Nicolas Bonza Cavalari Borges
@@ -10,7 +10,6 @@
 // @match        https://feegow.com/*
 // @match        https://*.feegow.com.br/*
 // @match        https://feegow.com.br/*
-// @match        https://example.com/*
 // @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js
 // @run-at       document-idle
@@ -42,7 +41,7 @@
    * 0. CONSTANTES
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '3.0.0';
+  const VERSAO = '3.0.1';
   const ID_ROOT = 'hocderma-root';
   const ID_LAUNCHER = 'hocderma-launcher';
 
@@ -1673,6 +1672,61 @@
   }
 
   /* --------------------------------------------------------------------------
+   * 13-bis. BOTÃO ANTIGO DA SUITE (v2) — adotado, não duplicado
+   * ------------------------------------------------------------------------ */
+
+  // O userscript "Suite Feegow Enhanced" (VERIFICAR-DR-EXAMES.user.js) injeta
+  // um <a href="https://example.com/"> "PDF HOC Derma" no cabeçalho do painel
+  // "Arquivos do Paciente" — é o comportamento v2 que ainda aparece na tela.
+  // Aqui ele é adotado: o clique abre a janela flutuante nova em vez de sair
+  // do Feegow. Sem isso o usuário vê o botão antigo e conclui que nada mudou.
+  const SEL_BOTAO_LEGADO = 'a[href*="example.com"]';
+
+  function adotarBotaoLegado(a) {
+    if (!a || a.dataset.hocV3 === '1') return false;
+    if (!/PDF\s*HOC/i.test(a.textContent || '')) return false;
+    a.dataset.hocV3 = '1';
+    a.removeAttribute('target');
+    a.setAttribute('href', '#');
+    a.title = 'PDF HOC Derma — abre a janela flutuante v' + VERSAO;
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      abrir();
+    }, true);
+    return true;
+  }
+
+  function vigiarBotoesLegados() {
+    let adotado = null;      // último botão legado já adotado
+    let agendado = false;
+
+    const varrer = () => {
+      agendado = false;
+      if (adotado && adotado.isConnected) return;   // nada a fazer: já adotamos
+      try {
+        document.querySelectorAll(SEL_BOTAO_LEGADO).forEach((a) => {
+          if (adotarBotaoLegado(a)) adotado = a;
+        });
+      } catch (e) { /* noop */ }
+    };
+
+    // o Feegow muta o DOM o tempo todo: varre no máximo a cada 250 ms
+    const agendar = () => {
+      if (agendado) return;
+      agendado = true;
+      setTimeout(varrer, 250);
+    };
+
+    varrer();
+    try {
+      new MutationObserver(agendar).observe(document.documentElement, {
+        childList: true, subtree: true
+      });
+    } catch (e) { /* noop */ }
+  }
+
+  /* --------------------------------------------------------------------------
    * 14. API PÚBLICA + BOOT
    * ------------------------------------------------------------------------ */
 
@@ -1708,6 +1762,12 @@
     window.__HOC_DERMA_BOOT__ = true;
 
     criarLauncher();
+    vigiarBotoesLegados();
+
+    try {
+      console.info('[HOC Derma v' + VERSAO + '] botão flutuante injetado em ' +
+        location.host + location.pathname);
+    } catch (e) { /* noop */ }
 
     // atalho global: Ctrl+Shift+H abre/fecha
     document.addEventListener('keydown', (e) => {
