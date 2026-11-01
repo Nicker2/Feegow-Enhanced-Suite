@@ -2,7 +2,7 @@
 // @name         PDF HOC Derma — Timbrador (Feegow)
 // @name:pt-BR   PDF HOC Derma — Timbrador
 // @namespace    https://github.com/Nicker2
-// @version      3.0.1
+// @version      3.0.2
 // @description  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @description:pt-BR  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @author       Nicolas Bonza Cavalari Borges
@@ -207,20 +207,18 @@
 
   const CSS_LAUNCHER = `
     .hoc-lancador{
-      position:fixed; display:flex; align-items:center; gap:8px;
-      padding:10px 15px 10px 12px; border-radius:999px;
-      border:1px solid rgba(255,255,255,.20);
-      background:linear-gradient(140deg,#8a6a4f,#4a3728);
-      color:#fff6ec; font:600 12.5px/1 system-ui,'Segoe UI',Roboto,sans-serif;
+      position:fixed; display:inline-flex; align-items:center; gap:4px;
+      padding:3px 9px; border-radius:12px;
+      border:1px solid #c9302c;
+      background:#d9534f;
+      color:#fff; font:700 11px/16px system-ui,'Segoe UI',Roboto,sans-serif;
       letter-spacing:.01em; cursor:grab; user-select:none; touch-action:none;
-      box-shadow:0 10px 26px rgba(0,0,0,.38), 0 2px 6px rgba(0,0,0,.25);
-      transition:filter .12s ease, box-shadow .12s ease, transform .12s ease;
+      box-shadow:0 1px 3px rgba(0,0,0,.28);
+      opacity:.92; transition:filter .12s ease, opacity .12s ease, box-shadow .12s ease;
     }
-    .hoc-lancador:hover{ filter:brightness(1.1); box-shadow:0 14px 32px rgba(0,0,0,.45); }
+    .hoc-lancador:hover{ filter:brightness(1.08); opacity:1; box-shadow:0 2px 6px rgba(0,0,0,.4); }
     .hoc-lancador:active{ cursor:grabbing; }
-    .hoc-lancador .ico{ font-size:14px; line-height:1; }
-    .hoc-lancador .sep{ width:1px; height:14px; background:rgba(255,255,255,.25); }
-    .hoc-lancador .sub{ font-weight:500; font-size:10.5px; opacity:.8; letter-spacing:.04em; }
+    .hoc-lancador .ico{ font-size:11px; line-height:1; }
     @media print{ .hoc-lancador{ display:none !important; } }
   `;
 
@@ -237,8 +235,7 @@
     btn.className = 'hoc-lancador';
     btn.type = 'button';
     btn.title = 'PDF HOC Derma — abrir o timbrador (arraste para reposicionar)';
-    btn.innerHTML = '<span class="ico">\u{1FA7A}</span><span>PDF HOC</span>' +
-      '<span class="sep"></span><span class="sub">DERMA</span>';
+    btn.innerHTML = '<span class="ico">\u{1FA7A}</span><span>PDF HOC</span>';
     sh.appendChild(btn);
 
     const ui = Store.get(CK.ui, {}) || {};
@@ -309,13 +306,13 @@
   }
 
   function posicaoPadrao() {
-    return { x: Math.max(12, window.innerWidth - 168), y: Math.max(12, window.innerHeight - 132) };
+    return { x: Math.max(12, window.innerWidth - 106), y: Math.max(12, window.innerHeight - 44) };
   }
 
   function aplicarPosLauncher(host, pos) {
     const r = host.getBoundingClientRect();
-    const w = r.width || 140;
-    const h = r.height || 40;
+    const w = r.width || 92;
+    const h = r.height || 24;
     host.style.left = clamp(num(pos.x, 0), 4, Math.max(4, window.innerWidth - w - 4)) + 'px';
     host.style.top = clamp(num(pos.y, 0), 4, Math.max(4, window.innerHeight - h - 4)) + 'px';
   }
@@ -1675,11 +1672,12 @@
    * 13-bis. BOTÃO ANTIGO DA SUITE (v2) — adotado, não duplicado
    * ------------------------------------------------------------------------ */
 
-  // O userscript "Suite Feegow Enhanced" (VERIFICAR-DR-EXAMES.user.js) injeta
+  // O userscript "Suite Feegow Enhanced" ATÉ a 4.9.4.7 injetava
   // um <a href="https://example.com/"> "PDF HOC Derma" no cabeçalho do painel
-  // "Arquivos do Paciente" — é o comportamento v2 que ainda aparece na tela.
-  // Aqui ele é adotado: o clique abre a janela flutuante nova em vez de sair
-  // do Feegow. Sem isso o usuário vê o botão antigo e conclui que nada mudou.
+  // "Arquivos do Paciente". A partir da 4.9.4.8 a Suite já chama
+  // window.HOC_DERMA.abrir() direto (data-hoc-derma-trigger) e não usa mais
+  // esse href. O código abaixo fica só como rede de segurança para quem ainda
+  // roda a Suite antiga, para o clique não sair do Feegow.
   const SEL_BOTAO_LEGADO = 'a[href*="example.com"]';
 
   function adotarBotaoLegado(a) {

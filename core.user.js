@@ -1,15 +1,13 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced Core Injector Agent
 // @namespace    https://github.com/Nicker2
-// @version      1.1.0.1
+// @version      1.1.0.2
 // @description  Puxa o código fonte do GitHub de forma inteligente usando Cache.
 // @author       Nicolas Bonza Cavalari Borges
-// @downloadURL https://github.com/Nicker2/Verificar-DR.EXAMES/raw/refs/heads/main/core.user.js
-// @updateURL https://github.com/Nicker2/Verificar-DR.EXAMES/raw/refs/heads/main/core.meta.js
+// @downloadURL https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js
+// @updateURL   https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.meta.js
 // @match        https://*.feegow.com/*/*
-// @match        https://example.com/*
 // @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
-// @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -27,7 +25,7 @@
     const scriptEmCache = GM_getValue('cached_script', '');
     
     // O ?nocache continua aqui para quando precisarmos furar o cache do GitHub
-    const url = "https://raw.githubusercontent.com/Nicker2/Verificar-DR.EXAMES/main/VERIFICAR-DR-EXAMES.user.js?nocache=" + agora;
+    const url = "https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js?nocache=" + agora;
 
     // Se já passou o tempo limite OU se o cofre está vazio (primeira vez rodando)
     if (agora - ultimoFetch > (TEMPO_CACHE_MINUTOS * 60 * 1000) || !scriptEmCache) {
