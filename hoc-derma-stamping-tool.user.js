@@ -2,7 +2,7 @@
 // @name         PDF HOC Derma — Timbrador (Feegow)
 // @name:pt-BR   PDF HOC Derma — Timbrador
 // @namespace    https://github.com/Nicker2
-// @version      3.0.5
+// @version      3.0.6
 // @description  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @description:pt-BR  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @author       Nicolas Bonza Cavalari Borges
@@ -41,7 +41,7 @@
    * 0. CONSTANTES
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '3.0.5';
+  const VERSAO = '3.0.6';
   const ID_ROOT = 'hocderma-root';
 
   // Timbrado HOC Derma (PNG opacos, fundo branco):
@@ -59,6 +59,10 @@
     stretchTop: 0, stretchBot: 0,
     cabOn: true, rodOn: true,
     passo: 1,
+    // AUTO (v3.0.6): ao abrir um PDF, encaixa o conteúdo exatamente entre a
+    // borda de baixo do cabeçalho e a de cima do rodapé. Preferência GLOBAL;
+    // os valores calculados ficam salvos por arquivo.
+    autoAbrir: true,
     modoImpressao: 'auto', // auto | iframe | aba
     // Vazio = automático (worker em blob: a partir do CDN, com fallback).
     // Só preencha para forçar um worker específico.
@@ -91,7 +95,8 @@
   };
 
   const PX_MM = 25.4 / 96;          // 1 px CSS = 0,2646 mm
-  const A4_PX = 210 * 96 / 25.4;    // 793,7 px
+  const A4_PX = 210 * 96 / 25.4;    // 793,7 px (largura da folha)
+  const A4_H_PX = 297 * 96 / 25.4;  // 1122,52 px (altura da folha)
 
   /* --------------------------------------------------------------------------
    * 1. UTILITÁRIOS
@@ -175,6 +180,8 @@
     offset: 0,
     stretchTop: 0,      // mm — estica/encolhe a parte de CIMA
     stretchBot: 0,      // mm — estica/encolhe a parte de BAIXO
+    autoAtivo: false,   // AUTO "manda" nos três valores (desliga ao ajustar à mão)
+    tintaCache: null,   // { chave, tinta:{y0,y1} } — medida de conteúdo por arquivo
     zoom: 1,
     ocupado: false,
     urls: [],
@@ -193,6 +200,8 @@
     if (typeof CFG_PADRAO[k] === 'number') cfg[k] = num(cfg[k], CFG_PADRAO[k]);
   });
   cfg.modoImpressao = ['auto', 'iframe', 'aba'].includes(cfg.modoImpressao) ? cfg.modoImpressao : 'auto';
+  // booleano tolerante a valor gravado como texto
+  cfg.autoAbrir = !(cfg.autoAbrir === false || cfg.autoAbrir === 'false' || cfg.autoAbrir === 0);
 
   const salvarCfg = debounce(() => Store.set(CK.cfg, cfg), 400);
 
@@ -208,14 +217,18 @@
   }
 
   // Registro do arquivo, já normalizado (null = nunca ajustado).
+  //   auto:true  -> os valores vieram do AUTO (pode recalcular ao abrir)
+  //   auto:false -> o usuário mexeu à mão; respeitar o que está salvo
+  //   registros antigos (sem o campo, ou o formato numérico) contam como manual
   function registroArquivo(file) {
     const r = offsets[chaveArquivo(file)];
     if (r == null) return null;
-    if (typeof r === 'number') return { off: r, top: null, bot: null };
+    if (typeof r === 'number') return { off: r, top: null, bot: null, auto: false };
     return {
       off: num(r.off, 0),
       top: r.top == null ? null : num(r.top, 0),
-      bot: r.bot == null ? null : num(r.bot, 0)
+      bot: r.bot == null ? null : num(r.bot, 0),
+      auto: r.auto === true
     };
   }
 
@@ -225,7 +238,8 @@
     offsets[k] = {
       off: Math.round(S.offset),
       top: Math.round(S.stretchTop * 10) / 10,
-      bot: Math.round(S.stretchBot * 10) / 10
+      bot: Math.round(S.stretchBot * 10) / 10,
+      auto: !!S.autoAtivo
     };
     // poda: mantém os 200 mais recentes (ordem de inserção)
     const chaves = Object.keys(offsets);
@@ -629,6 +643,23 @@
     .esticar .seta:active{ transform:translateY(1px); }
     .esticar .un{ font-size:10px; color:#5c6d85; }
 
+    /* ── AUTO (encaixe automático entre os timbres) ─────────────────── */
+    .auto-bloco{ margin:2px 0 12px; padding-bottom:11px; border-bottom:1px dashed #24344e; }
+    .btn.auto{
+      width:100%; justify-content:center; padding:8px 10px; font-size:12px; font-weight:700;
+      background:linear-gradient(140deg,#2f4a6e,#1b2f4a); border-color:#3f5a80; color:#e8f0fa;
+    }
+    .btn.auto:hover{ filter:brightness(1.12); background:linear-gradient(140deg,#34537c,#1e3453); }
+    .btn.auto.ativo{
+      background:linear-gradient(140deg,#8a6a4f,#5d452f); border-color:#c9a227; color:#fff6ec;
+    }
+    .auto-info{
+      margin-top:7px; font-size:10.5px; line-height:1.4; color:#6b7d96;
+      font-variant-numeric:tabular-nums; text-align:center;
+    }
+    .auto-info.on{ color:#d9b455; font-weight:600; }
+    .auto-bloco .chk{ margin:8px 0 0; font-size:11.5px; }
+
     .chk{ display:flex; align-items:center; gap:9px; font-size:12.5px; margin:7px 0; cursor:pointer; color:#c7d2e0; }
     .chk input{ width:15px; height:15px; accent-color:#8a6a4f; cursor:pointer; }
 
@@ -980,10 +1011,12 @@
     const cbCab = h('input', { type: 'checkbox', checked: cfg.cabOn });
     cbCab.addEventListener('change', () => {
       cfg.cabOn = cbCab.checked; aplicarCfg(); salvarCfg();
+      if (S.autoAtivo) agendarAuto();
     });
     const cbRod = h('input', { type: 'checkbox', checked: cfg.rodOn });
     cbRod.addEventListener('change', () => {
       cfg.rodOn = cbRod.checked; aplicarCfg(); salvarCfg();
+      if (S.autoAtivo) agendarAuto();
     });
 
     const secCarimbo = h('section', { class: 'sec' },
@@ -1005,6 +1038,7 @@
         cfg[c.k] = v;
         aplicarCfg();
         salvarCfg();
+        if (S.autoAtivo) agendarAuto();   // AUTO segue a calibração dos timbres
       });
       inp.addEventListener('change', () => {
         inp.value = String(cfg[c.k]);
@@ -1045,8 +1079,35 @@
       onclick: (e) => moverStretch(qual, sinal * (e.shiftKey ? 5 : 0.5))
     }, sinal < 0 ? '\u25B2' : '\u25BC');
 
+    /* AUTO: um clique calcula offset + topo + base para o conteúdo preencher
+       exatamente a faixa entre o timbre de cima e o de baixo. */
+    const btnAuto = h('button', {
+      class: 'btn auto', type: 'button', id: 'hoc-auto',
+      title: 'Calcula offset + topo + base para o conteúdo encaixar exatamente entre os timbres',
+      onclick: () => aplicarAuto('manual')
+    }, '\u26A1 AUTO \u2014 encaixar entre os timbres');
+
+    const autoInfo = h('div', { class: 'auto-info', id: 'hoc-auto-info' }, 'Carregue um PDF para calcular.');
+
+    const cbAuto = h('input', { type: 'checkbox', id: 'hoc-auto-abrir' });
+    cbAuto.checked = !!cfg.autoAbrir;
+    cbAuto.addEventListener('change', () => {
+      cfg.autoAbrir = !!cbAuto.checked;
+      salvarCfg();
+      aviso(cfg.autoAbrir
+        ? 'AUTO ligado: cada PDF que abrir já vem encaixado entre os timbres.'
+        : 'AUTO ao abrir desligado (o bot\u26A1 continua funcionando).');
+    });
+
+    const blocoAuto = h('div', { class: 'auto-bloco' },
+      btnAuto,
+      autoInfo,
+      h('label', { class: 'chk' }, cbAuto, 'Aplicar AUTO ao abrir cada PDF')
+    );
+
     const secAltura = h('section', { class: 'sec' },
       h('h3', null, 'Ajuste de altura (esticar)'),
+      blocoAuto,
       h('div', { class: 'esticar' },
         h('span', { class: 'rot' }, 'Topo'),
         setaStretch('topo', -1, 'Encolhe o topo em 0,5 mm (Shift = 5 mm)'),
@@ -1070,7 +1131,8 @@
       h('p', { class: 'dica' },
         'Arraste as alças ', h('b', null, 'TOPO'), ' e ', h('b', null, 'BASE'),
         ' nas folhas (para baixo estica, para cima encolhe) ou use \u25B2/\u25BC (0,5 mm; Shift = 5 mm). ',
-        'Os dois valores ficam salvos por arquivo; a posição vertical continua independente.'
+        'Os dois valores ficam salvos por arquivo; a posição vertical continua independente. ',
+        'O ', h('b', null, '\u26A1 AUTO'), ' calcula os três de uma vez — e qualquer ajuste à mão desliga o AUTO.'
       )
     );
 
@@ -1127,7 +1189,7 @@
       app, nomeArq, inputFile, bImprimir, bMenu, menu, selModo,
       lado, palco, zoom, drop, prog, progBarra, progTxt,
       inpOffset, medMm, sobe, desce,
-      inpStTop, inpStBot,
+      inpStTop, inpStBot, btnAuto, autoInfo, cbAuto,
       cbCab, cbRod, stEsq, stDir, toast, detAvancado, campos
     });
 
@@ -1196,6 +1258,7 @@
 
   function setOffset(v, aoVivo) {
     S.offset = clamp(Math.round(num(v, 0)), LIMITES.offset[0], LIMITES.offset[1]);
+    if (!autoInterno) desligarAuto();   // mexeu à mão: o AUTO sai de cena
     aplicarOffset();
     salvarOffsetDebounced();   // aoVivo = arrasto (já é debounced)
   }
@@ -1216,7 +1279,7 @@
 
   function aplicarStretchFolha(folha) {
     const h = num(folha.dataset.hbase, 0) ||
-      num(String(folha.style.getPropertyValue('--h-base')).replace('px', ''), 0) || 1123;
+      num(String(folha.style.getPropertyValue('--h-base')).replace('px', ''), 0) || A4_H_PX;
     const hTopo = Math.max(1, h * DIVISAO);
     const hBase = Math.max(1, h * (1 - DIVISAO));
     const a = clamp(1 + (S.stretchTop / PX_MM) / hTopo, 0.15, 3);
@@ -1250,6 +1313,7 @@
     const v = clamp(Math.round(num(mm, 0) * 10) / 10, lim[0], lim[1]);
     if (topo) { S.stretchTop = v; cfg.stretchTop = v; }
     else { S.stretchBot = v; cfg.stretchBot = v; }
+    if (!autoInterno) desligarAuto();   // ajuste manual desliga o AUTO
     aplicarStretch();
     salvarCfg();              // passa a ser o padrão dos próximos arquivos
     salvarOffsetDebounced();  // e fica salvo neste arquivo
@@ -1257,6 +1321,234 @@
 
   function moverStretch(qual, delta) {
     setStretch(qual, (qual === 'base' ? S.stretchBot : S.stretchTop) + delta);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   * 7-bis. AUTO — encaixa o conteúdo EXATAMENTE entre os dois timbres
+   * ══════════════════════════════════════════════════════════════════════════
+   *
+   * GEOMETRIA (tudo em px CSS da folha A4: 793,7 x 1122,5)
+   *   TOPO  = cabY + cabH                 → borda de BAIXO do timbre de cima
+   *   BASE  = Hfolha - rodY - rodH        → borda de CIMA do timbre de baixo
+   *   LIVRE = BASE - TOPO                 → faixa útil do papel
+   *   h     = altura em que a página do PDF é renderizada (largura da folha
+   *           x proporção natural) — a mesma que o CSS usa em --h-base
+   *   s     = pdfScale / 100
+   *
+   * O conteúdo é uma única imagem, cortada em duas metades que se encontram
+   * no meio. Com stTopo == stBase == k a transformação das duas metades é a
+   * MESMA escala uniforme k de página inteira (a camada .base é ancorada na
+   * borda da .topo), então não existe furo nem sobreposição na junção:
+   *   altura renderizada = s · h · k        topo da página = pdfY + offset
+   *
+   * Para encaixar:
+   *   k = LIVRE / (s · h · fração_de_tinta)
+   *       fração_de_tinta = 1 → a PÁGINA inteira (margens do PDF respeitadas)
+   *       fração < 1 → só a TINTA (primeira…última linha escura da página),
+   *                    medida nas próprias imagens já rasterizadas
+   *   stretchTop = (k-1) · h · DIVISAO · PX_MM        (mm)
+   *   stretchBot = (k-1) · h · (1-DIVISAO) · PX_MM    (mm)
+   *   offset     = TOPO - pdfY - s · h · k · y0
+   *       y0 = fração do topo do PDF onde começa a tinta (0 no modo página)
+   *
+   * Conteúdo muito curto (menos de 22 % da página) cai no modo PÁGINA — senão
+   * o PDF seria ampliado de forma absurda. Os valores calculados nunca passam
+   * dos LIMITES; se algum for limitado, o offset é recalculado pelo k efetivo
+   * para a borda de cima continuar exata.
+   * ------------------------------------------------------------------------ */
+
+  let autoInterno = 0;   // > 0: mudança feita pelo próprio AUTO (não desliga)
+
+  function geometriaTimbres() {
+    const folha = S.doc && S.doc.querySelector('.folha');
+    // Altura real do papel: 297 mm em px CSS (1122,52). clientHeight arredonda
+    // para 1123 e jogaria o rodapé 0,5 px para baixo.
+    const H = A4_H_PX;
+    const topo = cfg.cabOn ? (cfg.cabY + cfg.cabH) : 0;
+    const base = cfg.rodOn ? (H - cfg.rodY - cfg.rodH) : H;
+    return { H, topo, base, livre: base - topo, folha };
+  }
+
+  // altura renderizada da página do PDF (px, na largura da folha)
+  function alturaPagina(folha) {
+    let h = num(folha.dataset.hbase, 0);
+    if (!(h > 0)) {
+      const img = folha.querySelector('.pagina.topo');
+      if (img && img.naturalWidth) {
+        h = A4_PX * img.naturalHeight / img.naturalWidth;
+      }
+    }
+    return h > 0 ? h : 0;
+  }
+
+  /* Fração vertical ocupada pela TINTA (união de todas as páginas).
+     Roda numa miniatura de 220 px de largura — barato mesmo com 100+ páginas.
+     Branco do JPEG fica em ~250-255; qualquer coisa abaixo de 232 conta como
+     conteúdo (texto, linhas de tabela, imagens). */
+  async function medirTinta(folhas) {
+    if (!folhas || !folhas.length) return null;
+    const LARG = 220;
+    const LIMIAR = 232;
+    const cv = S.doc.createElement('canvas');
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+
+    const amostra = folhas.length <= 60 ? folhas
+      : Array.from({ length: 40 }, (_, i) => folhas[Math.round(i * (folhas.length - 1) / 39)]);
+
+    let y0 = 1;
+    let y1 = 0;
+    let mediu = 0;
+
+    for (const folha of amostra) {
+      const img = folha.querySelector('.pagina.topo');
+      if (!img) continue;
+      try { if (img.decode) await img.decode(); } catch (e) { /* noop */ }
+      if (!img.naturalWidth || !img.naturalHeight) continue;
+
+      const alt = Math.max(8, Math.round(LARG * img.naturalHeight / img.naturalWidth));
+      cv.width = LARG;
+      cv.height = alt;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, LARG, alt);
+      try { ctx.drawImage(img, 0, 0, LARG, alt); } catch (e) { continue; }
+
+      let dados;
+      try { dados = ctx.getImageData(0, 0, LARG, alt).data; } catch (e) { return null; }
+
+      let a = -1;
+      let b = -1;
+      for (let y = 0; y < alt; y++) {
+        const linha = y * LARG * 4;
+        let escuros = 0;
+        for (let x = 0; x < LARG; x++) {
+          const i = linha + x * 4;
+          const lum = dados[i] * 0.299 + dados[i + 1] * 0.587 + dados[i + 2] * 0.114;
+          if (lum < LIMIAR && ++escuros >= 2) break;
+        }
+        if (escuros >= 2) { if (a < 0) a = y; b = y; }
+      }
+      if (a >= 0) {
+        mediu++;
+        y0 = Math.min(y0, a / alt);
+        y1 = Math.max(y1, (b + 1) / alt);
+      }
+    }
+
+    if (!mediu || y1 <= y0) return null;
+    return { y0, y1 };
+  }
+
+  // Pura matemática: devolve { offset, stT, stB, k, ... } sem tocar no estado.
+  function calcularEncaixe(tinta) {
+    const geo = geometriaTimbres();
+    const folha = geo.folha;
+    if (!folha || !S.paginas) return null;
+
+    const h = alturaPagina(folha);
+    const s = num(cfg.pdfScale, 96) / 100;
+    if (!(h > 0) || !(s > 0.1) || !(geo.livre > 40)) return null;
+
+    let frac = tinta ? clamp(tinta.y1 - tinta.y0, 0, 1) : 1;
+    let y0 = tinta ? clamp(tinta.y0, 0, 1) : 0;
+    let modo = 'pagina';
+    if (frac >= 0.22 && frac <= 1) modo = 'tinta';
+    else { frac = 1; y0 = 0; }
+
+    const k = clamp(geo.livre / (s * h * frac), 0.4, 2.5);
+    const pxTotal = (k - 1) * h;
+    const totalMm = pxTotal * PX_MM;
+
+    // Arredonda SEMPRE para baixo (em módulo, nos dois sentidos): assim o
+    // conteúdo nunca fica maior que a faixa livre — o resto (≤ 0,4 px) vira
+    // uma folga invisível na base, nunca uma sobreposição no rodapé.
+    const piso = (v) => Math.floor(v * 10 + 1e-9) / 10;
+    const stT = clamp(piso(totalMm * DIVISAO), LIMITES.stretchTop[0], LIMITES.stretchTop[1]);
+    const stB = clamp(piso(totalMm * (1 - DIVISAO)), LIMITES.stretchBot[0], LIMITES.stretchBot[1]);
+
+    // k que o CSS aplica de fato (depois de arredondar/limitar os mm)
+    const kEfetivo = (h + (stT + stB) / PX_MM) / h;
+    const offset = Math.round(geo.topo - cfg.pdfY - s * h * kEfetivo * y0);
+
+    return {
+      offset: clamp(offset, LIMITES.offset[0], LIMITES.offset[1]),
+      stT, stB, k: kEfetivo,
+      kPedido: k, totalMm,
+      h, s, livre: geo.livre, topo: geo.topo, base: geo.base,
+      frac, y0, modo,
+      exato: Math.abs(kEfetivo - k) < 0.002
+    };
+  }
+
+  /* Calcula e aplica. origem: 'manual' (botão) | 'abertura' (auto ao abrir)
+     | 'silencioso' (segue a calibração enquanto o AUTO está ligado). */
+  async function aplicarAuto(origem) {
+    if (!S.doc || !S.paginas || !S.arquivo) return null;
+    if (S.ocupado) {
+      if (origem === 'manual') aviso('Aguarde o PDF terminar de carregar.', true);
+      return null;
+    }
+
+    const chave = chaveArquivo(S.arquivo);
+    let tinta = null;
+    if (S.tintaCache && S.tintaCache.chave === chave) {
+      tinta = S.tintaCache.tinta;
+    } else {
+      try {
+        tinta = await medirTinta(Array.from(S.doc.querySelectorAll('.folha')));
+      } catch (e) { tinta = null; }
+      S.tintaCache = { chave, tinta };
+    }
+
+    const r = calcularEncaixe(tinta);
+    if (!r) {
+      if (origem === 'manual') aviso('AUTO: carregue um PDF para calcular.', true);
+      return null;
+    }
+
+    autoInterno++;
+    try {
+      S.autoAtivo = true;
+      S.offset = r.offset;
+      S.stretchTop = r.stT;
+      S.stretchBot = r.stB;
+      aplicarOffset();
+      aplicarStretch();
+    } finally { autoInterno--; }
+
+    atualizarAutoUi();
+    salvarOffsetArquivo();
+
+    if (origem === 'manual' || origem === 'abertura') {
+      aviso('AUTO: conteúdo encaixado entre os timbres — topo ' + fmtMm(r.stT) + ' mm · base ' +
+        fmtMm(r.stB) + ' mm · ' + r.offset + ' px' +
+        (r.modo === 'tinta' ? ' (tinta em ' + Math.round(r.frac * 100) + '% da página)' : ' (página inteira)') +
+        (r.exato ? '.' : ' — limite de esticamento atingido.'), !r.exato);
+    }
+    return r;
+  }
+
+  const agendarAuto = debounce(() => {
+    if (!S.autoAtivo) return;
+    aplicarAuto('silencioso').catch(() => { /* noop */ });
+  }, 220);
+
+  function desligarAuto() {
+    if (!S.autoAtivo) return;
+    S.autoAtivo = false;
+    atualizarAutoUi();
+    salvarOffsetDebounced();   // grava auto:false para este arquivo
+  }
+
+  function atualizarAutoUi() {
+    if (!E.autoInfo) return;
+    const ligado = !!S.autoAtivo && !!S.paginas;
+    E.autoInfo.classList.toggle('on', ligado);
+    if (E.btnAuto) E.btnAuto.classList.toggle('ativo', ligado);
+    if (!S.paginas) { E.autoInfo.textContent = 'Carregue um PDF para calcular.'; return; }
+    if (!ligado) { E.autoInfo.textContent = 'AUTO desligado — valendo o ajuste manual.'; return; }
+    E.autoInfo.textContent = 'AUTO: topo ' + fmtMm(S.stretchTop) + ' mm · base ' +
+      fmtMm(S.stretchBot) + ' mm · ' + Math.round(S.offset) + ' px';
   }
 
   function ajustarZoom() {
@@ -2814,6 +3106,8 @@
     if (E.bImprimir) E.bImprimir.disabled = true;
     progresso(2, 'Lendo…');
 
+    let autoNaAbertura = false;
+
     try {
       const lib = await garantirPdfJs();
       configurarWorker(lib);
@@ -2856,6 +3150,11 @@
         reg && reg.bot != null ? reg.bot : num(cfg.stretchBot, 0),
         LIMITES.stretchBot[0], LIMITES.stretchBot[1]);
 
+      // AUTO ao abrir: arquivo novo (nunca ajustado) ou que já estava em AUTO.
+      // Se o usuário mexeu à mão, o registro diz auto:false e nada é mexido.
+      S.autoAtivo = !!reg && reg.auto === true;
+      autoNaAbertura = !!cfg.autoAbrir && (!reg || reg.auto === true);
+
       await renderizar(pdf, geracao);
       if (geracao !== S.geracao) return;
 
@@ -2866,9 +3165,10 @@
       E.nomeArq.title = S.arquivo.nome + ' — ' + kb(S.arquivo.size);
       E.nomeArq.classList.remove('vazio');
       atualizarStatus();
+      atualizarAutoUi();
       E.palco.scrollTop = 0;
 
-      if (reg) {
+      if (reg && !autoNaAbertura) {
         aviso('Ajustes salvos para este arquivo: ' + Math.round(S.offset) + ' px · topo ' +
           fmtMm(S.stretchTop) + ' mm · base ' + fmtMm(S.stretchBot) + ' mm.');
       }
@@ -2881,6 +3181,15 @@
         progresso(null);
         E.bImprimir.disabled = !S.paginas;
       }
+    }
+
+    // O AUTO mede a tinta nas imagens já rasterizadas: roda depois que a UI
+    // saiu do estado "ocupado" (senão o próprio AUTO se bloquearia).
+    if (autoNaAbertura && geracao === S.geracao) {
+      setTimeout(() => {
+        if (geracao !== S.geracao) return;
+        aplicarAuto('abertura').catch(() => { /* noop */ });
+      }, 60);
     }
   }
 
@@ -3014,11 +3323,12 @@
     const campo = h('div', { class: 'campo-pagina' }, imgTopo, imgBase);
 
     // A altura de referência só existe depois que a imagem carrega: é ela que
-    // converte os mm de esticamento em fator de escala.
+    // converte os mm de esticamento em fator de escala. Usa a largura exata do
+    // papel (210 mm = 793,70 px), não clientWidth, para o AUTO casar no pixel.
     const medir = () => {
       if (!imgTopo.naturalWidth || !imgTopo.naturalHeight) return;
-      const h = Math.round(folha.clientWidth * imgTopo.naturalHeight / imgTopo.naturalWidth);
-      if (h > 0) folha.dataset.hbase = String(h);
+      const h = A4_PX * imgTopo.naturalHeight / imgTopo.naturalWidth;
+      if (h > 0) folha.dataset.hbase = String(Math.round(h * 100) / 100);
       aplicarStretchFolha(folha);
     };
     if (imgTopo.complete && imgTopo.naturalWidth) medir();
@@ -3325,6 +3635,10 @@
     imprimir,
     diagnostico: rodarDiagnostico,
     recarregar: recarregarArquivo,
+    // AUTO (v3.0.6): calcula offset + topo + base para o conteúdo encaixar
+    // exatamente entre os timbres. Sem argumento = aplica e avisa.
+    auto: (origem) => aplicarAuto(origem || 'manual'),
+    medirTinta: () => medirTinta(Array.from(S.doc.querySelectorAll('.folha'))),
     // exposto para testes/integrações: resolve quando o pdf.js embutido está pronto
     pdfjs: garantirPdfJs,
     config: cfg,
@@ -3336,6 +3650,8 @@
       offset: S.offset,
       stretchTop: S.stretchTop,
       stretchBot: S.stretchBot,
+      autoAtivo: S.autoAtivo,
+      tinta: S.tintaCache ? S.tintaCache.tinta : null,
       zoom: S.zoom,
       ocupado: S.ocupado,
       printPaiDetectado: S.printPaiDetectado,
