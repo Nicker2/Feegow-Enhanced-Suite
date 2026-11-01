@@ -2,7 +2,7 @@
 // @name         PDF HOC Derma — Timbrador (Feegow)
 // @name:pt-BR   PDF HOC Derma — Timbrador
 // @namespace    https://github.com/Nicker2
-// @version      3.0.6
+// @version      3.0.7
 // @description  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @description:pt-BR  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @author       Nicolas Bonza Cavalari Borges
@@ -41,7 +41,7 @@
    * 0. CONSTANTES
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '3.0.6';
+  const VERSAO = '3.0.7';
   const ID_ROOT = 'hocderma-root';
 
   // Timbrado HOC Derma (PNG opacos, fundo branco):
@@ -63,6 +63,10 @@
     // borda de baixo do cabeçalho e a de cima do rodapé. Preferência GLOBAL;
     // os valores calculados ficam salvos por arquivo.
     autoAbrir: true,
+    // v3.0.7 — granularidade do ajuste de altura:
+    //   'documento' (padrão) → um offset/esticamento para o arquivo inteiro
+    //   'pagina'             → cada página com o SEU offset/esticamento
+    modoAjuste: 'documento',
     modoImpressao: 'auto', // auto | iframe | aba
     // Vazio = automático (worker em blob: a partir do CDN, com fallback).
     // Só preencha para forçar um worker específico.
@@ -76,6 +80,11 @@
     offset: [-600, 600],
     stretchTop: [-40, 60], stretchBot: [-40, 60]
   };
+
+  // v3.0.7 — no modo POR PÁGINA o esticamento pode ir mais longe: uma página
+  // mais alta/baixa que a A4 precisa encolher (ou crescer) bem mais que o
+  // limite do modo documento, que era pensado para um valor único no arquivo.
+  const LIMITES_PAGINA = { stretchTop: [-110, 110], stretchBot: [-110, 110] };
 
   const CAMPOS_AVANCADOS = [
     { k: 'cabH', rot: 'Altura do cabeçalho', un: 'px' },
@@ -182,6 +191,13 @@
     stretchBot: 0,      // mm — estica/encolhe a parte de BAIXO
     autoAtivo: false,   // AUTO "manda" nos três valores (desliga ao ajustar à mão)
     tintaCache: null,   // { chave, tinta:{y0,y1} } — medida de conteúdo por arquivo
+    // ── v3.0.7: ajuste POR PÁGINA ──────────────────────────────────────
+    baseOff: 0,         // valores do ARQUIVO (fallback das páginas e modo documento)
+    baseTop: 0,
+    baseBot: 0,
+    pags: new Map(),    // indice (1..N) -> { off, top, bot, auto }
+    paginaAtual: 1,     // página em foco no palco (painel mostra os valores dela)
+    arrastando: false,
     zoom: 1,
     ocupado: false,
     urls: [],
@@ -200,20 +216,44 @@
     if (typeof CFG_PADRAO[k] === 'number') cfg[k] = num(cfg[k], CFG_PADRAO[k]);
   });
   cfg.modoImpressao = ['auto', 'iframe', 'aba'].includes(cfg.modoImpressao) ? cfg.modoImpressao : 'auto';
+  cfg.modoAjuste = cfg.modoAjuste === 'pagina' ? 'pagina' : 'documento';
   // booleano tolerante a valor gravado como texto
   cfg.autoAbrir = !(cfg.autoAbrir === false || cfg.autoAbrir === 'false' || cfg.autoAbrir === 0);
 
   const salvarCfg = debounce(() => Store.set(CK.cfg, cfg), 400);
 
-  // Ajustes por arquivo: { "nome|tamanho": { off, top, bot } }.
+  // Ajustes por arquivo: { "nome|tamanho": { off, top, bot, auto, pags? } }.
   // O formato antigo (valor = número de px) continua sendo lido.
+  // v3.0.7 acrescenta `pags` (mapa n -> { off, top, bot, auto }) do modo por página.
   const offsets = Store.get(CK.off, {}) || {};
+
+  // Teto de páginas guardadas por arquivo (PDFs gigantes + 200 arquivos
+  // estourariam a cota do localStorage). Acima disso a página herda o arquivo.
+  const PAGS_MAX = 260;
 
   function chaveArquivo(file) {
     if (!file) return '';
     // aceita File (name) e o registro interno { nome, size }
     const nome = file.nome || file.name || 'documento.pdf';
     return String(nome).toLowerCase() + '|' + (file.size || 0);
+  }
+
+  // { "1": {off,top,bot,auto}, ... }  →  Map<numero, registro>
+  function lerPags(bruto) {
+    const m = new Map();
+    if (!bruto || typeof bruto !== 'object') return m;
+    Object.keys(bruto).forEach((k) => {
+      const i = parseInt(k, 10);
+      const v = bruto[k];
+      if (!(i > 0) || !v || typeof v !== 'object') return;
+      m.set(i, {
+        off: clamp(Math.round(num(v.off, 0)), LIMITES.offset[0], LIMITES.offset[1]),
+        top: clamp(num(v.top, 0), LIMITES_PAGINA.stretchTop[0], LIMITES_PAGINA.stretchTop[1]),
+        bot: clamp(num(v.bot, 0), LIMITES_PAGINA.stretchBot[0], LIMITES_PAGINA.stretchBot[1]),
+        auto: v.auto === true
+      });
+    });
+    return m;
   }
 
   // Registro do arquivo, já normalizado (null = nunca ajustado).
@@ -223,24 +263,49 @@
   function registroArquivo(file) {
     const r = offsets[chaveArquivo(file)];
     if (r == null) return null;
-    if (typeof r === 'number') return { off: r, top: null, bot: null, auto: false };
+    if (typeof r === 'number') return { off: r, top: null, bot: null, auto: false, pags: new Map() };
     return {
       off: num(r.off, 0),
       top: r.top == null ? null : num(r.top, 0),
       bot: r.bot == null ? null : num(r.bot, 0),
-      auto: r.auto === true
+      auto: r.auto === true,
+      pags: lerPags(r.pags)
     };
   }
 
   function salvarOffsetArquivo() {
     if (!S.arquivo) return;
     const k = chaveArquivo(S.arquivo);
-    offsets[k] = {
-      off: Math.round(S.offset),
-      top: Math.round(S.stretchTop * 10) / 10,
-      bot: Math.round(S.stretchBot * 10) / 10,
-      auto: !!S.autoAtivo
+    const porPagina = ehPorPagina();
+    // No modo por página o registro do ARQUIVO guarda os valores do documento
+    // (base*, o fallback das páginas) — nunca os da página que está em foco.
+    const reg = {
+      off: Math.round(porPagina ? S.baseOff : S.offset),
+      top: Math.round((porPagina ? S.baseTop : S.stretchTop) * 10) / 10,
+      bot: Math.round((porPagina ? S.baseBot : S.stretchBot) * 10) / 10,
+      auto: porPagina ? algumaPaginaAuto() : !!S.autoAtivo
     };
+    if (S.pags && S.pags.size) {
+      const pags = {};
+      Array.from(S.pags.keys())
+        .filter((i) => i > 0 && i <= PAGS_MAX)
+        .sort((a, b) => a - b)
+        .forEach((i) => {
+          const p = S.pags.get(i);
+          if (!p) return;
+          pags[String(i)] = {
+            off: Math.round(p.off),
+            top: Math.round(p.top * 10) / 10,
+            bot: Math.round(p.bot * 10) / 10,
+            auto: !!p.auto
+          };
+        });
+      if (Object.keys(pags).length) {
+        reg.pags = pags;
+        reg.modo = 'pagina';
+      }
+    }
+    offsets[k] = reg;
     // poda: mantém os 200 mais recentes (ordem de inserção)
     const chaves = Object.keys(offsets);
     if (chaves.length > 200) chaves.slice(0, chaves.length - 200).forEach((c) => delete offsets[c]);
@@ -643,6 +708,33 @@
     .esticar .seta:active{ transform:translateY(1px); }
     .esticar .un{ font-size:10px; color:#5c6d85; }
 
+    /* v3.0.7 — granularidade do ajuste (documento × página) + navegação */
+    .segaj{
+      display:flex; gap:3px; padding:3px; margin:2px 0 7px;
+      background:#0e1729; border:1px solid #223252; border-radius:9px;
+    }
+    .segaj button{
+      flex:1 1 0; appearance:none; border:0; background:transparent; color:#93a4bb;
+      font:600 11px/1 system-ui,'Segoe UI',Roboto,sans-serif; padding:6px 4px;
+      border-radius:6px; cursor:pointer; white-space:nowrap;
+    }
+    .segaj button:hover{ background:#16233a; color:#dbe6f5; }
+    .segaj button.on{ background:#2a4a7a; color:#eaf2ff; box-shadow:inset 0 0 0 1px #3f6ba8; }
+    .pagnav{ display:none; align-items:center; gap:4px; margin:0 0 8px; }
+    .pagnav.on{ display:flex; }
+    .pagnav .pginfo{
+      flex:1 1 auto; min-width:0; font:600 10.5px/1.35 system-ui,'Segoe UI',Roboto,sans-serif;
+      color:#c3d2e6; font-variant-numeric:tabular-nums;
+    }
+    .pagnav button{
+      min-width:22px; height:22px; padding:0 5px; border-radius:6px;
+      border:1px solid #2b3f60; background:#141f33; color:#c9d6e8;
+      font:700 10px/1 system-ui,sans-serif; cursor:pointer; flex:0 0 auto;
+      display:grid; place-items:center;
+    }
+    .pagnav button:hover{ background:#1f3050; color:#fff; border-color:#3f5a80; }
+    .pagnav button:active{ transform:translateY(1px); }
+
     /* ── AUTO (encaixe automático entre os timbres) ─────────────────── */
     .auto-bloco{ margin:2px 0 12px; padding-bottom:11px; border-bottom:1px dashed #24344e; }
     .btn.auto{
@@ -1011,12 +1103,12 @@
     const cbCab = h('input', { type: 'checkbox', checked: cfg.cabOn });
     cbCab.addEventListener('change', () => {
       cfg.cabOn = cbCab.checked; aplicarCfg(); salvarCfg();
-      if (S.autoAtivo) agendarAuto();
+      if (temAuto()) agendarAuto();
     });
     const cbRod = h('input', { type: 'checkbox', checked: cfg.rodOn });
     cbRod.addEventListener('change', () => {
       cfg.rodOn = cbRod.checked; aplicarCfg(); salvarCfg();
-      if (S.autoAtivo) agendarAuto();
+      if (temAuto()) agendarAuto();
     });
 
     const secCarimbo = h('section', { class: 'sec' },
@@ -1038,7 +1130,7 @@
         cfg[c.k] = v;
         aplicarCfg();
         salvarCfg();
-        if (S.autoAtivo) agendarAuto();   // AUTO segue a calibração dos timbres
+        if (temAuto()) agendarAuto();   // AUTO segue a calibração dos timbres
       });
       inp.addEventListener('change', () => {
         inp.value = String(cfg[c.k]);
@@ -1105,9 +1197,41 @@
       h('label', { class: 'chk' }, cbAuto, 'Aplicar AUTO ao abrir cada PDF')
     );
 
+    /* v3.0.7 — granularidade do ajuste: arquivo inteiro × página a página */
+    const segDoc = h('button', {
+      class: cfg.modoAjuste === 'pagina' ? '' : 'on', type: 'button', id: 'hoc-modo-doc',
+      title: 'Um offset/esticamento para o arquivo inteiro (comportamento até a 3.0.6)',
+      onclick: () => definirModoAjuste('documento')
+    }, 'Por documento');
+    const segPag = h('button', {
+      class: cfg.modoAjuste === 'pagina' ? 'on' : '', type: 'button', id: 'hoc-modo-pag',
+      title: 'Cada página com o seu próprio offset/esticamento',
+      onclick: () => definirModoAjuste('pagina')
+    }, 'Por página');
+    const segModo = h('div', { class: 'segaj', id: 'hoc-modo-ajuste', role: 'group' }, segDoc, segPag);
+
+    const btnPagAnt = h('button', {
+      type: 'button', title: 'Página anterior (Alt+\u2191)',
+      onclick: () => irParaPagina(S.paginaAtual - 1)
+    }, '\u25C0');
+    const btnPagProx = h('button', {
+      type: 'button', title: 'Próxima página (Alt+\u2193)',
+      onclick: () => irParaPagina(S.paginaAtual + 1)
+    }, '\u25B6');
+    const btnAutoPag = h('button', {
+      type: 'button', class: 'mini', style: 'display:none',
+      title: 'Recalcula o AUTO só nesta página',
+      onclick: () => aplicarAutoPaginas([S.paginaAtual], 'manual')
+    }, '\u26A1');
+    const pagInfo = h('span', { class: 'pginfo', id: 'hoc-pag-info' },
+      'Carregue um PDF para navegar pelas páginas.');
+    const pagNav = h('div', { class: 'pagnav', id: 'hoc-pag-nav' }, btnPagAnt, pagInfo, btnPagProx, btnAutoPag);
+
     const secAltura = h('section', { class: 'sec' },
       h('h3', null, 'Ajuste de altura (esticar)'),
       blocoAuto,
+      segModo,
+      pagNav,
       h('div', { class: 'esticar' },
         h('span', { class: 'rot' }, 'Topo'),
         setaStretch('topo', -1, 'Encolhe o topo em 0,5 mm (Shift = 5 mm)'),
@@ -1132,7 +1256,9 @@
         'Arraste as alças ', h('b', null, 'TOPO'), ' e ', h('b', null, 'BASE'),
         ' nas folhas (para baixo estica, para cima encolhe) ou use \u25B2/\u25BC (0,5 mm; Shift = 5 mm). ',
         'Os dois valores ficam salvos por arquivo; a posição vertical continua independente. ',
-        'O ', h('b', null, '\u26A1 AUTO'), ' calcula os três de uma vez — e qualquer ajuste à mão desliga o AUTO.'
+        'O ', h('b', null, '\u26A1 AUTO'), ' calcula os três de uma vez — e qualquer ajuste à mão desliga o AUTO. ',
+        'Em ', h('b', null, 'Por página'), ' cada folha tem o seu topo/base (o painel mostra os da página em foco) ',
+        'e o ajuste à mão desliga o AUTO só daquela página.'
       )
     );
 
@@ -1190,6 +1316,7 @@
       lado, palco, zoom, drop, prog, progBarra, progTxt,
       inpOffset, medMm, sobe, desce,
       inpStTop, inpStBot, btnAuto, autoInfo, cbAuto,
+      segDoc, segPag, pagNav, pagInfo, btnAutoPag,
       cbCab, cbRod, stEsq, stDir, toast, detAvancado, campos
     });
 
@@ -1204,6 +1331,12 @@
     doc.addEventListener('keydown', (e) => {
       const t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      // v3.0.7 — Alt+↑/↓ troca a página em foco no modo por página
+      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && ehPorPagina()) {
+        e.preventDefault();
+        irParaPagina(S.paginaAtual + (e.key === 'ArrowDown' ? 1 : -1));
+        return;
+      }
       if (e.key === 'ArrowUp') { e.preventDefault(); moverOffset(-(e.shiftKey ? 10 : cfg.passo)); }
       else if (e.key === 'ArrowDown') { e.preventDefault(); moverOffset(e.shiftKey ? 10 : cfg.passo); }
       else if (e.key === 'Escape') { if (S.menuAberto) fecharMenu(); else fechar(); }
@@ -1211,9 +1344,27 @@
     });
 
     window.addEventListener('resize', debounce(ajustarZoom, 120));
+
+    // v3.0.7 — qual página está no centro do palco (o painel segue a rolagem)
+    palco.addEventListener('scroll', debounce(() => {
+      if (!ehPorPagina() || !S.paginas || S.arrastando) return;
+      const r = palco.getBoundingClientRect();
+      const centro = r.top + palco.clientHeight / 2;
+      let melhor = 0;
+      let dist = Infinity;
+      S.doc.querySelectorAll('.folha').forEach((f) => {
+        const b = f.getBoundingClientRect();
+        const d = Math.abs((b.top + b.height / 2) - centro);
+        if (d < dist) { dist = d; melhor = paginaDaFolha(f); }
+      });
+      if (melhor > 0 && melhor !== S.paginaAtual) mudarPagina(melhor, false);
+    }, 90), { passive: true });
+
     aplicarPasso(cfg.passo);
     aplicarCfg();
     ajustarZoom();
+    atualizarLimitesStretch();
+    atualizarInfoPagina();
   }
 
   /* --------------------------------------------------------------------------
@@ -1245,9 +1396,63 @@
     }
   }
 
-  function aplicarOffset() {
+  /* ── v3.0.7: ajuste POR PÁGINA ────────────────────────────────────────
+   * No modo DOCUMENTO (padrão) um único offset/esticamento vale para o
+   * arquivo inteiro. No modo PÁGINA cada folha tem os seus valores —
+   * indispensável quando o PDF mistura tamanhos/conteúdos diferentes.
+   * `base*` guarda sempre os valores do ARQUIVO (o que o modo documento usa
+   * e o que uma página ainda sem registro próprio herda).
+   * ------------------------------------------------------------------- */
+  const ehPorPagina = () => cfg.modoAjuste === 'pagina';
+
+  // Limites de esticamento por eixo (mm) — o modo página usa uma faixa maior
+  const limStretch = (qual) => (qual === 'base'
+    ? (ehPorPagina() ? LIMITES_PAGINA.stretchBot : LIMITES.stretchBot)
+    : (ehPorPagina() ? LIMITES_PAGINA.stretchTop : LIMITES.stretchTop));
+
+  function algumaPaginaAuto() {
+    if (!S.pags) return false;
+    for (const p of S.pags.values()) { if (p && p.auto) return true; }
+    return false;
+  }
+
+  // AUTO ligado em algum escopo (usado pela recalibração dos timbres)
+  const temAuto = () => (ehPorPagina() ? (!!S.autoAtivo || algumaPaginaAuto()) : !!S.autoAtivo);
+
+  function folhaPorIndice(i) {
+    if (!S.doc || !(i > 0)) return null;
+    return S.doc.querySelector('.folha[data-pagina="' + i + '"]');
+  }
+
+  function paginaDaFolha(folha) {
+    return folha ? (parseInt(folha.dataset.pagina, 10) || 0) : 0;
+  }
+
+  // O que a página renderiza: registro próprio ou os valores do arquivo.
+  function valoresDaFaixa(i) {
+    const r = S.pags && S.pags.get(i);
+    if (r) return { off: r.off, top: r.top, bot: r.bot, auto: !!r.auto };
+    return { off: S.baseOff, top: S.baseTop, bot: S.baseBot, auto: false };
+  }
+
+  function valoresDaFolha(folha) {
+    if (!ehPorPagina()) return { off: S.offset, top: S.stretchTop, bot: S.stretchBot };
+    return valoresDaFaixa(paginaDaFolha(folha));
+  }
+
+  // Registro editável da página (cria a partir do que ela herda hoje)
+  function regPagina(i, criar) {
+    let r = S.pags.get(i);
+    if (!r && criar) {
+      const v = valoresDaFaixa(i);
+      r = { off: v.off, top: v.top, bot: v.bot, auto: false };
+      S.pags.set(i, r);
+    }
+    return r || null;
+  }
+
+  function atualizarCamposOffset() {
     if (!S.doc) return;
-    S.doc.documentElement.style.setProperty('--pdf-y', (cfg.pdfY + S.offset) + 'px');
     if (E.inpOffset && S.doc.activeElement !== E.inpOffset) E.inpOffset.value = String(Math.round(S.offset));
     if (E.medMm) E.medMm.textContent = (S.offset * PX_MM).toFixed(1).replace('.', ',') + ' mm';
     if (E.stDir) {
@@ -1256,11 +1461,45 @@
     }
   }
 
-  function setOffset(v, aoVivo) {
-    S.offset = clamp(Math.round(num(v, 0)), LIMITES.offset[0], LIMITES.offset[1]);
-    if (!autoInterno) desligarAuto();   // mexeu à mão: o AUTO sai de cena
-    aplicarOffset();
-    salvarOffsetDebounced();   // aoVivo = arrasto (já é debounced)
+  // --pdf-y mora no <html>, mas cada folha pode sobrescrevê-lo (modo página):
+  // o .campo-pagina usa var(--pdf-y) e herda a declaração mais próxima.
+  function aplicarOffsetFolha(folha) {
+    if (!S.doc || !folha) return;
+    if (ehPorPagina()) {
+      folha.style.setProperty('--pdf-y', (cfg.pdfY + valoresDaFolha(folha).off) + 'px');
+    } else {
+      folha.style.removeProperty('--pdf-y');
+    }
+  }
+
+  function aplicarOffset(folhaSo) {
+    if (!S.doc) return;
+    S.doc.documentElement.style.setProperty('--pdf-y', (cfg.pdfY + S.offset) + 'px');
+    if (folhaSo) aplicarOffsetFolha(folhaSo);
+    else S.doc.querySelectorAll('.folha').forEach(aplicarOffsetFolha);
+    atualizarCamposOffset();
+  }
+
+  function setOffset(v, aoVivo, pagina) {
+    const val = clamp(Math.round(num(v, 0)), LIMITES.offset[0], LIMITES.offset[1]);
+    if (!ehPorPagina()) {
+      S.offset = val;
+      if (!autoInterno) desligarAuto();   // mexeu à mão: o AUTO sai de cena
+      aplicarOffset();
+      salvarOffsetDebounced();   // aoVivo = arrasto (já é debounced)
+      return;
+    }
+    // modo página: grava só na página arrastada/editada
+    const i = pagina || S.paginaAtual;
+    const r = regPagina(i, true);
+    r.off = val;
+    if (!autoInterno && r.auto) r.auto = false;   // o AUTO cai SÓ nesta página
+    if (i === S.paginaAtual) S.offset = val;
+    S.autoAtivo = !!valoresDaFaixa(S.paginaAtual).auto;
+    aplicarOffset(folhaPorIndice(i));
+    atualizarAutoUi();
+    atualizarInfoPagina();
+    salvarOffsetDebounced();
   }
 
   function moverOffset(delta) {
@@ -1277,50 +1516,88 @@
    * ------------------------------------------------------------------- */
   const DIVISAO = 0.5;
 
+  function rotularAlcas(folha, v) {
+    if (!folha) return;
+    folha.querySelectorAll('.stretch-alca .val').forEach((el) => {
+      el.textContent = fmtMm(el.dataset.qual === 'base' ? v.bot : v.top) + ' mm';
+    });
+  }
+
   function aplicarStretchFolha(folha) {
     const h = num(folha.dataset.hbase, 0) ||
       num(String(folha.style.getPropertyValue('--h-base')).replace('px', ''), 0) || A4_H_PX;
+    const v = valoresDaFolha(folha);   // documento: S.* | página: registro da folha
     const hTopo = Math.max(1, h * DIVISAO);
     const hBase = Math.max(1, h * (1 - DIVISAO));
-    const a = clamp(1 + (S.stretchTop / PX_MM) / hTopo, 0.15, 3);
-    const b = clamp(1 + (S.stretchBot / PX_MM) / hBase, 0.15, 3);
+    const a = clamp(1 + (v.top / PX_MM) / hTopo, 0.15, 3);
+    const b = clamp(1 + (v.bot / PX_MM) / hBase, 0.15, 3);
     folha.style.setProperty('--h-base', h + 'px');
     folha.style.setProperty('--divisao', String(DIVISAO));
     folha.style.setProperty('--st-topo', a.toFixed(5));
     folha.style.setProperty('--st-base', b.toFixed(5));
+    rotularAlcas(folha, v);
   }
 
-  function aplicarStretch() {
+  function aplicarStretch(folhaSo) {
     if (!S.doc) return;
-    S.doc.querySelectorAll('.folha').forEach(aplicarStretchFolha);
+    if (folhaSo) aplicarStretchFolha(folhaSo);
+    else S.doc.querySelectorAll('.folha').forEach(aplicarStretchFolha);
     atualizarCamposStretch();
   }
 
+  // Campos do painel = valores da página em foco (modo página) ou do arquivo.
   function atualizarCamposStretch() {
     if (!S.doc) return;
     const pares = [[E.inpStTop, S.stretchTop], [E.inpStBot, S.stretchBot]];
     for (const [inp, v] of pares) {
       if (inp && S.doc.activeElement !== inp) inp.value = String(Math.round(v * 10) / 10);
     }
-    S.doc.querySelectorAll('.stretch-alca .val').forEach((el) => {
-      el.textContent = fmtMm(el.dataset.qual === 'base' ? S.stretchBot : S.stretchTop) + ' mm';
-    });
   }
 
-  function setStretch(qual, mm) {
+  // min/max dos campos seguem o modo: no modo página o esticamento vai além
+  function atualizarLimitesStretch() {
+    const lt = limStretch('topo');
+    const lb = limStretch('base');
+    if (E.inpStTop) { E.inpStTop.min = String(lt[0]); E.inpStTop.max = String(lt[1]); }
+    if (E.inpStBot) { E.inpStBot.min = String(lb[0]); E.inpStBot.max = String(lb[1]); }
+  }
+
+  function setStretch(qual, mm, pagina) {
     const topo = qual !== 'base';
-    const lim = topo ? LIMITES.stretchTop : LIMITES.stretchBot;
+    const lim = limStretch(qual);
     const v = clamp(Math.round(num(mm, 0) * 10) / 10, lim[0], lim[1]);
-    if (topo) { S.stretchTop = v; cfg.stretchTop = v; }
-    else { S.stretchBot = v; cfg.stretchBot = v; }
-    if (!autoInterno) desligarAuto();   // ajuste manual desliga o AUTO
-    aplicarStretch();
-    salvarCfg();              // passa a ser o padrão dos próximos arquivos
-    salvarOffsetDebounced();  // e fica salvo neste arquivo
+
+    if (!ehPorPagina()) {
+      if (topo) { S.stretchTop = v; cfg.stretchTop = v; }
+      else { S.stretchBot = v; cfg.stretchBot = v; }
+      if (!autoInterno) desligarAuto();   // ajuste manual desliga o AUTO
+      aplicarStretch();
+      salvarCfg();              // passa a ser o padrão dos próximos arquivos
+      salvarOffsetDebounced();  // e fica salvo neste arquivo
+      return;
+    }
+
+    // modo página: o valor vale só para esta folha (não mexe no cfg global)
+    const i = pagina || S.paginaAtual;
+    const r = regPagina(i, true);
+    if (topo) r.top = v; else r.bot = v;
+    if (!autoInterno && r.auto) r.auto = false;   // AUTO cai só nesta página
+    if (i === S.paginaAtual) {
+      if (topo) S.stretchTop = v; else S.stretchBot = v;
+    }
+    S.autoAtivo = !!valoresDaFaixa(S.paginaAtual).auto;
+    aplicarStretch(folhaPorIndice(i));
+    atualizarAutoUi();
+    atualizarInfoPagina();
+    salvarOffsetDebounced();
   }
 
-  function moverStretch(qual, delta) {
-    setStretch(qual, (qual === 'base' ? S.stretchBot : S.stretchTop) + delta);
+  function moverStretch(qual, delta, pagina) {
+    const i = pagina || S.paginaAtual;
+    const atual = ehPorPagina()
+      ? (qual === 'base' ? valoresDaFaixa(i).bot : valoresDaFaixa(i).top)
+      : (qual === 'base' ? S.stretchBot : S.stretchTop);
+    setStretch(qual, atual + delta, pagina);
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -1381,58 +1658,79 @@
     return h > 0 ? h : 0;
   }
 
-  /* Fração vertical ocupada pela TINTA (união de todas as páginas).
-     Roda numa miniatura de 220 px de largura — barato mesmo com 100+ páginas.
-     Branco do JPEG fica em ~250-255; qualquer coisa abaixo de 232 conta como
-     conteúdo (texto, linhas de tabela, imagens). */
-  async function medirTinta(folhas) {
-    if (!folhas || !folhas.length) return null;
-    const LARG = 220;
-    const LIMIAR = 232;
+  /* Fração vertical ocupada pela TINTA, medida numa miniatura de 220 px de
+     largura — barato mesmo com 100+ páginas. Branco do JPEG fica em ~250-255;
+     qualquer coisa abaixo de 232 conta como conteúdo (texto, tabela, imagem).
+     medirTintaFolha() mede UMA folha (modo página, v3.0.7);
+     medirTinta() devolve a UNIÃO de todas (modo documento). */
+  const TINTA_LARG = 220;
+  const TINTA_LIMIAR = 232;
+
+  function novoCanvasTinta() {
+    if (!S.doc) return null;
     const cv = S.doc.createElement('canvas');
     const ctx = cv.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return null;
+    return ctx ? { cv, ctx } : null;
+  }
 
+  // Uma folha → { y0, y1 } em fração da altura (null = sem tinta / sem imagem)
+  async function medirTintaFolha(folha, cv, ctx) {
+    if (!folha) return null;
+    if (!cv || !ctx) {
+      const c = novoCanvasTinta();
+      if (!c) return null;
+      cv = c.cv;
+      ctx = c.ctx;
+    }
+    const img = folha.querySelector('.pagina.topo');
+    if (!img) return null;
+    try { if (img.decode) await img.decode(); } catch (e) { /* noop */ }
+    if (!img.naturalWidth || !img.naturalHeight) return null;
+
+    const alt = Math.max(8, Math.round(TINTA_LARG * img.naturalHeight / img.naturalWidth));
+    cv.width = TINTA_LARG;
+    cv.height = alt;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, TINTA_LARG, alt);
+    try { ctx.drawImage(img, 0, 0, TINTA_LARG, alt); } catch (e) { return null; }
+
+    let dados;
+    try { dados = ctx.getImageData(0, 0, TINTA_LARG, alt).data; } catch (e) { return null; }
+
+    let a = -1;
+    let b = -1;
+    for (let y = 0; y < alt; y++) {
+      const linha = y * TINTA_LARG * 4;
+      let escuros = 0;
+      for (let x = 0; x < TINTA_LARG; x++) {
+        const i = linha + x * 4;
+        const lum = dados[i] * 0.299 + dados[i + 1] * 0.587 + dados[i + 2] * 0.114;
+        if (lum < TINTA_LIMIAR && ++escuros >= 2) break;
+      }
+      if (escuros >= 2) { if (a < 0) a = y; b = y; }
+    }
+    if (a < 0) return null;
+    return { y0: a / alt, y1: (b + 1) / alt };
+  }
+
+  async function medirTinta(folhas) {
+    if (!folhas || !folhas.length) return null;
     const amostra = folhas.length <= 60 ? folhas
       : Array.from({ length: 40 }, (_, i) => folhas[Math.round(i * (folhas.length - 1) / 39)]);
+    const c = novoCanvasTinta();
+    if (!c) return null;
 
     let y0 = 1;
     let y1 = 0;
     let mediu = 0;
 
     for (const folha of amostra) {
-      const img = folha.querySelector('.pagina.topo');
-      if (!img) continue;
-      try { if (img.decode) await img.decode(); } catch (e) { /* noop */ }
-      if (!img.naturalWidth || !img.naturalHeight) continue;
-
-      const alt = Math.max(8, Math.round(LARG * img.naturalHeight / img.naturalWidth));
-      cv.width = LARG;
-      cv.height = alt;
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, LARG, alt);
-      try { ctx.drawImage(img, 0, 0, LARG, alt); } catch (e) { continue; }
-
-      let dados;
-      try { dados = ctx.getImageData(0, 0, LARG, alt).data; } catch (e) { return null; }
-
-      let a = -1;
-      let b = -1;
-      for (let y = 0; y < alt; y++) {
-        const linha = y * LARG * 4;
-        let escuros = 0;
-        for (let x = 0; x < LARG; x++) {
-          const i = linha + x * 4;
-          const lum = dados[i] * 0.299 + dados[i + 1] * 0.587 + dados[i + 2] * 0.114;
-          if (lum < LIMIAR && ++escuros >= 2) break;
-        }
-        if (escuros >= 2) { if (a < 0) a = y; b = y; }
-      }
-      if (a >= 0) {
-        mediu++;
-        y0 = Math.min(y0, a / alt);
-        y1 = Math.max(y1, (b + 1) / alt);
-      }
+      let t = null;
+      try { t = await medirTintaFolha(folha, c.cv, c.ctx); } catch (e) { t = null; }
+      if (!t) continue;
+      mediu++;
+      y0 = Math.min(y0, t.y0);
+      y1 = Math.max(y1, t.y1);
     }
 
     if (!mediu || y1 <= y0) return null;
@@ -1440,9 +1738,10 @@
   }
 
   // Pura matemática: devolve { offset, stT, stB, k, ... } sem tocar no estado.
-  function calcularEncaixe(tinta) {
+  // `folhaAlvo` permite calcular o encaixe de UMA página (modo página, v3.0.7).
+  function calcularEncaixe(tinta, folhaAlvo) {
     const geo = geometriaTimbres();
-    const folha = geo.folha;
+    const folha = folhaAlvo || geo.folha;
     if (!folha || !S.paginas) return null;
 
     const h = alturaPagina(folha);
@@ -1463,8 +1762,10 @@
     // conteúdo nunca fica maior que a faixa livre — o resto (≤ 0,4 px) vira
     // uma folga invisível na base, nunca uma sobreposição no rodapé.
     const piso = (v) => Math.floor(v * 10 + 1e-9) / 10;
-    const stT = clamp(piso(totalMm * DIVISAO), LIMITES.stretchTop[0], LIMITES.stretchTop[1]);
-    const stB = clamp(piso(totalMm * (1 - DIVISAO)), LIMITES.stretchBot[0], LIMITES.stretchBot[1]);
+    const limT = limStretch('topo');
+    const limB = limStretch('base');
+    const stT = clamp(piso(totalMm * DIVISAO), limT[0], limT[1]);
+    const stB = clamp(piso(totalMm * (1 - DIVISAO)), limB[0], limB[1]);
 
     // k que o CSS aplica de fato (depois de arredondar/limitar os mm)
     const kEfetivo = (h + (stT + stB) / PX_MM) / h;
@@ -1481,8 +1782,10 @@
   }
 
   /* Calcula e aplica. origem: 'manual' (botão) | 'abertura' (auto ao abrir)
-     | 'silencioso' (segue a calibração enquanto o AUTO está ligado). */
+     | 'silencioso' (segue a calibração enquanto o AUTO está ligado).
+     v3.0.7 — no modo página delega para aplicarAutoPaginas(). */
   async function aplicarAuto(origem) {
+    if (ehPorPagina()) return aplicarAutoPaginas(null, origem);
     if (!S.doc || !S.paginas || !S.arquivo) return null;
     if (S.ocupado) {
       if (origem === 'manual') aviso('Aguarde o PDF terminar de carregar.', true);
@@ -1528,12 +1831,142 @@
     return r;
   }
 
+  /* ── AUTO POR PÁGINA (v3.0.7) ──────────────────────────────────────────
+   * Cada página é medida e encaixada com os SEUS próprios valores (offset,
+   * topo e base). Roda em blocos de 3 páginas, devolvendo o controle ao
+   * navegador entre eles: 19+ páginas não travam a UI. `indices` limita o
+   * cálculo (ex.: só a página em foco / só as que estão em AUTO).
+   * ------------------------------------------------------------------- */
+  const autoEmCurso = new Set();
+
+  async function aplicarAutoPaginas(indices, origem) {
+    if (!S.doc || !S.paginas || !S.arquivo) {
+      if (origem === 'manual') aviso('AUTO: carregue um PDF para calcular.', true);
+      return null;
+    }
+    if (S.ocupado) {
+      if (origem === 'manual') aviso('Aguarde o PDF terminar de carregar.', true);
+      return null;
+    }
+
+    let alvos;
+    if (indices && indices.length) {
+      alvos = indices.slice();
+    } else {
+      alvos = Array.from(S.doc.querySelectorAll('.folha'))
+        .map(paginaDaFolha).filter((n) => n > 0).sort((a, b) => a - b);
+      // Ao ABRIR, página ajustada à mão (auto:false) é preservada: só entram
+      // as nunca calculadas e as que continuam em AUTO.
+      if (origem === 'abertura') {
+        alvos = alvos.filter((i) => {
+          const r = S.pags.get(i);
+          return !r || r.auto;
+        });
+      }
+    }
+    alvos = alvos.filter((i) => !autoEmCurso.has(i));
+    if (!alvos.length) {
+      if (origem === 'manual') {
+        aviso(Array.from(S.pags.values()).some((p) => p.auto)
+          ? 'AUTO já aplicado — nenhuma página pendente.'
+          : 'AUTO: carregue um PDF para calcular.', !Array.from(S.pags.values()).some((p) => p.auto));
+      }
+      return null;
+    }
+
+    const ger = S.geracao;
+    const c = novoCanvasTinta();
+    if (!c) return null;
+    alvos.forEach((i) => autoEmCurso.add(i));
+
+    let feitos = 0;
+    let limites = 0;
+    try {
+      for (let n = 0; n < alvos.length; n++) {
+        if (ger !== S.geracao) return null;
+        const i = alvos[n];
+        const folha = folhaPorIndice(i);
+        if (!folha) continue;
+
+        let tinta = null;
+        try { tinta = await medirTintaFolha(folha, c.cv, c.ctx); } catch (e) { tinta = null; }
+
+        const r = calcularEncaixe(tinta, folha);
+        if (!r) continue;
+
+        const reg = regPagina(i, true);
+        reg.off = r.offset;
+        reg.top = r.stT;
+        reg.bot = r.stB;
+        reg.auto = true;
+        if (!r.exato) limites++;
+
+        // aplica já nesta folha (feedback imediato) — é barato: 3 variáveis CSS
+        aplicarOffsetFolha(folha);
+        aplicarStretchFolha(folha);
+        if (i === S.paginaAtual) {
+          S.offset = r.offset;
+          S.stretchTop = r.stT;
+          S.stretchBot = r.stB;
+          S.autoAtivo = true;
+        }
+        feitos++;
+
+        if (n % 3 === 2) await new Promise((res) => setTimeout(res, 0));
+      }
+    } finally {
+      alvos.forEach((i) => autoEmCurso.delete(i));
+    }
+
+    if (ger !== S.geracao) return null;
+    atualizarCamposOffset();
+    atualizarCamposStretch();
+    atualizarAutoUi();
+    atualizarInfoPagina();
+    salvarOffsetArquivo();
+
+    if (origem === 'manual' || origem === 'abertura') {
+      aviso('AUTO por página: ' + feitos + ' página' + (feitos > 1 ? 's' : '') +
+        ' encaixada' + (feitos > 1 ? 's' : '') + ' no seu lugar' +
+        (limites ? ' · ' + limites + ' no limite de esticamento' : '') + '.', !!limites);
+    }
+    return { modo: 'pagina', paginas: feitos, limites };
+  }
+
+  // AUTO sob demanda: ao abrir/navegar para uma página ainda sem valores e
+  // com o AUTO ligado no arquivo, calcula só ela (1 página = instantâneo).
+  function autoSobDemanda(i) {
+    if (!ehPorPagina() || !S.paginas || S.ocupado || !(i > 0)) return;
+    if (S.pags.has(i)) return;
+    if (!S.autoAtivo && !algumaPaginaAuto()) return;
+    if (autoEmCurso.has(i)) return;
+    aplicarAutoPaginas([i], 'silencioso').catch(() => { /* noop */ });
+  }
+
   const agendarAuto = debounce(() => {
-    if (!S.autoAtivo) return;
+    if (!temAuto()) return;
+    if (ehPorPagina()) {
+      // recalibrou os timbres: refaz só as páginas que estão em AUTO
+      const alvos = Array.from(S.pags.keys())
+        .filter((i) => S.pags.get(i) && S.pags.get(i).auto)
+        .sort((a, b) => a - b);
+      if (alvos.length) aplicarAutoPaginas(alvos, 'silencioso').catch(() => { /* noop */ });
+      return;
+    }
     aplicarAuto('silencioso').catch(() => { /* noop */ });
   }, 220);
 
   function desligarAuto() {
+    if (ehPorPagina()) {
+      const r = S.pags.get(S.paginaAtual);
+      if (!r || !r.auto) return;
+      r.auto = false;          // desliga SÓ nesta página (v3.0.7)
+      S.autoAtivo = false;
+      atualizarAutoUi();
+      atualizarInfoPagina();
+      salvarOffsetDebounced();
+      return;
+    }
     if (!S.autoAtivo) return;
     S.autoAtivo = false;
     atualizarAutoUi();
@@ -1546,9 +1979,111 @@
     E.autoInfo.classList.toggle('on', ligado);
     if (E.btnAuto) E.btnAuto.classList.toggle('ativo', ligado);
     if (!S.paginas) { E.autoInfo.textContent = 'Carregue um PDF para calcular.'; return; }
+
+    if (ehPorPagina()) {
+      if (E.btnAuto) E.btnAuto.textContent = '\u26A1 AUTO \u2014 encaixar cada página';
+      const v = valoresDaFaixa(S.paginaAtual);
+      if (!ligado) {
+        E.autoInfo.textContent = S.pags.has(S.paginaAtual)
+          ? 'Pág ' + S.paginaAtual + ': AUTO desligado — valendo o ajuste manual.'
+          : 'Pág ' + S.paginaAtual + ': sem AUTO — herda o ajuste do documento.';
+        return;
+      }
+      E.autoInfo.textContent = 'AUTO pág ' + S.paginaAtual + '/' + S.paginas + ': topo ' +
+        fmtMm(v.top) + ' mm · base ' + fmtMm(v.bot) + ' mm · ' + Math.round(v.off) + ' px';
+      return;
+    }
+
+    if (E.btnAuto) E.btnAuto.textContent = '\u26A1 AUTO \u2014 encaixar entre os timbres';
     if (!ligado) { E.autoInfo.textContent = 'AUTO desligado — valendo o ajuste manual.'; return; }
     E.autoInfo.textContent = 'AUTO: topo ' + fmtMm(S.stretchTop) + ' mm · base ' +
       fmtMm(S.stretchBot) + ' mm · ' + Math.round(S.offset) + ' px';
+  }
+
+  /* Linha do painel no modo página: "Pág 3/19 · topo -5,3 · base -4,1" */
+  function atualizarInfoPagina() {
+    if (!E.pagInfo) return;
+    const porPagina = ehPorPagina();
+    if (E.pagNav) E.pagNav.classList.toggle('on', porPagina);
+    if (E.btnAutoPag) E.btnAutoPag.style.display = porPagina ? '' : 'none';
+    if (!porPagina) return;
+    if (!S.paginas) {
+      E.pagInfo.textContent = 'Carregue um PDF para navegar pelas páginas.';
+      return;
+    }
+    const v = valoresDaFaixa(S.paginaAtual);
+    E.pagInfo.textContent = 'Pág ' + S.paginaAtual + '/' + S.paginas +
+      (S.pags.has(S.paginaAtual)
+        ? ' · topo ' + fmtMm(v.top) + ' · base ' + fmtMm(v.bot)
+        : ' · sem ajuste próprio (herda o documento)');
+  }
+
+  /* Página em foco: espelha os valores dela em S.* (é o que os campos do
+     painel mostram) sem tocar no que as outras folhas renderizam. */
+  function mudarPagina(i, silencioso) {
+    const total = S.paginas || 0;
+    if (!total) { atualizarInfoPagina(); return; }
+    const n = clamp(Math.round(num(i, 1)), 1, total);
+    S.paginaAtual = n;
+    if (ehPorPagina()) {
+      const v = valoresDaFaixa(n);
+      S.offset = v.off;
+      S.stretchTop = v.top;
+      S.stretchBot = v.bot;
+      S.autoAtivo = !!v.auto;
+      atualizarCamposOffset();
+      atualizarCamposStretch();
+      if (!silencioso) autoSobDemanda(n);
+    }
+    atualizarAutoUi();
+    atualizarInfoPagina();
+  }
+
+  // Navegação do painel: muda a página em foco e rola o palco até ela
+  function irParaPagina(i) {
+    const total = S.paginas || 0;
+    if (!total) { atualizarInfoPagina(); return; }
+    mudarPagina(i, false);
+    const f = folhaPorIndice(S.paginaAtual);
+    if (f && f.scrollIntoView) {
+      try { f.scrollIntoView({ block: 'start', behavior: 'auto' }); }
+      catch (e) { try { f.scrollIntoView(); } catch (e2) { /* noop */ } }
+    }
+  }
+
+  /* Troca 'documento' ↔ 'pagina' sem perder nada: o modo documento continua
+     guardado em base* (e no registro do arquivo); cada página mantém o seu. */
+  function definirModoAjuste(m) {
+    const novo = m === 'pagina' ? 'pagina' : 'documento';
+    if (cfg.modoAjuste === novo) return;
+    cfg.modoAjuste = novo;
+    salvarCfg();
+
+    if (novo === 'pagina') {
+      // o que valia para o arquivo vira o ponto de partida de cada página
+      S.baseOff = S.offset;
+      S.baseTop = S.stretchTop;
+      S.baseBot = S.stretchBot;
+      mudarPagina(S.paginaAtual, true);
+    } else {
+      S.offset = S.baseOff;
+      S.stretchTop = S.baseTop;
+      S.stretchBot = S.baseBot;
+      S.autoAtivo = algumaPaginaAuto();
+    }
+
+    if (E.segDoc) E.segDoc.classList.toggle('on', novo === 'documento');
+    if (E.segPag) E.segPag.classList.toggle('on', novo === 'pagina');
+    atualizarLimitesStretch();
+    aplicarOffset();
+    aplicarStretch();
+    atualizarAutoUi();
+    atualizarInfoPagina();
+    salvarOffsetArquivo();
+
+    aviso(novo === 'pagina'
+      ? 'Ajuste POR PÁGINA: cada página tem o seu topo/base (o AUTO encaixa página a página).'
+      : 'Ajuste POR DOCUMENTO: um offset/esticamento para o arquivo inteiro.');
   }
 
   function ajustarZoom() {
@@ -3068,6 +3603,10 @@
     S.urls.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) { /* noop */ } });
     S.urls = [];
     S.paginas = 0;
+    // v3.0.7 — zera também o estado por página (novo arquivo recomeça limpo)
+    S.pags = new Map();
+    S.paginaAtual = 1;
+    S.arrastando = false;
   }
 
   async function carregarArquivo(entrada) {
@@ -3142,18 +3681,40 @@
       // Ajustes específicos deste arquivo (chave: nome|tamanho). Se ainda não
       // existe registro, herda os valores globais (cfg) como ponto de partida.
       const reg = registroArquivo(S.arquivo);
-      S.offset = clamp(Math.round(num(reg ? reg.off : 0, 0)), LIMITES.offset[0], LIMITES.offset[1]);
-      S.stretchTop = clamp(
+      S.baseOff = clamp(Math.round(num(reg ? reg.off : 0, 0)), LIMITES.offset[0], LIMITES.offset[1]);
+      S.baseTop = clamp(
         reg && reg.top != null ? reg.top : num(cfg.stretchTop, 0),
         LIMITES.stretchTop[0], LIMITES.stretchTop[1]);
-      S.stretchBot = clamp(
+      S.baseBot = clamp(
         reg && reg.bot != null ? reg.bot : num(cfg.stretchBot, 0),
         LIMITES.stretchBot[0], LIMITES.stretchBot[1]);
 
+      // v3.0.7 — valores por página salvos no MESMO registro do arquivo
+      // ({ "3": {off,top,bot,auto} }). Registros antigos (sem pags) seguem
+      // funcionando: o arquivo inteiro usa baseOff/baseTop/baseBot.
+      S.pags = reg && reg.pags ? reg.pags : new Map();
+      S.paginaAtual = 1;
+      S.offset = S.baseOff;
+      S.stretchTop = S.baseTop;
+      S.stretchBot = S.baseBot;
+      if (ehPorPagina()) {
+        const v1 = valoresDaFaixa(1);   // painel abre mostrando a página 1
+        S.offset = v1.off;
+        S.stretchTop = v1.top;
+        S.stretchBot = v1.bot;
+      }
+
       // AUTO ao abrir: arquivo novo (nunca ajustado) ou que já estava em AUTO.
       // Se o usuário mexeu à mão, o registro diz auto:false e nada é mexido.
-      S.autoAtivo = !!reg && reg.auto === true;
-      autoNaAbertura = !!cfg.autoAbrir && (!reg || reg.auto === true);
+      const autoPag = algumaPaginaAuto();
+      S.autoAtivo = ehPorPagina()
+        ? (S.pags.size ? autoPag : false)
+        : (!!reg && reg.auto === true);
+      autoNaAbertura = !!cfg.autoAbrir && (
+        ehPorPagina()
+          ? (!reg || !S.pags.size || autoPag)
+          : (!reg || reg.auto === true)
+      );
 
       await renderizar(pdf, geracao);
       if (geracao !== S.geracao) return;
@@ -3166,11 +3727,15 @@
       E.nomeArq.classList.remove('vazio');
       atualizarStatus();
       atualizarAutoUi();
+      atualizarInfoPagina();
       E.palco.scrollTop = 0;
 
       if (reg && !autoNaAbertura) {
-        aviso('Ajustes salvos para este arquivo: ' + Math.round(S.offset) + ' px · topo ' +
-          fmtMm(S.stretchTop) + ' mm · base ' + fmtMm(S.stretchBot) + ' mm.');
+        aviso(ehPorPagina() && S.pags.size
+          ? 'Ajustes salvos por página para este arquivo: ' + S.pags.size + ' página' +
+            (S.pags.size > 1 ? 's' : '') + ' com valores próprios.'
+          : 'Ajustes salvos para este arquivo: ' + Math.round(S.offset) + ' px · topo ' +
+            fmtMm(S.stretchTop) + ' mm · base ' + fmtMm(S.stretchBot) + ' mm.');
       }
     } catch (err) {
       console.error('[HOC Derma] falha ao carregar PDF:', err);
@@ -3263,11 +3828,13 @@
   }
 
   /* Alça de esticamento: fica perto do cabeçalho (topo) ou do rodapé (base).
-     Arrastar para baixo estica; para cima encolhe. ▲/▼ dão passos de 0,5 mm. */
-  function criarAlcaStretch(qual) {
+     Arrastar para baixo estica; para cima encolhe. ▲/▼ dão passos de 0,5 mm.
+     v3.0.7: `pagina` amarra a alça à folha (modo por página). */
+  function criarAlcaStretch(qual, pagina) {
     const topo = qual === 'topo';
+    const v0 = pagina ? valoresDaFaixa(pagina) : { top: S.stretchTop, bot: S.stretchBot };
     const valor = h('span', { class: 'val', 'data-qual': qual },
-      fmtMm(topo ? S.stretchTop : S.stretchBot) + ' mm');
+      fmtMm(topo ? v0.top : v0.bot) + ' mm');
     const menos = h('button', { type: 'button', tabindex: '-1', title: 'Encolhe 0,5 mm (Shift = 5 mm)' }, '\u25B2');
     const mais = h('button', { type: 'button', tabindex: '-1', title: 'Estica 0,5 mm (Shift = 5 mm)' }, '\u25BC');
 
@@ -3280,14 +3847,17 @@
       valor, menos, mais
     );
 
-    menos.addEventListener('click', (e) => { e.stopPropagation(); moverStretch(qual, -(e.shiftKey ? 5 : 0.5)); });
-    mais.addEventListener('click', (e) => { e.stopPropagation(); moverStretch(qual, e.shiftKey ? 5 : 0.5); });
+    menos.addEventListener('click', (e) => { e.stopPropagation(); moverStretch(qual, -(e.shiftKey ? 5 : 0.5), pagina); });
+    mais.addEventListener('click', (e) => { e.stopPropagation(); moverStretch(qual, e.shiftKey ? 5 : 0.5, pagina); });
 
     let d = null;
     alca.addEventListener('pointerdown', (e) => {
       e.stopPropagation();   // não deixa virar arrasto de posição da folha
       if (e.button !== 0 || e.target.closest('button')) return;
-      d = { id: e.pointerId, y: e.clientY, v: topo ? S.stretchTop : S.stretchBot };
+      if (ehPorPagina() && pagina && pagina !== S.paginaAtual) mudarPagina(pagina, true);
+      const v = pagina ? valoresDaFaixa(pagina) : { top: S.stretchTop, bot: S.stretchBot };
+      d = { id: e.pointerId, y: e.clientY, v: topo ? v.top : v.bot };
+      S.arrastando = true;
       alca.setPointerCapture(e.pointerId);
       alca.classList.add('ativa');
       e.preventDefault();
@@ -3296,11 +3866,12 @@
       if (!d || e.pointerId !== d.id) return;
       e.stopPropagation();
       const dy = (e.clientY - d.y) / (S.zoom || 1);   // px locais da folha
-      setStretch(qual, d.v + dy * PX_MM);             // arrastar p/ baixo = estica
+      setStretch(qual, d.v + dy * PX_MM, pagina);     // arrastar p/ baixo = estica
     });
     const fim = (e) => {
       if (!d || (e && e.pointerId !== d.id)) return;
       d = null;
+      S.arrastando = false;
       alca.classList.remove('ativa');
       salvarOffsetArquivo();
     };
@@ -3334,13 +3905,14 @@
     if (imgTopo.complete && imgTopo.naturalWidth) medir();
     else imgTopo.addEventListener('load', medir, { once: true });
     aplicarStretchFolha(folha);
+    aplicarOffsetFolha(folha);
 
     folha.append(
       campo,
       h('img', { class: 'carimbo cab', src: IMG_CABECALHO, alt: '', 'aria-hidden': 'true' }),
       h('img', { class: 'carimbo rod', src: IMG_RODAPE, alt: '', 'aria-hidden': 'true' }),
-      criarAlcaStretch('topo'),
-      criarAlcaStretch('base')
+      criarAlcaStretch('topo', indice),
+      criarAlcaStretch('base', indice)
     );
 
     let d = null;
@@ -3348,7 +3920,9 @@
       if (e.button !== 0) return;
       if (S.ocupado) return;
       if (e.target.closest('.stretch-alca')) return;   // a alça tem o próprio arrasto
+      if (ehPorPagina() && indice !== S.paginaAtual) mudarPagina(indice, true);
       d = { id: e.pointerId, y: e.clientY, off: S.offset };
+      S.arrastando = true;
       folha.setPointerCapture(e.pointerId);
       folha.classList.add('arrastando');
       e.preventDefault();
@@ -3356,11 +3930,12 @@
     folha.addEventListener('pointermove', (e) => {
       if (!d || e.pointerId !== d.id) return;
       const dy = (e.clientY - d.y) / (S.zoom || 1);
-      setOffset(d.off + dy, true);
+      setOffset(d.off + dy, true, indice);
     });
     const fim = (e) => {
       if (!d || (e && e.pointerId !== d.id)) return;
       d = null;
+      S.arrastando = false;
       folha.classList.remove('arrastando');
       salvarOffsetArquivo();
     };
@@ -3639,6 +4214,12 @@
     // exatamente entre os timbres. Sem argumento = aplica e avisa.
     auto: (origem) => aplicarAuto(origem || 'manual'),
     medirTinta: () => medirTinta(Array.from(S.doc.querySelectorAll('.folha'))),
+    // v3.0.7 — ajuste POR PÁGINA
+    medirTintaPagina: (n) => medirTintaFolha(folhaPorIndice(n || S.paginaAtual)),
+    modoAjuste: (m) => { if (m) definirModoAjuste(m); return cfg.modoAjuste; },
+    pagina: (n) => { irParaPagina(n); return S.paginaAtual; },
+    valoresPagina: (n) => valoresDaFaixa(n || S.paginaAtual),
+    autoPagina: (n) => aplicarAutoPaginas([n || S.paginaAtual], 'manual'),
     // exposto para testes/integrações: resolve quando o pdf.js embutido está pronto
     pdfjs: garantirPdfJs,
     config: cfg,
@@ -3651,6 +4232,10 @@
       stretchTop: S.stretchTop,
       stretchBot: S.stretchBot,
       autoAtivo: S.autoAtivo,
+      modoAjuste: cfg.modoAjuste,
+      paginaAtual: S.paginaAtual,
+      pags: Array.from(S.pags.entries()),
+      base: { off: S.baseOff, top: S.baseTop, bot: S.baseBot },
       tinta: S.tintaCache ? S.tintaCache.tinta : null,
       zoom: S.zoom,
       ocupado: S.ocupado,
