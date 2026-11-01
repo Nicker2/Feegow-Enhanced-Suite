@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced Core Injector Agent
 // @namespace    https://github.com/Nicker2
-// @version      1.1.0.2
+// @version      1.1.0.1
 // @description  Puxa o código fonte do GitHub de forma inteligente usando Cache.
 // @author       Nicolas Bonza Cavalari Borges
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js
