@@ -1,12 +1,21 @@
 // ==UserScript==
-// @name         Timbrador de PDF HOC DERMA (Example.com)
+// @name         PDF HOC Derma — Timbrador (Feegow)
+// @name:pt-BR   PDF HOC Derma — Timbrador
 // @namespace    https://github.com/Nicker2
-// @version      2.0.1
-// @description  Renderiza PDF com cabeçalho/rodapé em cada página e calibração X/Y ao vivo
+// @version      3.0.0
+// @description  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
+// @description:pt-BR  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @author       Nicolas Bonza Cavalari Borges
-// @downloadURL  https://github.com/Nicker2/Feegow-Enhanced-Suite/raw/refs/heads/main/hoc-derma-stamping-tool.user.js
-// @updateURL    https://github.com/Nicker2/Feegow-Enhanced-Suite/raw/refs/heads/main/hoc-derma-stamping-tool.meta.js
+// @match        https://*.feegow.com/*
+// @match        https://feegow.com/*
+// @match        https://*.feegow.com.br/*
+// @match        https://feegow.com.br/*
 // @match        https://example.com/*
+// @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js
+// @run-at       document-idle
+// @noframes
 // @grant        none
+// @downloadURL  https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js
+// @updateURL    https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.meta.js
 // ==/UserScript==
