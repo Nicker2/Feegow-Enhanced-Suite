@@ -76,6 +76,8 @@ O script utiliza recursos modernos da Web API:
 3.  **Uso:**
     * O script será carregado automaticamente em qualquer subdomínio (`app`, `app2`, etc.) na lista de espera ou tela de login do Feegow.
 
+> **Cascata automática (recomendado):** instale **apenas** o `core.user.js`. Ele baixa o `VERIFICAR-DR-EXAMES.user.js` e o próprio VERIFICAR baixa e executa o `hoc-derma-stamping-tool.user.js` (PDF HOC Derma v3) — tudo com cache próprio de 60 minutos, sem precisar instalar o timbrador à mão. O botão vermelho **PDF HOC**, posicionado **à esquerda** da engrenagem de Configurações, abre a janela do timbrador dentro do Feegow; ele nunca redireciona para a página de instalação.
+
 ---
 
 ## ⚙️ Configuração Personalizável
