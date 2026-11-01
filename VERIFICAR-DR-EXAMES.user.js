@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.4.8
-// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra o PDF HOC Derma v3 (atalho vermelho abre a janela flutuante do timbrador).
+// @version      4.9.4.9
+// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra o PDF HOC Derma v3 em cascata (baixa e executa o timbrador do GitHub, com atalho vermelho à esquerda do Configs que abre a janela flutuante).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
 // @downloadURL  https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js
@@ -10,32 +10,144 @@
 // @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_xmlhttpRequest
+// @connect      raw.githubusercontent.com
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // Lê se a função está ativada no computador atual (Vem OFF por padrão)
-    const featurePdfHocAtiva = GM_getValue('pdf_hoc_derma', false);
+    // Lê se a função está ativada no computador atual (Vem ON por padrão:
+    // o timbrador é carregado automaticamente pela cascata abaixo).
+    const featurePdfHocAtiva = GM_getValue('pdf_hoc_derma', true);
 
     // =========================================================================
-    // PDF HOC DERMA v3 — INTEGRAÇÃO COM O TIMBRADOR (userscript separado)
+    // PDF HOC DERMA v3 — CASCATA: o VERIFICAR baixa e executa o timbrador
     // =========================================================================
-    // Até a 4.9.4.7 esta Suite abria o example.com, baixava o timbrador do
-    // GitHub e rodava um eval() de ~460 KB dentro do Feegow. O botão vermelho
-    // era só um <a href="https://example.com/"> — rota morta.
-    // Agora o timbrador é um userscript independente (v3), com janela
-    // flutuante e API pública window.HOC_DERMA. A Suite só conversa com ele:
-    //   • instalado → o clique abre a janela flutuante v3;
-    //   • ausente   → o clique abre o raw do .user.js para instalar (1 clique).
-    const HOC_DERMA_URL_RAW  = 'https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js'; // instalar/atualizar
+    // Mesmo padrão do core.user.js: GM_xmlhttpRequest -> cache no cofre do
+    // Tampermonkey -> eval(). A cascata completa fica:
+    //
+    //   core.user.js  ──baixa──▶  VERIFICAR-DR-EXAMES.user.js
+    //                              └──baixa──▶  hoc-derma-stamping-tool.user.js
+    //
+    // Assim, instalando só o core, o timbrador chega sozinho. O botão vermelho
+    // NUNCA manda o usuário para a página de instalação: se o HOC Derma ainda
+    // não estiver carregado, ele é baixado na hora e a janela flutuante abre
+    // em seguida.
+    const HOC_DERMA_URL_RAW  = 'https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js';
     const HOC_DERMA_URL_META = 'https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.meta.js'; // @updateURL do timbrador
+    const HOC_CACHE_MINUTOS  = 60;
+
+    const HOC_CHAVE_CODIGO = 'hoc_derma_codigo';      // fonte do timbrador
+    const HOC_CHAVE_TIME   = 'hoc_derma_fetch_time';  // quando foi baixado
+    const HOC_CHAVE_VERSAO = 'hoc_derma_versao';      // @version em cache
+
+    let hocDermaCarregando = null;   // Promise do download em andamento
 
     function hocDermaDisponivel() {
         return !!(window.HOC_DERMA && typeof window.HOC_DERMA.abrir === 'function');
     }
 
-    // Abre a janela v3 ou manda instalar o timbrador (fallback seguro).
+    function hocDermaVersaoDe(codigo) {
+        const m = /^\/\/\s*@version\s+(\S+)/m.exec(codigo || '');
+        return m ? m[1] : '';
+    }
+
+    // Aviso rápido (toast) — usado só quando o clique precisa esperar o download.
+    let hocDermaAvisoTimer = null;
+    function avisoHocDerma(texto, erro) {
+        try {
+            if (!document.body) return;
+            let box = document.getElementById('hoc-derma-aviso');
+            if (!box) {
+                box = document.createElement('div');
+                box.id = 'hoc-derma-aviso';
+                box.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:2147483000;max-width:340px;' +
+                    'background:#2c3e50;color:#fff;font:600 12px/1.45 system-ui,"Segoe UI",Arial,sans-serif;' +
+                    'padding:10px 14px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.35);border-left:4px solid #d9534f;';
+                document.body.appendChild(box);
+            }
+            box.style.background = erro ? '#8b1e1e' : '#2c3e50';
+            box.textContent = texto;
+            clearTimeout(hocDermaAvisoTimer);
+            hocDermaAvisoTimer = setTimeout(() => { try { box.remove(); } catch (e) { /* noop */ } }, 4500);
+        } catch (e) { /* noop */ }
+    }
+
+    // Executa o timbrador já baixado (mesma ideia do eval() do core.user.js).
+    function executarHocDerma(codigo, origem) {
+        if (hocDermaDisponivel()) return true; // já bootado nesta página
+        try {
+            // eslint-disable-next-line no-eval
+            eval(codigo);
+            const ok = hocDermaDisponivel();
+            if (ok) {
+                log('PDF HOC Derma v' + (window.HOC_DERMA.versao || '?') + ' executado a partir de ' + origem + '.');
+            } else {
+                console.error('[Feegow Suite] PDF HOC Derma rodou mas não expôs window.HOC_DERMA.');
+            }
+            return ok;
+        } catch (e) {
+            console.error('[Feegow Suite] Falha ao executar o PDF HOC Derma:', e);
+            return false;
+        }
+    }
+
+    // Baixa o timbrador do GitHub com cache próprio (padrão do core.user.js).
+    function carregarHocDerma(forcarAtualizacao) {
+        if (hocDermaDisponivel()) return Promise.resolve(true);
+        if (hocDermaCarregando) return hocDermaCarregando;
+
+        const agora = Date.now();
+        const ultimoFetch = Number(GM_getValue(HOC_CHAVE_TIME, 0)) || 0;
+        const codigoCache = String(GM_getValue(HOC_CHAVE_CODIGO, '') || '');
+        const expirou = (agora - ultimoFetch) > (HOC_CACHE_MINUTOS * 60 * 1000);
+
+        // Caminho instantâneo: dentro do tempo de cache, roda da memória local.
+        if (!forcarAtualizacao && codigoCache && !expirou) {
+            if (executarHocDerma(codigoCache, 'memória local')) return Promise.resolve(true);
+        }
+
+        hocDermaCarregando = new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: HOC_DERMA_URL_RAW + '?nocache=' + agora,
+                timeout: 30000,
+                onload: function (resposta) {
+                    const codigo = (resposta && resposta.responseText) || '';
+                    const status = resposta ? resposta.status : 0;
+                    if (status !== 200 || codigo.indexOf('// ==UserScript==') < 0) {
+                        console.error('[Feegow Suite] PDF HOC Derma: resposta inesperada do GitHub (HTTP ' + status + ').');
+                        resolve(false);
+                        return;
+                    }
+                    try {
+                        GM_setValue(HOC_CHAVE_CODIGO, codigo);
+                        GM_setValue(HOC_CHAVE_TIME, agora);
+                        GM_setValue(HOC_CHAVE_VERSAO, hocDermaVersaoDe(codigo));
+                    } catch (e) { /* noop */ }
+                    const versao = hocDermaVersaoDe(codigo);
+                    if (versao) log('PDF HOC Derma v' + versao + ' baixado do GitHub.');
+                    resolve(executarHocDerma(codigo, 'GitHub'));
+                },
+                onerror: function () {
+                    console.error('[Feegow Suite] PDF HOC Derma: falha de rede ao baixar do GitHub.');
+                    resolve(false);
+                },
+                ontimeout: function () {
+                    console.error('[Feegow Suite] PDF HOC Derma: timeout ao baixar do GitHub.');
+                    resolve(false);
+                }
+            });
+        }).then((ok) => {
+            hocDermaCarregando = null;
+            return ok;
+        });
+
+        return hocDermaCarregando;
+    }
+
+    // Abre a janela flutuante. NUNCA redireciona para a instalação.
     function abrirHocDerma() {
         if (hocDermaDisponivel()) {
             try {
@@ -44,28 +156,42 @@
                 return true;
             } catch (e) {
                 console.error('[Feegow Suite] Falha em HOC_DERMA.abrir():', e);
+                avisoHocDerma('Erro ao abrir o PDF HOC Derma: ' + (e && e.message ? e.message : e), true);
+                return true;
             }
         }
-        const url = HOC_DERMA_URL_RAW + '?v=' + Date.now();
-        const win = window.open(url, '_blank');
-        if (win) { try { win.opener = null; } catch (e) {} }
-        else { window.location.href = url; } // pop-up bloqueado
-        console.warn('[Feegow Suite] PDF HOC Derma v3 não instalado — abrindo o raw para instalar.');
-        return false;
+
+        // Ainda carregando/ausente: baixa agora e abre assim que ficar pronto.
+        if (hocDermaCarregando) {
+            avisoHocDerma('PDF HOC Derma está carregando… a janela abre em seguida.');
+        } else {
+            avisoHocDerma('Carregando PDF HOC Derma…');
+        }
+        carregarHocDerma(false).then((ok) => {
+            if (ok && hocDermaDisponivel()) {
+                try {
+                    window.HOC_DERMA.abrir();
+                    log('PDF HOC Derma aberto após carregamento automático.');
+                } catch (e) {
+                    console.error('[Feegow Suite] Falha em HOC_DERMA.abrir() após carregar:', e);
+                }
+            } else {
+                avisoHocDerma('Não consegui carregar o PDF HOC Derma. Verifique a conexão e tente de novo.', true);
+            }
+        });
+        return true;
     }
 
     // Botão pequeno e vermelho, no estilo do atalho antigo da Suite.
     function criarBotaoHocDerma(rotulo, compacto) {
         const a = document.createElement('a');
-        a.href = HOC_DERMA_URL_RAW;   // fallback real (clique do meio / copiar link)
-        a.target = '_blank';
-        a.rel = 'noopener';
+        a.href = '#';                  // nunca navega: o clique é sempre tratado abaixo
         a.dataset.hocDermaTrigger = '1';
         a.className = compacto ? 'btn btn-sm' : 'btn btn-xs';
         a.innerHTML = '<i class="far fa-file-pdf"></i> ' + (rotulo || 'PDF HOC');
         a.title = hocDermaDisponivel()
             ? 'PDF HOC Derma — abre a janela flutuante v3'
-            : 'PDF HOC Derma v3 não instalado — clique para instalar';
+            : 'PDF HOC Derma — carrega o timbrador e abre a janela flutuante';
         a.style.cssText = compacto
             ? 'background-color:#d9534f;border:1px solid #c9302c;color:#fff;font-weight:bold;font-size:11px;line-height:16px;padding:3px 9px;border-radius:12px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);white-space:nowrap;'
             : 'margin-right:15px;font-weight:bold;background-color:#d9534f;border:1px solid #d43f3a;color:white;padding:3px 12px;border-radius:15px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 4px rgba(0,0,0,0.2);';
@@ -73,33 +199,42 @@
         a.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (abrirHocDerma()) return;
-            a.innerHTML = '<i class="far fa-file-pdf"></i> Instalar PDF HOC';
-            a.title = 'Instale o PDF HOC Derma v3 no Tampermonkey e recarregue o Feegow.';
+            abrirHocDerma();           // sempre a janela do timbrador — nada de instalação
         });
         return a;
     }
 
-    // Atalho fixo ao lado do botão de Configurações da Suite (navbar do Feegow).
+    // Atalho IMEDIATAMENTE À ESQUERDA do botão de Configurações (navbar Feegow).
     function garantirBotaoHocDermaNavbar() {
         if (!featurePdfHocAtiva) return;
-        if (document.getElementById('li-hoc-derma')) return;
 
         const btnConfigs = document.getElementById('btn-controle-feegow');
         if (!btnConfigs || !btnConfigs.parentNode) return; // Configs ainda não foi injetado
 
+        const existente = document.getElementById('li-hoc-derma');
+        if (existente) {
+            // A navbar do Feegow re-renderiza: garante que ele continue colado
+            // à esquerda do Configs, sem nunca ir para a direita.
+            if (existente.nextElementSibling !== btnConfigs) {
+                btnConfigs.parentNode.insertBefore(existente, btnConfigs);
+            }
+            return;
+        }
+
         const li = document.createElement('li');
         li.id = 'li-hoc-derma';
         li.className = 'menu-merge hidden-sm hidden-xs';
+        li.style.marginRight = '4px';   // respiro entre o PDF HOC e a engrenagem
 
         const grupo = document.createElement('div');
         grupo.className = 'navbar-btn btn-group';
         grupo.appendChild(criarBotaoHocDerma('PDF HOC', true));
         li.appendChild(grupo);
 
-        // fica imediatamente à direita do botão de configurações
-        btnConfigs.parentNode.insertBefore(li, btnConfigs.nextSibling);
-        log('Botão "PDF HOC Derma" injetado ao lado de Configurações.');
+        // À ESQUERDA do Configs: insertBefore(li, btnConfigs).
+        // (antes era insertBefore(li, btnConfigs.nextSibling) — ficava à direita)
+        btnConfigs.parentNode.insertBefore(li, btnConfigs);
+        log('Botão "PDF HOC Derma" injetado à esquerda de Configurações.');
     }
 
     // Lista de profissionais e suas especialidades
@@ -687,7 +822,8 @@ const protocolosDilatacao = {
 
     function iniciarModuloPdfHoc() {
         if (!featurePdfHocAtiva) return; // Se o usuário deixou OFF, nem carrega o vigia
-        garantirBotaoHocDermaNavbar();   // atalho global ao lado do botão de Configurações
+        garantirBotaoHocDermaNavbar();   // atalho global à esquerda do botão de Configurações
+        carregarHocDerma(false);         // cascata: baixa/executa o timbrador antes do 1º clique
 
         const observer = new MutationObserver(() => {
             garantirBotaoHocDermaNavbar(); // a navbar do Feegow é re-renderizada com frequência
@@ -757,7 +893,7 @@ const protocolosDilatacao = {
                 
                 //O botão de configs agora carrega em qualquer tela
                 adicionarBotaoControleDrExames(); 
-                garantirBotaoHocDermaNavbar(); // atalho PDF HOC ao lado do Configs
+                garantirBotaoHocDermaNavbar(); // atalho PDF HOC à esquerda do Configs
 
                 // Trava: Só tenta manipular médicos, dilatação e selects na Lista de Espera
                 if (isPaginaListaEspera()) {
@@ -876,7 +1012,7 @@ const protocolosDilatacao = {
                     <li class="toggle-remover" data-key="remove_beamer_push" style="padding: 5px 10px; cursor: pointer; color: ${pushAtivo ? 'green' : 'red'};">
                         Pedir Notificações: ${pushAtivo ? 'ON' : 'OFF'}
                     </li>
-                    <li class="toggle-remover" data-key="pdf_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePdfHocAtiva ? 'green' : 'red'}; border-top: 1px solid #eee; margin-top: 5px;" title="Mostra o atalho vermelho 'PDF HOC Derma' ao lado de Configurações">
+                    <li class="toggle-remover" data-key="pdf_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePdfHocAtiva ? 'green' : 'red'}; border-top: 1px solid #eee; margin-top: 5px;" title="Mostra o atalho vermelho 'PDF HOC Derma' à esquerda de Configurações">
                         PDF HOC Derma (v3): ${featurePdfHocAtiva ? 'ON' : 'OFF'}
                     </li>
                 </ul>
