@@ -2,7 +2,7 @@
 // @name         PDF HOC Derma — Timbrador (Feegow)
 // @name:pt-BR   PDF HOC Derma — Timbrador
 // @namespace    https://github.com/Nicker2
-// @version      3.0.4
+// @version      3.0.5
 // @description  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @description:pt-BR  Janela flutuante dentro do Feegow: carimba cabeçalho e rodapé HOC Derma em qualquer PDF e imprime
 // @author       Nicolas Bonza Cavalari Borges
@@ -23,12 +23,12 @@
  * PDF HOC Derma — v3 (janela inline via iframe)
  *
  * ARQUITETURA
- *   documento pai (Feegow)  -> só um botão flutuante + o casco do modal
+ *   documento pai (Feegow)  -> só o casco do modal (o botão é o da navbar)
  *   <iframe> same-origin    -> TODO o resto da UI, o papel A4 e a impressão
  *
  * Regras de ouro (não quebrar):
- *   1. NUNCA tocar no DOM do Feegow além de criar #hocderma-root e
- *      #hocderma-launcher (o script v2 fazia documentElement.innerHTML = ...).
+ *   1. NUNCA tocar no DOM do Feegow além de criar #hocderma-root (o script v2
+ *      fazia documentElement.innerHTML = ...). Nenhum botão flutuante.
  *   2. Todo CSS é injetado por CSSStyleSheet/adoptedStyleSheets — não cria
  *      <style> solto no documento hospedeiro.
  *   3. O iframe não tem sandbox (precisamos de same-origin para montar o DOM,
@@ -41,9 +41,8 @@
    * 0. CONSTANTES
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '3.0.4';
+  const VERSAO = '3.0.5';
   const ID_ROOT = 'hocderma-root';
-  const ID_LAUNCHER = 'hocderma-launcher';
 
   // Timbrado HOC Derma (PNG opacos, fundo branco):
   //   cabeçalho 977 x 337   |   rodapé 2480 x 441
@@ -55,6 +54,9 @@
     cabY: -3, cabX: 0, cabH: 110,
     rodY: -4, rodX: 0, rodH: 136,
     pdfY: -38, pdfScale: 96,
+    // esticamento vertical independente (mm): topo = parte de cima,
+    // base = parte de baixo. 0 = altura natural do PDF.
+    stretchTop: 0, stretchBot: 0,
     cabOn: true, rodOn: true,
     passo: 1,
     modoImpressao: 'auto', // auto | iframe | aba
@@ -67,7 +69,8 @@
     cabY: [-400, 400], cabX: [-400, 400], cabH: [20, 500],
     rodY: [-400, 400], rodX: [-400, 400], rodH: [20, 500],
     pdfY: [-600, 600], pdfScale: [40, 120],
-    offset: [-600, 600]
+    offset: [-600, 600],
+    stretchTop: [-40, 60], stretchBot: [-40, 60]
   };
 
   const CAMPOS_AVANCADOS = [
@@ -109,6 +112,12 @@
       clearTimeout(t);
       t = setTimeout(() => fn.apply(null, args), ms);
     };
+  };
+
+  // 1 decimal com vírgula pt-BR e sinal (+1,5 / -0,5 / 0,0)
+  const fmtMm = (v) => {
+    const n = Math.round(num(v, 0) * 10) / 10;
+    return (n > 0 ? '+' : '') + n.toFixed(1).replace('.', ',');
   };
 
   const kb = (bytes) => {
@@ -164,12 +173,13 @@
     arquivo: null,      // { nome, size }
     paginas: 0,
     offset: 0,
+    stretchTop: 0,      // mm — estica/encolhe a parte de CIMA
+    stretchBot: 0,      // mm — estica/encolhe a parte de BAIXO
     zoom: 1,
     ocupado: false,
     urls: [],
     printPaiDetectado: false,
     urlFolhas: new Map(),
-    launcher: null,
     menuAberto: false,
     lib: null,           // pdf.js já avaliado neste realm
     libPromessa: null,   // Promise de prontidão (timeout + retry)
@@ -186,7 +196,8 @@
 
   const salvarCfg = debounce(() => Store.set(CK.cfg, cfg), 400);
 
-  // offsets por arquivo: { "nome|tamanho": px }
+  // Ajustes por arquivo: { "nome|tamanho": { off, top, bot } }.
+  // O formato antigo (valor = número de px) continua sendo lido.
   const offsets = Store.get(CK.off, {}) || {};
 
   function chaveArquivo(file) {
@@ -196,10 +207,26 @@
     return String(nome).toLowerCase() + '|' + (file.size || 0);
   }
 
+  // Registro do arquivo, já normalizado (null = nunca ajustado).
+  function registroArquivo(file) {
+    const r = offsets[chaveArquivo(file)];
+    if (r == null) return null;
+    if (typeof r === 'number') return { off: r, top: null, bot: null };
+    return {
+      off: num(r.off, 0),
+      top: r.top == null ? null : num(r.top, 0),
+      bot: r.bot == null ? null : num(r.bot, 0)
+    };
+  }
+
   function salvarOffsetArquivo() {
     if (!S.arquivo) return;
     const k = chaveArquivo(S.arquivo);
-    offsets[k] = Math.round(S.offset);
+    offsets[k] = {
+      off: Math.round(S.offset),
+      top: Math.round(S.stretchTop * 10) / 10,
+      bot: Math.round(S.stretchBot * 10) / 10
+    };
     // poda: mantém os 200 mais recentes (ordem de inserção)
     const chaves = Object.keys(offsets);
     if (chaves.length > 200) chaves.slice(0, chaves.length - 200).forEach((c) => delete offsets[c]);
@@ -208,120 +235,13 @@
   const salvarOffsetDebounced = debounce(salvarOffsetArquivo, 500);
 
   /* --------------------------------------------------------------------------
-   * 3. BOTÃO FLUTUANTE (shadow DOM — imune ao CSS do Feegow)
+   * 3. SEM BOTÃO FLUTUANTE (v3.0.5)
    * ------------------------------------------------------------------------ */
+  // O acesso ao timbrador é SÓ pela pílula vermelha "PDF HOC Derma" da navbar
+  // (injetada pela Suite, ao lado do botão de Configurações) ou por
+  // window.HOC_DERMA.abrir(). Não existe mais launcher flutuante no canto:
+  // o usuário pediu para remover o botão duplicado.
 
-  const CSS_LAUNCHER = `
-    .hoc-lancador{
-      position:fixed; display:inline-flex; align-items:center; gap:4px;
-      padding:3px 9px; border-radius:12px;
-      border:1px solid #c9302c;
-      background:#d9534f;
-      color:#fff; font:700 11px/16px system-ui,'Segoe UI',Roboto,sans-serif;
-      letter-spacing:.01em; cursor:grab; user-select:none; touch-action:none;
-      box-shadow:0 1px 3px rgba(0,0,0,.28);
-      opacity:.92; transition:filter .12s ease, opacity .12s ease, box-shadow .12s ease;
-    }
-    .hoc-lancador:hover{ filter:brightness(1.08); opacity:1; box-shadow:0 2px 6px rgba(0,0,0,.4); }
-    .hoc-lancador:active{ cursor:grabbing; }
-    .hoc-lancador .ico{ font-size:11px; line-height:1; }
-    @media print{ .hoc-lancador{ display:none !important; } }
-  `;
-
-  function criarLauncher() {
-    if (document.getElementById(ID_LAUNCHER)) return;
-    const host = document.createElement('div');
-    host.id = ID_LAUNCHER;
-    host.style.cssText = 'position:fixed;z-index:2147483000;left:0;top:0;width:0;height:0;';
-
-    const sh = host.attachShadow({ mode: 'open' });
-    adotarCss(sh.ownerDocument, CSS_LAUNCHER, sh);
-
-    const btn = document.createElement('button');
-    btn.className = 'hoc-lancador';
-    btn.type = 'button';
-    btn.title = 'PDF HOC Derma — abrir o timbrador (arraste para reposicionar)';
-    btn.innerHTML = '<span class="ico">\u{1FA7A}</span><span>PDF HOC</span>';
-    sh.appendChild(btn);
-
-    const ui = Store.get(CK.ui, {}) || {};
-    const pos = ui.lancador || posicaoPadrao();
-    aplicarPosLauncher(host, pos);
-
-    // ── arrastar / clicar ──────────────────────────────────────────────
-    let arrasto = null;
-    let moveu = false;
-
-    btn.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return;
-      moveu = false;
-      const r = host.getBoundingClientRect();
-      arrasto = { id: e.pointerId, x: e.clientX, y: e.clientY, l: r.left, t: r.top };
-      btn.setPointerCapture(e.pointerId);
-      e.preventDefault();
-    });
-
-    btn.addEventListener('pointermove', (e) => {
-      if (!arrasto || e.pointerId !== arrasto.id) return;
-      const dx = e.clientX - arrasto.x;
-      const dy = e.clientY - arrasto.y;
-      if (!moveu && Math.hypot(dx, dy) < 5) return;
-      moveu = true;
-      const r = host.getBoundingClientRect();
-      const l = clamp(arrasto.l + dx, 4, window.innerWidth - r.width - 4);
-      const t = clamp(arrasto.t + dy, 4, window.innerHeight - r.height - 4);
-      host.style.left = l + 'px';
-      host.style.top = t + 'px';
-    });
-
-    const soltar = (e) => {
-      if (!arrasto || e.pointerId !== arrasto.id) return;
-      arrasto = null;
-      if (moveu) {
-        const u = Store.get(CK.ui, {}) || {};
-        u.lancador = { x: parseFloat(host.style.left) || 0, y: parseFloat(host.style.top) || 0 };
-        Store.set(CK.ui, u);
-      } else {
-        abrir();
-      }
-    };
-    btn.addEventListener('pointerup', soltar);
-    btn.addEventListener('pointercancel', () => { arrasto = null; });
-
-    // duplo clique: volta para o canto padrão
-    btn.addEventListener('dblclick', (e) => {
-      e.preventDefault();
-      const p = posicaoPadrao();
-      aplicarPosLauncher(host, p);
-      const u = Store.get(CK.ui, {}) || {};
-      u.lancador = p;
-      Store.set(CK.ui, u);
-    });
-
-    document.documentElement.appendChild(host);
-    S.launcher = host;
-
-    // Se o Feegow trocar o <body> (SPA), o host pode ser removido: re-anexa.
-    let guarda = 0;
-    guarda = setInterval(() => {
-      if (!document.documentElement.contains(host)) {
-        document.documentElement.appendChild(host);
-      }
-      if (!document.documentElement) { clearInterval(guarda); }
-    }, 3000);
-  }
-
-  function posicaoPadrao() {
-    return { x: Math.max(12, window.innerWidth - 106), y: Math.max(12, window.innerHeight - 44) };
-  }
-
-  function aplicarPosLauncher(host, pos) {
-    const r = host.getBoundingClientRect();
-    const w = r.width || 92;
-    const h = r.height || 24;
-    host.style.left = clamp(num(pos.x, 0), 4, Math.max(4, window.innerWidth - w - 4)) + 'px';
-    host.style.top = clamp(num(pos.y, 0), 4, Math.max(4, window.innerHeight - h - 4)) + 'px';
-  }
 
   /* --------------------------------------------------------------------------
    * 4. CASCO DO MODAL (documento pai — mínimo possível)
@@ -689,6 +609,26 @@
     .dica b{ color:#8fa0b8; font-weight:600; }
     .medida{ font-size:11px; color:#7d8fa8; margin-top:7px; text-align:center; font-variant-numeric:tabular-nums; }
 
+    /* esticamento vertical (topo/base) */
+    .esticar{ display:grid; grid-template-columns:44px 26px 1fr 26px 20px; gap:5px; align-items:center; margin:7px 0; }
+    .esticar .rot{ font-size:11.5px; color:#a9b8cc; }
+    .esticar input{
+      width:100%; height:27px; text-align:center; padding:0 5px;
+      font:600 12px/1 ui-monospace,Consolas,monospace;
+      background:#0b1526; border:1px solid #2a3a52; border-radius:7px; color:#e8f0fa;
+      -moz-appearance:textfield; appearance:textfield;
+    }
+    .esticar input::-webkit-outer-spin-button,
+    .esticar input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+    .esticar input:focus{ outline:none; border-color:#8a6a4f; box-shadow:0 0 0 2px rgba(138,106,79,.25); }
+    .esticar .seta{
+      width:26px; height:27px; padding:0; border-radius:7px; border:1px solid #2a3a52;
+      background:#16233a; color:#cbd5e1; font-size:9px; cursor:pointer; display:grid; place-items:center;
+    }
+    .esticar .seta:hover{ background:#1f3050; border-color:#3f5a80; color:#fff; }
+    .esticar .seta:active{ transform:translateY(1px); }
+    .esticar .un{ font-size:10px; color:#5c6d85; }
+
     .chk{ display:flex; align-items:center; gap:9px; font-size:12.5px; margin:7px 0; cursor:pointer; color:#c7d2e0; }
     .chk input{ width:15px; height:15px; accent-color:#8a6a4f; cursor:pointer; }
 
@@ -751,12 +691,61 @@
       cursor:grab; touch-action:none;
     }
     .folha.arrastando{ cursor:grabbing; box-shadow:0 10px 34px rgba(0,0,0,.5),0 0 0 2px #c9a227; }
-    .folha .pagina{
-      display:block; width:100%; height:auto; pointer-events:none; user-select:none;
-      -webkit-user-drag:none;
+
+    /* Conteúdo: DUAS camadas do MESMO PDF, para esticar topo e base de forma
+       independente. A camada .topo mostra a metade de cima e escala a partir
+       do cabeçalho; a .base mostra a metade de baixo e escala a partir do
+       rodapé. Quando os dois fatores são iguais as bordas coincidem no meio
+       (--divisao) e o resultado é idêntico ao PDF original. */
+    .folha .campo-pagina{
+      position:absolute; left:0; top:0; width:100%; height:100%;
       transform:translateY(var(--pdf-y,0px)) scale(var(--pdf-scale,.96));
       transform-origin:top center;
     }
+    .folha .pagina{
+      position:absolute; left:0; top:0; width:100%; height:auto;
+      display:block; pointer-events:none; user-select:none;
+      -webkit-user-drag:none;
+    }
+    .folha .pagina.topo{
+      clip-path:inset(0 0 calc(var(--h-base,1123px) * (1 - var(--divisao,.5)) - 1px) 0);
+      transform:scaleY(var(--st-topo,1));
+      transform-origin:top center;
+    }
+    .folha .pagina.base{
+      top:calc(var(--h-base,1123px) * var(--divisao,.5) * (var(--st-topo,1) - 1));
+      clip-path:inset(calc(var(--h-base,1123px) * var(--divisao,.5)) 0 0 0);
+      transform:scaleY(var(--st-base,1));
+      transform-origin:50% calc(var(--h-base,1123px) * var(--divisao,.5));
+    }
+
+    /* Alças de esticamento na folha (não saem na impressão) */
+    .stretch-alca{
+      position:absolute; left:9px; z-index:6;
+      display:inline-flex; align-items:center; gap:3px;
+      padding:2px 4px 2px 6px; border-radius:9px;
+      background:rgba(15,23,42,.82); border:1px solid rgba(201,162,39,.75);
+      color:#f4e8d6; font:600 10px/14px system-ui,'Segoe UI',Roboto,sans-serif;
+      cursor:ns-resize; opacity:.72; white-space:nowrap;
+      box-shadow:0 2px 7px rgba(0,0,0,.35);
+      transition:opacity .12s ease, box-shadow .12s ease;
+      touch-action:none; user-select:none; -webkit-user-select:none;
+    }
+    .stretch-alca:hover,.stretch-alca.ativa{
+      opacity:1; box-shadow:0 0 0 2px rgba(201,162,39,.45),0 2px 7px rgba(0,0,0,.4);
+    }
+    .stretch-alca .grip{ color:#d9b455; font-size:10px; letter-spacing:-1px; }
+    .stretch-alca .rot{ text-transform:uppercase; letter-spacing:.06em; font-size:9px; color:#c7b391; }
+    .stretch-alca .val{ font-variant-numeric:tabular-nums; min-width:42px; text-align:right; color:#ffe7b0; }
+    .stretch-alca button{
+      width:15px; height:15px; padding:0; border:0; border-radius:4px;
+      background:rgba(255,255,255,.1); color:#f4e8d6; font-size:8px; line-height:1;
+      cursor:pointer; display:grid; place-items:center; font-family:inherit;
+    }
+    .stretch-alca button:hover{ background:#c9a227; color:#1a1206; }
+    .stretch-alca.topo{ top:calc(var(--cab-y,0px) + var(--cab-h,110px) + 7px); }
+    .stretch-alca.base{ bottom:calc(var(--rod-y,0px) + var(--rod-h,136px) + 7px); }
+    @media print{ .stretch-alca{ display:none !important; } }
     .carimbo{
       position:absolute; height:auto; pointer-events:none; user-select:none;
       -webkit-user-drag:none;
@@ -1034,7 +1023,58 @@
       conteudoAvancado
     );
 
-    const lado = h('aside', { class: 'lado' }, secAjuste, secCarimbo, detAvancado);
+    /* ── esticamento vertical (dois pontos) ────────────────────────── */
+    const inpStTop = h('input', {
+      type: 'number', id: 'hoc-st-top', step: '0.5',
+      min: String(LIMITES.stretchTop[0]), max: String(LIMITES.stretchTop[1]), value: '0',
+      title: 'Estica (positivo) ou encolhe (negativo) a parte de cima, em mm'
+    });
+    const inpStBot = h('input', {
+      type: 'number', id: 'hoc-st-bot', step: '0.5',
+      min: String(LIMITES.stretchBot[0]), max: String(LIMITES.stretchBot[1]), value: '0',
+      title: 'Estica (positivo) ou encolhe (negativo) a parte de baixo, em mm'
+    });
+    [[inpStTop, 'topo'], [inpStBot, 'base']].forEach(([inp, qual]) => {
+      inp.addEventListener('input', () => setStretch(qual, inp.value));
+      inp.addEventListener('change', () => { setStretch(qual, inp.value); salvarOffsetArquivo(); });
+      inp.addEventListener('blur', () => salvarOffsetArquivo());
+    });
+
+    const setaStretch = (qual, sinal, titulo) => h('button', {
+      class: 'seta', type: 'button', title: titulo,
+      onclick: (e) => moverStretch(qual, sinal * (e.shiftKey ? 5 : 0.5))
+    }, sinal < 0 ? '\u25B2' : '\u25BC');
+
+    const secAltura = h('section', { class: 'sec' },
+      h('h3', null, 'Ajuste de altura (esticar)'),
+      h('div', { class: 'esticar' },
+        h('span', { class: 'rot' }, 'Topo'),
+        setaStretch('topo', -1, 'Encolhe o topo em 0,5 mm (Shift = 5 mm)'),
+        inpStTop,
+        setaStretch('topo', 1, 'Estica o topo em 0,5 mm (Shift = 5 mm)'),
+        h('span', { class: 'un' }, 'mm')
+      ),
+      h('div', { class: 'esticar' },
+        h('span', { class: 'rot' }, 'Base'),
+        setaStretch('base', -1, 'Encolhe a base em 0,5 mm (Shift = 5 mm)'),
+        inpStBot,
+        setaStretch('base', 1, 'Estica a base em 0,5 mm (Shift = 5 mm)'),
+        h('span', { class: 'un' }, 'mm')
+      ),
+      h('div', { class: 'linha' },
+        h('button', {
+          class: 'btn', type: 'button',
+          onclick: () => { setStretch('topo', 0); setStretch('base', 0); salvarOffsetArquivo(); }
+        }, '\u21BA Zerar')
+      ),
+      h('p', { class: 'dica' },
+        'Arraste as alças ', h('b', null, 'TOPO'), ' e ', h('b', null, 'BASE'),
+        ' nas folhas (para baixo estica, para cima encolhe) ou use \u25B2/\u25BC (0,5 mm; Shift = 5 mm). ',
+        'Os dois valores ficam salvos por arquivo; a posição vertical continua independente.'
+      )
+    );
+
+    const lado = h('aside', { class: 'lado' }, secAjuste, secAltura, secCarimbo, detAvancado);
 
     /* ── palco ─────────────────────────────────────────────────────── */
     const progTxt = h('span', { class: 'pct' }, '0%');
@@ -1087,6 +1127,7 @@
       app, nomeArq, inputFile, bImprimir, bMenu, menu, selModo,
       lado, palco, zoom, drop, prog, progBarra, progTxt,
       inpOffset, medMm, sobe, desce,
+      inpStTop, inpStBot,
       cbCab, cbRod, stEsq, stDir, toast, detAvancado, campos
     });
 
@@ -1129,6 +1170,7 @@
     st.setProperty('--rod-h', cfg.rodH + 'px');
     st.setProperty('--pdf-scale', String(cfg.pdfScale / 100));
     aplicarOffset();
+    aplicarStretch();
 
     doc.body.classList.toggle('sem-cab', !cfg.cabOn);
     doc.body.classList.toggle('sem-rod', !cfg.rodOn);
@@ -1160,6 +1202,61 @@
 
   function moverOffset(delta) {
     setOffset(S.offset + delta);
+  }
+
+  /* ── esticamento vertical em DOIS pontos ───────────────────────────────
+   * O conteúdo é dividido no meio (DIVISAO). A metade de cima é escalada a
+   * partir do cabeçalho e a de baixo a partir do rodapé:
+   *   topo : fator = 1 + (stretchTop  em px) / (h * DIVISAO)
+   *   base : fator = 1 + (stretchBot  em px) / (h * (1 - DIVISAO))
+   * Ou seja, cada valor em mm é a altura EXTRA (ou removida) daquela metade.
+   * Posição (S.offset) desloca sem mudar a altura; stretch muda a altura.
+   * ------------------------------------------------------------------- */
+  const DIVISAO = 0.5;
+
+  function aplicarStretchFolha(folha) {
+    const h = num(folha.dataset.hbase, 0) ||
+      num(String(folha.style.getPropertyValue('--h-base')).replace('px', ''), 0) || 1123;
+    const hTopo = Math.max(1, h * DIVISAO);
+    const hBase = Math.max(1, h * (1 - DIVISAO));
+    const a = clamp(1 + (S.stretchTop / PX_MM) / hTopo, 0.15, 3);
+    const b = clamp(1 + (S.stretchBot / PX_MM) / hBase, 0.15, 3);
+    folha.style.setProperty('--h-base', h + 'px');
+    folha.style.setProperty('--divisao', String(DIVISAO));
+    folha.style.setProperty('--st-topo', a.toFixed(5));
+    folha.style.setProperty('--st-base', b.toFixed(5));
+  }
+
+  function aplicarStretch() {
+    if (!S.doc) return;
+    S.doc.querySelectorAll('.folha').forEach(aplicarStretchFolha);
+    atualizarCamposStretch();
+  }
+
+  function atualizarCamposStretch() {
+    if (!S.doc) return;
+    const pares = [[E.inpStTop, S.stretchTop], [E.inpStBot, S.stretchBot]];
+    for (const [inp, v] of pares) {
+      if (inp && S.doc.activeElement !== inp) inp.value = String(Math.round(v * 10) / 10);
+    }
+    S.doc.querySelectorAll('.stretch-alca .val').forEach((el) => {
+      el.textContent = fmtMm(el.dataset.qual === 'base' ? S.stretchBot : S.stretchTop) + ' mm';
+    });
+  }
+
+  function setStretch(qual, mm) {
+    const topo = qual !== 'base';
+    const lim = topo ? LIMITES.stretchTop : LIMITES.stretchBot;
+    const v = clamp(Math.round(num(mm, 0) * 10) / 10, lim[0], lim[1]);
+    if (topo) { S.stretchTop = v; cfg.stretchTop = v; }
+    else { S.stretchBot = v; cfg.stretchBot = v; }
+    aplicarStretch();
+    salvarCfg();              // passa a ser o padrão dos próximos arquivos
+    salvarOffsetDebounced();  // e fica salvo neste arquivo
+  }
+
+  function moverStretch(qual, delta) {
+    setStretch(qual, (qual === 'base' ? S.stretchBot : S.stretchTop) + delta);
   }
 
   function ajustarZoom() {
@@ -2748,9 +2845,16 @@
       S.paginas = pdf.numPages;
       S.numPaginas = pdf.numPages;
 
-      // offset manual específico deste arquivo (chave: nome|tamanho)
-      const k = chaveArquivo(S.arquivo);
-      S.offset = clamp(Math.round(num(offsets[k], 0)), LIMITES.offset[0], LIMITES.offset[1]);
+      // Ajustes específicos deste arquivo (chave: nome|tamanho). Se ainda não
+      // existe registro, herda os valores globais (cfg) como ponto de partida.
+      const reg = registroArquivo(S.arquivo);
+      S.offset = clamp(Math.round(num(reg ? reg.off : 0, 0)), LIMITES.offset[0], LIMITES.offset[1]);
+      S.stretchTop = clamp(
+        reg && reg.top != null ? reg.top : num(cfg.stretchTop, 0),
+        LIMITES.stretchTop[0], LIMITES.stretchTop[1]);
+      S.stretchBot = clamp(
+        reg && reg.bot != null ? reg.bot : num(cfg.stretchBot, 0),
+        LIMITES.stretchBot[0], LIMITES.stretchBot[1]);
 
       await renderizar(pdf, geracao);
       if (geracao !== S.geracao) return;
@@ -2764,7 +2868,10 @@
       atualizarStatus();
       E.palco.scrollTop = 0;
 
-      if (offsets[k]) aviso('Ajuste salvo para este arquivo: ' + Math.round(S.offset) + ' px.');
+      if (reg) {
+        aviso('Ajustes salvos para este arquivo: ' + Math.round(S.offset) + ' px · topo ' +
+          fmtMm(S.stretchTop) + ' mm · base ' + fmtMm(S.stretchBot) + ' mm.');
+      }
     } catch (err) {
       console.error('[HOC Derma] falha ao carregar PDF:', err);
       aviso(mensagemErro(err), true);
@@ -2814,22 +2921,29 @@
         catch (e) { res(null); }
       });
 
+      // fallback raro (canvas grande demais para toBlob): dataURL gerado
+      // ANTES de zerar o canvas (senão sai uma página em branco)
+      let dataUrl = null;
+      if (!blob) {
+        try { dataUrl = canvas.toDataURL('image/jpeg', qualidade); } catch (e) { dataUrl = null; }
+      }
+
       // libera o backing store do canvas imediatamente
       canvas.width = 0;
       canvas.height = 0;
 
       if (geracao !== S.geracao) return;
-
-      if (!blob) {
-        // fallback raro (canvas grande demais para toBlob): dataURL
-        const img = h('img', { class: 'pagina', src: canvas.toDataURL('image/jpeg', qualidade), alt: 'página ' + i });
-        E.zoom.appendChild(criarFolha(img, i));
-      } else {
-        const url = URL.createObjectURL(blob);
-        S.urls.push(url);
-        const img = h('img', { class: 'pagina', src: url, alt: 'página ' + i, decoding: 'async' });
-        E.zoom.appendChild(criarFolha(img, i));
+      if (!blob && !dataUrl) {
+        aviso('Não consegui gerar a imagem da página ' + i + '.', true);
+        continue;
       }
+
+      let url = dataUrl;
+      if (!url) {
+        url = URL.createObjectURL(blob);
+        S.urls.push(url);
+      }
+      E.zoom.appendChild(criarFolha(url, i));
 
       progresso((i / total) * 96 + 2, i + '/' + total);
 
@@ -2839,21 +2953,91 @@
     progresso(100, total + '/' + total);
   }
 
-  function criarFolha(imgPagina, indice) {
+  /* Alça de esticamento: fica perto do cabeçalho (topo) ou do rodapé (base).
+     Arrastar para baixo estica; para cima encolhe. ▲/▼ dão passos de 0,5 mm. */
+  function criarAlcaStretch(qual) {
+    const topo = qual === 'topo';
+    const valor = h('span', { class: 'val', 'data-qual': qual },
+      fmtMm(topo ? S.stretchTop : S.stretchBot) + ' mm');
+    const menos = h('button', { type: 'button', tabindex: '-1', title: 'Encolhe 0,5 mm (Shift = 5 mm)' }, '\u25B2');
+    const mais = h('button', { type: 'button', tabindex: '-1', title: 'Estica 0,5 mm (Shift = 5 mm)' }, '\u25BC');
+
+    const alca = h('div', {
+      class: 'stretch-alca ' + qual,
+      title: 'Arraste para baixo para esticar a parte de ' + (topo ? 'cima' : 'baixo') + ' (para cima encolhe)'
+    },
+      h('span', { class: 'grip' }, '\u2195'),
+      h('span', { class: 'rot' }, topo ? 'Topo' : 'Base'),
+      valor, menos, mais
+    );
+
+    menos.addEventListener('click', (e) => { e.stopPropagation(); moverStretch(qual, -(e.shiftKey ? 5 : 0.5)); });
+    mais.addEventListener('click', (e) => { e.stopPropagation(); moverStretch(qual, e.shiftKey ? 5 : 0.5); });
+
+    let d = null;
+    alca.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();   // não deixa virar arrasto de posição da folha
+      if (e.button !== 0 || e.target.closest('button')) return;
+      d = { id: e.pointerId, y: e.clientY, v: topo ? S.stretchTop : S.stretchBot };
+      alca.setPointerCapture(e.pointerId);
+      alca.classList.add('ativa');
+      e.preventDefault();
+    });
+    alca.addEventListener('pointermove', (e) => {
+      if (!d || e.pointerId !== d.id) return;
+      e.stopPropagation();
+      const dy = (e.clientY - d.y) / (S.zoom || 1);   // px locais da folha
+      setStretch(qual, d.v + dy * PX_MM);             // arrastar p/ baixo = estica
+    });
+    const fim = (e) => {
+      if (!d || (e && e.pointerId !== d.id)) return;
+      d = null;
+      alca.classList.remove('ativa');
+      salvarOffsetArquivo();
+    };
+    alca.addEventListener('pointerup', fim);
+    alca.addEventListener('pointercancel', fim);
+    return alca;
+  }
+
+  function criarFolha(urlPagina, indice) {
     const folha = h('div', {
       class: 'folha',
       'data-pagina': indice,
-      title: 'Página ' + indice + ' — arraste para cima/baixo para ajustar'
-    },
-      imgPagina,
+      title: 'Página ' + indice + ' — arraste para cima/baixo para ajustar a posição'
+    });
+
+    // Duas camadas do MESMO PDF: metade de cima e metade de baixo.
+    // Cada uma tem o seu próprio scaleY (topo/base) e se encontram no meio.
+    const imgTopo = h('img', { class: 'pagina topo', src: urlPagina, alt: 'página ' + indice, decoding: 'async' });
+    const imgBase = h('img', { class: 'pagina base', src: urlPagina, alt: '', 'aria-hidden': 'true', decoding: 'async' });
+    const campo = h('div', { class: 'campo-pagina' }, imgTopo, imgBase);
+
+    // A altura de referência só existe depois que a imagem carrega: é ela que
+    // converte os mm de esticamento em fator de escala.
+    const medir = () => {
+      if (!imgTopo.naturalWidth || !imgTopo.naturalHeight) return;
+      const h = Math.round(folha.clientWidth * imgTopo.naturalHeight / imgTopo.naturalWidth);
+      if (h > 0) folha.dataset.hbase = String(h);
+      aplicarStretchFolha(folha);
+    };
+    if (imgTopo.complete && imgTopo.naturalWidth) medir();
+    else imgTopo.addEventListener('load', medir, { once: true });
+    aplicarStretchFolha(folha);
+
+    folha.append(
+      campo,
       h('img', { class: 'carimbo cab', src: IMG_CABECALHO, alt: '', 'aria-hidden': 'true' }),
-      h('img', { class: 'carimbo rod', src: IMG_RODAPE, alt: '', 'aria-hidden': 'true' })
+      h('img', { class: 'carimbo rod', src: IMG_RODAPE, alt: '', 'aria-hidden': 'true' }),
+      criarAlcaStretch('topo'),
+      criarAlcaStretch('base')
     );
 
     let d = null;
     folha.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       if (S.ocupado) return;
+      if (e.target.closest('.stretch-alca')) return;   // a alça tem o próprio arrasto
       d = { id: e.pointerId, y: e.clientY, off: S.offset };
       folha.setPointerCapture(e.pointerId);
       folha.classList.add('arrastando');
@@ -2971,6 +3155,18 @@
         '<title>PDF HOC Derma</title></head><body class="modo-print"></body></html>');
       d.close();
       adotarCss(d, CSS_APP);
+
+      // As variáveis de calibração/estiramento ficam no <html> do iframe:
+      // sem copiá-las, a nova aba imprimiria tudo com os valores padrão.
+      try {
+        const de = S.doc.documentElement.style;
+        for (let i = 0; i < de.length; i++) {
+          const nome = de.item(i);
+          if (nome && nome.indexOf('--') === 0) {
+            d.documentElement.style.setProperty(nome, de.getPropertyValue(nome));
+          }
+        }
+      } catch (e) { /* noop */ }
 
       // clona as folhas já montadas (as imagens são blob: do mesmo origin)
       const folhas = S.doc.querySelectorAll('.folha');
@@ -3138,6 +3334,8 @@
       bytes: S.arquivo ? S.arquivo.size : 0,
       paginas: S.paginas,
       offset: S.offset,
+      stretchTop: S.stretchTop,
+      stretchBot: S.stretchBot,
       zoom: S.zoom,
       ocupado: S.ocupado,
       printPaiDetectado: S.printPaiDetectado,
@@ -3154,11 +3352,12 @@
     if (window.__HOC_DERMA_BOOT__) return;
     window.__HOC_DERMA_BOOT__ = true;
 
-    criarLauncher();
+    // Nenhum botão flutuante: a entrada é a pílula "PDF HOC Derma" da navbar
+    // (da Suite) ou window.HOC_DERMA.abrir().
     vigiarBotoesLegados();
 
     try {
-      console.info('[HOC Derma v' + VERSAO + '] botão flutuante injetado em ' +
+      console.info('[HOC Derma v' + VERSAO + '] timbrador pronto (acesso pela navbar) em ' +
         location.host + location.pathname);
     } catch (e) { /* noop */ }
 
