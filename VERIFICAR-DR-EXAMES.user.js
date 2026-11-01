@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.4.9
+// @version      4.9.4.10
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra o PDF HOC Derma v3 em cascata (baixa e executa o timbrador do GitHub, com atalho vermelho à esquerda do Configs que abre a janela flutuante).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -188,7 +188,7 @@
         a.href = '#';                  // nunca navega: o clique é sempre tratado abaixo
         a.dataset.hocDermaTrigger = '1';
         a.className = compacto ? 'btn btn-sm' : 'btn btn-xs';
-        a.innerHTML = '<i class="far fa-file-pdf"></i> ' + (rotulo || 'PDF HOC');
+        a.innerHTML = '<i class="far fa-file-pdf"></i> ' + (rotulo || 'PDF HOC Derma');
         a.title = hocDermaDisponivel()
             ? 'PDF HOC Derma — abre a janela flutuante v3'
             : 'PDF HOC Derma — carrega o timbrador e abre a janela flutuante';
@@ -228,7 +228,7 @@
 
         const grupo = document.createElement('div');
         grupo.className = 'navbar-btn btn-group';
-        grupo.appendChild(criarBotaoHocDerma('PDF HOC', true));
+        grupo.appendChild(criarBotaoHocDerma('PDF HOC Derma', true));
         li.appendChild(grupo);
 
         // À ESQUERDA do Configs: insertBefore(li, btnConfigs).

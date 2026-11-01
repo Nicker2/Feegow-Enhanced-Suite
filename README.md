@@ -76,7 +76,9 @@ O script utiliza recursos modernos da Web API:
 3.  **Uso:**
     * O script será carregado automaticamente em qualquer subdomínio (`app`, `app2`, etc.) na lista de espera ou tela de login do Feegow.
 
-> **Cascata automática (recomendado):** instale **apenas** o `core.user.js`. Ele baixa o `VERIFICAR-DR-EXAMES.user.js` e o próprio VERIFICAR baixa e executa o `hoc-derma-stamping-tool.user.js` (PDF HOC Derma v3) — tudo com cache próprio de 60 minutos, sem precisar instalar o timbrador à mão. O botão vermelho **PDF HOC**, posicionado **à esquerda** da engrenagem de Configurações, abre a janela do timbrador dentro do Feegow; ele nunca redireciona para a página de instalação.
+> **Cascata automática (recomendado):** instale **apenas** o `core.user.js`. Ele baixa o `VERIFICAR-DR-EXAMES.user.js` e o próprio VERIFICAR baixa e executa o `hoc-derma-stamping-tool.user.js` (PDF HOC Derma v3) — tudo com cache próprio de 60 minutos, sem precisar instalar o timbrador à mão. O botão vermelho **PDF HOC Derma**, posicionado **à esquerda** da engrenagem de Configurações, é o único acesso ao timbrador dentro do Feegow (não existe mais botão flutuante); ele nunca redireciona para a página de instalação.
+>
+> **Ajuste de altura (v3.0.5):** além do deslocamento vertical (arrastar a folha ou as setas), o painel tem **Topo** e **Base** em mm: cada um estica ou encolhe a sua metade do conteúdo entre os timbres, em passos de 0,5 mm. As alças **TOPO** e **BASE** na própria folha também podem ser arrastadas (para baixo estica, para cima encolhe). Os dois valores são salvos por arquivo.
 >
 > **Sem CDN (v3.0.4):** o pdf.js e o `pdf.worker` vão **embutidos** no `hoc-derma-stamping-tool.user.js` (gzip + base64, ~943 KB no total). O timbrador não usa mais `@require` nem baixa script de CDN: funciona na cascata (que só faz `eval` do arquivo) e mesmo com `cdnjs`/`unpkg` bloqueados. O `@require` só valia para script instalado direto no Tampermonkey — era por isso que a janela abria e o PDF não carregava na cascata.
 
