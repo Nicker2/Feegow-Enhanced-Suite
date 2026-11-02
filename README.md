@@ -90,6 +90,19 @@ O script utiliza recursos modernos da Web API:
 
 ---
 
+## 🧾 OCI Auto — ficha OCI/APAC a partir do prontuário (v1.0.0)
+
+Script separado, instalado à parte: `oci-auto-tool.user.js` (~700 KB, tudo embutido — nenhum CDN).
+
+* **Onde aparece:** só na tela do prontuário, `?p=pacientes&i=<id>&pers=1` (caixa indiferente). Como o Feegow é SPA, trocar de paciente relê o prontuário sozinho.
+* **O que faz:** lê o prontuário (DOM + ficha do paciente quando dá), mostra os **58 campos** da ficha OCI para conferência, deixa escolher a assinatura entre as **24 assinaturas** dos médicos (PNG embutido, dropdown) e monta o PDF com **pdf-lib 1.17.1** (também embutido, gzip+base64) sobre o formulário OCI em branco.
+* **Saída:** "Imprimir" manda o PDF para um iframe oculto (Blob → objectURL → `print()` → `revokeObjectURL()` + remoção) e "Baixar PDF" salva como `OCI_<PACIENTE>.pdf`.
+* **Coordenadas:** `fields_oci_v2.json` do mapeador (x/y/w/h/fontSize/baseline), com passo de *comb* medido para CPF, CNS, códigos de procedimento, telefone, DDD e CEP. Dois campos que o mapper marcava como "sintético" (nome do estabelecimento e CNES do solicitante) foram reposicionados para a linha dos rótulos, fora da barra preta.
+* **Assinaturas:** para trocar/adicionar médico, gere o PNG recortado no traço, converta para base64 e acrescente em `assets.json` (`nome`, `crm`, `w`, `h`, `b64`); o build (`build_oci.js`) reinjeta tudo.
+* **Teste:** `node --check oci-auto-tool.user.js` e, no navegador, abrir uma página fake de prontuário com `window.__OCI_AUTO_HOOKS__ = { baixar: (bytes, nome) => ... }` — o script expõe `window.OCI_AUTO` (`gate`, `extrair`, `montarPdf`, `gerar`, `dados`, `campos`, `selecionarAssinatura`).
+
+---
+
 ## ⚙️ Configuração Personalizável
 
 Você pode ajustar as variáveis no topo do código-fonte para adaptar ao seu fluxo de trabalho:
