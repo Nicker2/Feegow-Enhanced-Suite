@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced Core Injector Agent
 // @namespace    https://github.com/Nicker2
-// @version      1.1.0.1
+// @version      1.1.1.0
 // @description  Puxa o código fonte do GitHub de forma inteligente usando Cache.
 // @author       Nicolas Bonza Cavalari Borges
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js
@@ -18,47 +18,70 @@
     'use strict';
     
     // DEFINA O TEMPO AQUI (em minutos)
-    const TEMPO_CACHE_MINUTOS = 60; 
-    
+    const TEMPO_CACHE_MINUTOS = 60;
+
     const agora = new Date().getTime();
     const ultimoFetch = GM_getValue('last_fetch_time', 0);
     const scriptEmCache = GM_getValue('cached_script', '');
-    
+
     // O ?nocache continua aqui para quando precisarmos furar o cache do GitHub
     const url = "https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js?nocache=" + agora;
 
+    // Roda um código guardado/baixado. Devolve true se executou sem erro.
+    function executar(codigo, origem) {
+        try {
+            // eslint-disable-next-line no-eval
+            eval(codigo);
+            console.log("[Core Injector] Suite executada a partir de " + origem + ".");
+            return true;
+        } catch (e) {
+            console.error("[Core Injector] Erro ao executar a Suite (" + origem + "):", e);
+            return false;
+        }
+    }
+
+    // Sem rede / GitHub fora / resposta inválida: usa o que estiver no cofre, mesmo vencido.
+    function usarCacheReserva(motivo) {
+        if (scriptEmCache) {
+            console.warn("[Core Injector] " + motivo + " Usando a versão guardada no cofre.");
+            executar(scriptEmCache, "memória local (reserva)");
+        } else {
+            console.error("[Core Injector] " + motivo + " E não há versão guardada no cofre.");
+        }
+    }
+
     // Se já passou o tempo limite OU se o cofre está vazio (primeira vez rodando)
     if (agora - ultimoFetch > (TEMPO_CACHE_MINUTOS * 60 * 1000) || !scriptEmCache) {
-        
+
         GM_xmlhttpRequest({
             method: "GET",
             url: url,
+            timeout: 30000,
             onload: function(response) {
-                try {
-                    const novoCodigo = response.responseText;
-                    
-                    // Salva o código novo e a hora atual no cofre do Tampermonkey
+                const novoCodigo = (response && response.responseText) || '';
+                const status = response ? response.status : 0;
+                // Só aceita uma resposta válida: HTTP 200 e cabeçalho de userscript.
+                // (Antes, uma página de erro do GitHub ia parar no cofre e a Suite sumia.)
+                if (status !== 200 || novoCodigo.indexOf('// ==UserScript==') < 0) {
+                    usarCacheReserva("Resposta inesperada do GitHub (HTTP " + status + ").");
+                    return;
+                }
+                if (executar(novoCodigo, "GitHub (versão nova)")) {
+                    // Só guarda no cofre a versão que rodou sem erro.
                     GM_setValue('cached_script', novoCodigo);
                     GM_setValue('last_fetch_time', agora);
-                    
-                    // Executa o código
-                    // eslint-disable-next-line no-eval
-                    eval(novoCodigo);
-                    console.log("[Core Injector] Versão nova baixada do GitHub com sucesso!");
-                } catch (e) {
-                    console.error("Erro ao carregar o script remoto:", e);
+                } else if (scriptEmCache && scriptEmCache !== novoCodigo) {
+                    usarCacheReserva("A versão nova falhou ao iniciar.");
                 }
-            }
+            },
+            onerror: function() { usarCacheReserva("Falha de rede ao baixar do GitHub."); },
+            ontimeout: function() { usarCacheReserva("Tempo esgotado ao baixar do GitHub."); }
         });
-        
+
     } else {
         // Se ainda está dentro do tempo, roda direto da memória local (Instantâneo!)
-        try {
-            // eslint-disable-next-line no-eval
-            eval(scriptEmCache);
-            console.log(`[Core Injector] Rodando versão da memória local (Atualiza em ${Math.round((TEMPO_CACHE_MINUTOS * 60 * 1000 - (agora - ultimoFetch)) / 60000)} minutos).`);
-        } catch (e) {
-            console.error("Erro ao rodar o script salvo no cache:", e);
+        if (executar(scriptEmCache, "memória local")) {
+            console.log(`[Core Injector] Atualiza em ${Math.round((TEMPO_CACHE_MINUTOS * 60 * 1000 - (agora - ultimoFetch)) / 60000)} minutos.`);
         }
     }
 })();
