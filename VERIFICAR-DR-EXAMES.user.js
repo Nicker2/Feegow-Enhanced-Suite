@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.4.10
+// @version      4.9.5.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra o PDF HOC Derma v3 em cascata (baixa e executa o timbrador do GitHub, com atalho vermelho à esquerda do Configs que abre a janela flutuante).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -20,6 +20,8 @@
     // Lê se a função está ativada no computador atual (Vem ON por padrão:
     // o timbrador é carregado automaticamente pela cascata abaixo).
     const featurePdfHocAtiva = GM_getValue('pdf_hoc_derma', true);
+    // Botão "Imprimir HOC Derma" nas propostas do prontuário (vem ON por padrão).
+    const featurePropostasHocAtiva = GM_getValue('propostas_hoc_derma', true);
 
     // =========================================================================
     // PDF HOC DERMA v3 — CASCATA: o VERIFICAR baixa e executa o timbrador
@@ -145,6 +147,90 @@
         });
 
         return hocDermaCarregando;
+    }
+
+    // =========================================================================
+    // PROPOSTAS HOC DERMA — CASCATA: o VERIFICAR baixa e executa o módulo
+    // =========================================================================
+    //   core.user.js ─▶ VERIFICAR-DR-EXAMES.user.js ─▶ hoc-derma-propostas.user.js
+    // Mesmo padrão do PDF HOC Derma: GM_xmlhttpRequest → cache no cofre → eval().
+    const PROP_URL_RAW      = 'https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js';
+    const PROP_CACHE_MINUTOS = 60;
+    const PROP_CHAVE_CODIGO = 'hoc_propostas_codigo';
+    const PROP_CHAVE_TIME   = 'hoc_propostas_fetch_time';
+    const PROP_CHAVE_VERSAO = 'hoc_propostas_versao';
+    let propostasCarregando = null;
+
+    function propostasDisponivel() {
+        return !!(window.HOCDERMA_PROPOSTAS && typeof window.HOCDERMA_PROPOSTAS.varrer === 'function');
+    }
+
+    function executarPropostas(codigo, origem) {
+        if (propostasDisponivel()) return true;
+        try {
+            // eslint-disable-next-line no-eval
+            eval(codigo);
+            const ok = propostasDisponivel();
+            if (ok) log('Propostas HOC Derma v' + (window.HOCDERMA_PROPOSTAS.versao || '?') + ' executado a partir de ' + origem + '.');
+            else console.error('[Feegow Suite] Propostas HOC Derma rodou mas não expôs window.HOCDERMA_PROPOSTAS.');
+            return ok;
+        } catch (e) {
+            console.error('[Feegow Suite] Falha ao executar o Propostas HOC Derma:', e);
+            return false;
+        }
+    }
+
+    function carregarPropostasHoc(forcarAtualizacao) {
+        if (propostasDisponivel()) return Promise.resolve(true);
+        if (propostasCarregando) return propostasCarregando;
+
+        const agora = Date.now();
+        const ultimoFetch = Number(GM_getValue(PROP_CHAVE_TIME, 0)) || 0;
+        const codigoCache = String(GM_getValue(PROP_CHAVE_CODIGO, '') || '');
+        const expirou = (agora - ultimoFetch) > (PROP_CACHE_MINUTOS * 60 * 1000);
+
+        if (!forcarAtualizacao && codigoCache && !expirou) {
+            if (executarPropostas(codigoCache, 'memória local')) return Promise.resolve(true);
+        }
+
+        propostasCarregando = new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: PROP_URL_RAW + '?nocache=' + agora,
+                timeout: 30000,
+                onload: function (resposta) {
+                    const codigo = (resposta && resposta.responseText) || '';
+                    const status = resposta ? resposta.status : 0;
+                    if (status !== 200 || codigo.indexOf('// ==UserScript==') < 0) {
+                        console.error('[Feegow Suite] Propostas HOC Derma: resposta inesperada do GitHub (HTTP ' + status + ').');
+                        // sem rede: ainda tenta o cache antigo
+                        resolve(codigoCache ? executarPropostas(codigoCache, 'memória local (expirada)') : false);
+                        return;
+                    }
+                    try {
+                        GM_setValue(PROP_CHAVE_CODIGO, codigo);
+                        GM_setValue(PROP_CHAVE_TIME, agora);
+                        GM_setValue(PROP_CHAVE_VERSAO, hocDermaVersaoDe(codigo));
+                    } catch (e) { /* noop */ }
+                    resolve(executarPropostas(codigo, 'GitHub'));
+                },
+                onerror: function () {
+                    console.error('[Feegow Suite] Propostas HOC Derma: falha de rede ao baixar do GitHub.');
+                    resolve(codigoCache ? executarPropostas(codigoCache, 'memória local (expirada)') : false);
+                },
+                ontimeout: function () {
+                    console.error('[Feegow Suite] Propostas HOC Derma: timeout ao baixar do GitHub.');
+                    resolve(codigoCache ? executarPropostas(codigoCache, 'memória local (expirada)') : false);
+                }
+            });
+        }).then((ok) => { propostasCarregando = null; return ok; });
+
+        return propostasCarregando;
+    }
+
+    function iniciarModuloPropostasHoc() {
+        if (!featurePropostasHocAtiva) return;   // OFF na engrenagem: nem baixa
+        carregarPropostasHoc(false);             // o módulo tem o próprio vigia (MutationObserver)
     }
 
     // Abre a janela flutuante. NUNCA redireciona para a instalação.
@@ -926,6 +1012,7 @@ const protocolosDilatacao = {
         }
         configurarObserver();
         iniciarModuloPdfHoc();
+        iniciarModuloPropostasHoc();
     };
 
     let exibirTodos = 1;
@@ -1015,6 +1102,9 @@ const protocolosDilatacao = {
                     <li class="toggle-remover" data-key="pdf_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePdfHocAtiva ? 'green' : 'red'}; border-top: 1px solid #eee; margin-top: 5px;" title="Mostra o atalho vermelho 'PDF HOC Derma' à esquerda de Configurações">
                         PDF HOC Derma (v3): ${featurePdfHocAtiva ? 'ON' : 'OFF'}
                     </li>
+                    <li class="toggle-remover" data-key="propostas_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePropostasHocAtiva ? 'green' : 'red'};" title="Botão 'Imprimir HOC Derma' ao lado do Imprimir das propostas">
+                        Imprimir HOC Derma (Propostas): ${featurePropostasHocAtiva ? 'ON' : 'OFF'}
+                    </li>
                 </ul>
               </div>
             `;
@@ -1032,8 +1122,8 @@ const protocolosDilatacao = {
                     e.stopPropagation(); 
                     const key = item.getAttribute('data-key');
                     
-                    // Define que o PDF HOC é o único que começa como OFF (false), os outros começam como ON (true)
-                    const valorPorDefeito = (key === 'pdf_hoc_derma') ? false : true;
+                    // Todos os itens começam como ON (true), igual à leitura no topo do script
+                    const valorPorDefeito = true;
                     
                     const currentState = GM_getValue(key, valorPorDefeito);
                     GM_setValue(key, !currentState);

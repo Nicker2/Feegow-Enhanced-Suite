@@ -76,7 +76,7 @@ O script utiliza recursos modernos da Web API:
 3.  **Uso:**
     * O script será carregado automaticamente em qualquer subdomínio (`app`, `app2`, etc.) na lista de espera ou tela de login do Feegow.
 
-> **Cascata automática (recomendado):** instale **apenas** o `core.user.js`. Ele baixa o `VERIFICAR-DR-EXAMES.user.js` e o próprio VERIFICAR baixa e executa o `hoc-derma-stamping-tool.user.js` (PDF HOC Derma v3) — tudo com cache próprio de 60 minutos, sem precisar instalar o timbrador à mão. O botão vermelho **PDF HOC Derma**, posicionado **à esquerda** da engrenagem de Configurações, é o único acesso ao timbrador dentro do Feegow (não existe mais botão flutuante); ele nunca redireciona para a página de instalação.
+> **Cascata automática (recomendado):** instale **apenas** o `core.user.js`. Ele baixa o `VERIFICAR-DR-EXAMES.user.js` e o próprio VERIFICAR baixa e executa o `hoc-derma-stamping-tool.user.js` (PDF HOC Derma v3) e o `hoc-derma-propostas.user.js` (Imprimir HOC Derma nas propostas) — tudo com cache próprio de 60 minutos, sem precisar instalar o timbrador à mão. O botão vermelho **PDF HOC Derma**, posicionado **à esquerda** da engrenagem de Configurações, é o único acesso ao timbrador dentro do Feegow (não existe mais botão flutuante); ele nunca redireciona para a página de instalação.
 >
 > **Saída NATIVA em PDF (v3.1.0):** o preview continua rasterizado, mas o botão **📥 Exportar PDF nativo** monta um PDF novo com **pdf-lib 1.17.1 embutido** no próprio arquivo (gzip + base64, mesma técnica do pdf.js): cada página do original entra como *Form XObject*, então o **texto continua selecionável e pesquisável** no arquivo baixado (`<nome>_timbrado.pdf`), com os timbres desenhados por cima nas posições calibradas. O **🖨️ Imprimir** passou a usar esse mesmo PDF nativo (abre na aba do visualizador para o Ctrl+P) e só cai no fluxo rasterizado antigo se algo falhar (PDF protegido por senha, pop-up bloqueado). A transformação é a mesma do preview — escala uniforme no AUTO e duas camadas com clip quando Topo ≠ Base. Sem a Suite instalada, o timbrador injeta a **própria pílula vermelha** "PDF HOC Derma" na navbar (à esquerda do Configs), sem duplicar quando a Suite já está presente (o clique é interceptado em captura e abre esta janela). Custo: o `hoc-derma-stamping-tool.user.js` passou de ~990 KB para ~1,29 MB.
 >
@@ -100,6 +100,18 @@ Script separado, instalado à parte: `oci-auto-tool.user.js` (~700 KB, tudo embu
 * **Coordenadas:** `fields_oci_v2.json` do mapeador (x/y/w/h/fontSize/baseline), com passo de *comb* medido para CPF, CNS, códigos de procedimento, telefone, DDD e CEP. Dois campos que o mapper marcava como "sintético" (nome do estabelecimento e CNES do solicitante) foram reposicionados para a linha dos rótulos, fora da barra preta.
 * **Assinaturas:** para trocar/adicionar médico, gere o PNG recortado no traço, converta para base64 e acrescente em `assets.json` (`nome`, `crm`, `w`, `h`, `b64`); o build (`build_oci.js`) reinjeta tudo.
 * **Teste:** `node --check oci-auto-tool.user.js` e, no navegador, abrir uma página fake de prontuário com `window.__OCI_AUTO_HOOKS__ = { baixar: (bytes, nome) => ... }` — o script expõe `window.OCI_AUTO` (`gate`, `extrair`, `montarPdf`, `gerar`, `dados`, `campos`, `selecionarAssinatura`).
+
+---
+
+## 🖨️ Propostas HOC Derma — "Imprimir HOC Derma" (v1.0.0)
+
+Arquivo `hoc-derma-propostas.user.js`, carregado **em cascata pelo VERIFICAR** (mesmo padrão do PDF HOC Derma: `GM_xmlhttpRequest` → cache de 60 min no cofre → `eval`). Liga/desliga na engrenagem: **Imprimir HOC Derma (Propostas)** (vem ON). Também funciona instalado sozinho no Tampermonkey.
+
+* **Onde aparece:** na proposta do prontuário (`form#frmProposta`), um botão vermelho **Imprimir HOC Derma** logo depois do grupo azul de impressão. Como a proposta entra por AJAX, um `MutationObserver` recoloca o botão sem duplicar.
+* **Editor antes de imprimir:** lê paciente, data, profissional, itens (qtd, unitário, desconto R$/%, acréscimo, total), desconto total %, forma de pagamento, outras despesas e texto complementar. Os valores podem ser alterados, removidos ou acrescentados **só para a impressão** — nada é gravado no Feegow. Mostra "Total no Feegow: confere/diferente".
+* **Padrões:** colunas de desconto e acréscimo **desligadas** (o valor delas entra no unitário impresso), **validade ligada** (30 dias) e assinatura da clínica com o nome de **"Criado por …"** da proposta (editável).
+* **Folha:** A4 com o timbrado oficial HOC Derma (mesmos PNGs do Timbrador v3), sem a tabela padrão do Feegow. As **Observações Internas nunca são impressas**.
+* **API:** `window.HOCDERMA_PROPOSTAS` (`lerProposta`, `abrirEditor`, `calcular`, `montarHtmlImpressao`, `varrer`, `estado`).
 
 ---
 
