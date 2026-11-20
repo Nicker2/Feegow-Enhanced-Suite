@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.5.0
+// @version      4.9.5.1
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra o PDF HOC Derma v3 em cascata (baixa e executa o timbrador do GitHub, com atalho vermelho à esquerda do Configs que abre a janela flutuante).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -120,7 +120,8 @@
                     const status = resposta ? resposta.status : 0;
                     if (status !== 200 || codigo.indexOf('// ==UserScript==') < 0) {
                         console.error('[Feegow Suite] PDF HOC Derma: resposta inesperada do GitHub (HTTP ' + status + ').');
-                        resolve(false);
+                        // sem rede/GitHub fora: ainda tenta a versão guardada, mesmo vencida
+                        resolve(codigoCache ? executarHocDerma(codigoCache, 'memória local (expirada)') : false);
                         return;
                     }
                     try {
@@ -134,11 +135,11 @@
                 },
                 onerror: function () {
                     console.error('[Feegow Suite] PDF HOC Derma: falha de rede ao baixar do GitHub.');
-                    resolve(false);
+                    resolve(codigoCache ? executarHocDerma(codigoCache, 'memória local (expirada)') : false);
                 },
                 ontimeout: function () {
                     console.error('[Feegow Suite] PDF HOC Derma: timeout ao baixar do GitHub.');
-                    resolve(false);
+                    resolve(codigoCache ? executarHocDerma(codigoCache, 'memória local (expirada)') : false);
                 }
             });
         }).then((ok) => {

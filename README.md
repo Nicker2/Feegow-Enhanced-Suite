@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-4.9.5.0-blue?style=for-the-badge&logo=semver)
+![Version](https://img.shields.io/badge/version-4.9.5.1-blue?style=for-the-badge&logo=semver)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Feegow-green?style=for-the-badge)
 ![Maintainer](https://img.shields.io/badge/maintainer-Nicolas_Borges-orange?style=for-the-badge)
@@ -50,8 +50,8 @@ Tudo roda no navegador. Os módulos de impressão só leem a tela: **nada é gra
 
 | Arquivo | O que faz | Versão | Como é carregado |
 | :--- | :--- | :---: | :--- |
-| `core.user.js` | Injetor: baixa a Suite do GitHub e guarda em cache | 1.1.0.1 | Instalado no Tampermonkey (**recomendado**) |
-| `VERIFICAR-DR-EXAMES.user.js` | Suite principal (lista de espera, engrenagem, login, atalhos) | 4.9.5.0 | Em cascata pelo core, ou avulso |
+| `core.user.js` | Injetor: baixa a Suite do GitHub e guarda em cache | 1.1.1.0 | Instalado no Tampermonkey (**recomendado**) |
+| `VERIFICAR-DR-EXAMES.user.js` | Suite principal (lista de espera, engrenagem, login, atalhos) | 4.9.5.1 | Em cascata pelo core, ou avulso |
 | `hoc-derma-stamping-tool.user.js` | **PDF HOC Derma**: carimba cabeçalho e rodapé HOC Derma em qualquer PDF | 3.1.0 | Em cascata pela Suite, ou avulso |
 | `hoc-derma-propostas.user.js` | **Propostas HOC Derma**: botão "Imprimir HOC Derma" nas propostas | 1.0.1 | Em cascata pela Suite, ou avulso |
 | `oci-auto-tool.user.js` | **OCI Auto**: ficha OCI/APAC em PDF a partir do prontuário | 1.0.0 | **Só avulso** (fora da cascata) |
@@ -315,7 +315,7 @@ Se o console mostrar **"Erro ao rodar o script salvo no cache"**, apague `cached
 <summary><strong>Rodar sem internet</strong></summary>
 
 * **Dentro dos 60 min** do último download, a cascata roda do cache sem rede.
-* **Depois disso**, sem rede, o core não executa a Suite e o PDF HOC Derma não carrega (o cache vencido não é reaproveitado). Só o Propostas usa o cache vencido como reserva.
+* **Depois disso**, sem rede (ou com o GitHub fora), o core, o PDF HOC Derma e o Propostas usam a **versão guardada no cofre, mesmo vencida**, como reserva. Só não funciona na primeiríssima vez, com o cofre vazio.
 * O timbrador e o OCI Auto não dependem de CDN. Instalados **avulsos**, funcionam sem acesso ao GitHub.
 * A contagem DR. EXAMES, o login e o prontuário dependem do próprio Feegow online.
 
@@ -349,6 +349,7 @@ Se o console mostrar **"Erro ao rodar o script salvo no cache"**, apague `cached
 
 | Data / versão | Mudança |
 | :--- | :--- |
+| 2026-11-20 · Core 1.1.1.0 · Suite 4.9.5.1 | Core só aceita resposta válida do GitHub (HTTP 200 + cabeçalho) e guarda no cofre só a versão que rodou; sem rede, core e PDF HOC Derma usam o cache vencido como reserva |
 | 2026-11-20 · Propostas 1.0.1 | Toggle lido com a mesma chave da engrenagem (`propostas_hoc_derma`), `@match` para `feegow.com.br` e README reescrito |
 | 2026-11-20 · Suite 4.9.5.0 · Propostas 1.0.0 | Novo **Propostas HOC Derma** em cascata, com item na engrenagem; correção do padrão dos toggles (o 1º clique em PDF HOC Derma não mudava nada) |
 | 2026-11-02 · OCI Auto 1.0.0 | Nova ficha **OCI/APAC** do prontuário com 58 campos, assinatura e impressão |
