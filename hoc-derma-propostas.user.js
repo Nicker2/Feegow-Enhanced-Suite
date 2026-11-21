@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.2
+// @version      1.3.3
 // @description  Na proposta do prontuário (form#frmProposta) adiciona o botão "Imprimir HOC Derma" ao lado do Imprimir padrão: editor de valores antes de imprimir e folha própria com cabeçalho/rodapé HOC Derma, sem a tabela padrão. Só lê a tela; nada é gravado no Feegow.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -117,6 +117,13 @@ window.HOCDERMA_TIMBRADO = {
  *     O total nunca sai antes ou no meio das descrições. A opção "Posição" saiu do modal.
  *   - Paginação: o total não começa folha sozinho (leva junto a última linha da tabela
  *     ou o último bloco, com o cabeçalho da tabela repetido).
+ *
+ * v1.3.3 (21/11/2026)
+ *   - Prévia do modal sem barra de rolagem interna em qualquer zoom: a folha escalada não deixa
+ *     mais a caixa de 210mm no layout (sumiu a barra horizontal), o iframe da prévia não rola
+ *     (o arredondamento mm→px do zoom criava uma barra dentro da folha) e a escala é recalculada
+ *     ao mudar o zoom/tamanho da janela. Fica só a barra vertical da área da prévia, entre as
+ *     folhas. A impressão não mudou.
  *
  * v1.3.2 (21/11/2026)
  *   - Item adicionado na proposta SEM recarregar a página agora sai na impressão: a linha nova
@@ -738,7 +745,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.2';
+  const VERSAO = '1.3.3';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -1699,8 +1706,10 @@ window.HOCDERMA_TIMBRADO = {
     .x{ background:transparent; border:0; color:#fff; font-size:22px; cursor:pointer; line-height:1; }
     .corpo{ flex:1; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); min-height:0; }
     .form{ overflow:auto; padding:14px 16px; border-right:1px solid #e5e5e5; }
-    .previa{ background:#7b7068; overflow:auto; display:flex; justify-content:center; padding:14px; }
-    .previa .papel{ width:210mm; height:297mm; transform-origin:top center; background:transparent; flex:none; }
+    /* v1.3.3: uma única barra (vertical, desta área). Sem barra horizontal: a folha é escalada
+       pela largura disponível e a caixa dela encolhe junto (margem negativa), sem sobrar 210mm de layout. */
+    .previa{ background:#7b7068; overflow-x:hidden; overflow-y:auto; scrollbar-gutter:stable; display:flex; justify-content:center; align-items:flex-start; padding:14px; }
+    .previa .papel{ width:210mm; height:297mm; transform-origin:top left; background:transparent; flex:none; }
     .previa iframe{ width:210mm; height:297mm; border:0; background:transparent; display:block; overflow:hidden; }
     .grade{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px 10px; margin-bottom:12px; }
     .grade .l2{ grid-column:span 2; } .grade .l4{ grid-column:1 / -1; }
@@ -1788,7 +1797,30 @@ window.HOCDERMA_TIMBRADO = {
     return S.shadow;
   }
 
+  // v1.3.3: reescala a prévia quando a área muda (zoom do navegador, janela redimensionada)
+  let obsPrevia = null;
+  function reajustarPrevia() {
+    const p = S.shadow && S.shadow.querySelector('.papel');
+    if (p) ajustarPapel(Number(p.getAttribute('data-folhas')) || 1);
+  }
+  function vigiarPrevia() {
+    pararVigiaPrevia();
+    const area = S.shadow && S.shadow.querySelector('.previa');
+    if (!area) return;
+    if (typeof ResizeObserver === 'function') {
+      // reajustar só mexe na folha (a área tem tamanho fixo pelo grid + scrollbar-gutter), sem laço de resize
+      obsPrevia = new ResizeObserver(() => reajustarPrevia());
+      obsPrevia.observe(area);
+    }
+    window.addEventListener('resize', reajustarPrevia);
+  }
+  function pararVigiaPrevia() {
+    if (obsPrevia) { obsPrevia.disconnect(); obsPrevia = null; }
+    window.removeEventListener('resize', reajustarPrevia);
+  }
+
   function fecharEditor() {
+    pararVigiaPrevia();
     if (S.shadow) S.shadow.innerHTML = '';
     document.removeEventListener('keydown', teclaEsc, true);
     S.dados = null;
@@ -1993,7 +2025,7 @@ window.HOCDERMA_TIMBRADO = {
               </div>
               <div class="semdesc" style="margin-top:2px">As opções desta seção e das descrições ficam lembradas para as próximas impressões. O "Investimento" de cada descrição vem, por padrão, do valor atual da proposta no Feegow (sem valor no Feegow, do texto do modelo); dá para trocar a fonte ou digitar o valor em cada bloco. Com a tabela oculta, os itens sem descrição saem em "Outros itens"; o total segue a opção "Mostrar total".</div>
             </div>
-            <div class="previa"><div class="papel"><iframe title="Prévia da impressão" data-previa></iframe></div></div>
+            <div class="previa"><div class="papel"><iframe title="Prévia da impressão" data-previa scrolling="no"></iframe></div></div>
           </div>
           <div class="rodape">
             <span class="esp">Esc fecha · Ctrl+Enter imprime · colunas ocultas embutem o valor no unitário · prévia: <b data-n-folhas>1 folha</b></span>
@@ -2003,6 +2035,7 @@ window.HOCDERMA_TIMBRADO = {
           </div>
         </div>
       </div>`;
+    vigiarPrevia();
 
     sh.querySelectorAll('[data-k]').forEach((el) => {
       const k = el.getAttribute('data-k');
@@ -2306,9 +2339,15 @@ window.HOCDERMA_TIMBRADO = {
     papel.setAttribute('data-folhas', String(n));
     papel.style.height = mm + 'mm';
     ifr.style.height = mm + 'mm';
-    const larg = area.clientWidth - 28;
-    const k = Math.max(0.2, Math.min(1, larg / (210 * 96 / 25.4)));
-    papel.style.transform = 'scale(' + k.toFixed(3) + ')';
+    // v1.3.3: largura útil real (sem o padding) e escala arredondada PARA BAIXO, com 2px de folga,
+    // para o arredondamento do zoom do navegador nunca deixar a folha 1px maior que a área.
+    const W = 210 * 96 / 25.4;
+    const cs = getComputedStyle(area);
+    const larg = area.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - 2;
+    const k = Math.max(0.2, Math.min(1, Math.floor((larg / W) * 1000) / 1000));
+    papel.style.transform = 'scale(' + k + ')';
+    // a caixa de layout encolhe junto com o desenho: sem isso ela continua com 210mm e gera rolagem horizontal
+    papel.style.marginRight = (-(1 - k) * W) + 'px';
     papel.style.marginBottom = (-(1 - k) * px) + 'px';
     const rot = sh.querySelector('[data-n-folhas]');
     if (rot) rot.textContent = n + (n > 1 ? ' folhas' : ' folha');
@@ -2463,8 +2502,8 @@ window.HOCDERMA_TIMBRADO = {
       .pg-cont{ border-top:0 !important; padding-top:0 !important; margin-top:0 !important; }
       .pg-cont > .proc:first-child{ border-top:0; padding-top:1mm; }
       @media screen{
-        html{ background:${o.previa ? 'transparent' : '#8a8079'}; }
-        body{ background:transparent; ${o.previa ? '' : 'padding:8mm 0;'} }
+        html{ background:${o.previa ? 'transparent' : '#8a8079'}; ${o.previa ? 'overflow:hidden;' : ''} }
+        body{ background:transparent; ${o.previa ? 'overflow:hidden;' : 'padding:8mm 0;'} }
         .folha{ box-shadow:0 2px 12px rgba(0,0,0,.35); }
         .folha + .folha{ margin-top:${GAP_FOLHAS_MM}mm; }
       }
