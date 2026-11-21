@@ -11,13 +11,12 @@ Tampermonkey
          ├─ hoc-derma-stamping-tool.user.js   (se "PDF HOC Derma" estiver ON)
          └─ hoc-derma-propostas.user.js       (se "Imprimir HOC Derma" estiver ON)
 
-oci-auto-tool.user.js                  (fora da cascata, instalado à parte)
 ```
 
 ## Onde roda
 
 - Core e Suite: `@match https://*.feegow.com/*/*` (ex.: `app.feegow.com/main/...`). Não rodam em `feegow.com.br`.
-- Timbrador, Propostas e OCI Auto, quando instalados avulsos, aceitam também `feegow.com.br`.
+- Timbrador e Propostas, quando instalados avulsos, aceitam também `feegow.com.br`.
 
 ## Como cada nível carrega o próximo
 
@@ -59,7 +58,7 @@ Apagar a chave de **código** (`cached_script`, etc.) também força o download,
 
 ## Atualização do próprio Core
 
-O Core tem `@updateURL` apontando para `core.meta.js`. O Tampermonkey verifica periodicamente; para forçar, use **Verificar atualizações** no painel. O mesmo vale para o OCI Auto e para qualquer script instalado avulso.
+O Core tem `@updateURL` apontando para `core.meta.js`. O Tampermonkey verifica periodicamente; para forçar, use **Verificar atualizações** no painel. O mesmo vale para qualquer script instalado avulso.
 
 ## Permissões
 
@@ -69,6 +68,5 @@ O Core tem `@updateURL` apontando para `core.meta.js`. O Tampermonkey verifica p
 | Suite | `GM_getValue`, `GM_setValue`, `GM_xmlhttpRequest` | `raw.githubusercontent.com` |
 | Timbrador | `none` | — |
 | Propostas | `GM_getValue`, `GM_setValue`, `GM_registerMenuCommand` | — |
-| OCI Auto | `none` | — |
 
 Código executado pela cascata herda as permissões do Core. Por isso o menu do Tampermonkey das Propostas (`GM_registerMenuCommand`) só existe quando elas estão instaladas avulsas; na cascata, as configurações ficam acessíveis pela própria interface do módulo.

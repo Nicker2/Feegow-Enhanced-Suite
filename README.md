@@ -25,7 +25,6 @@ Tudo roda **no seu navegador**. Os scripts mudam só o que você vê na tela: ne
   - [Suite principal](#suite-principal)
   - [PDF HOC Derma (Timbrador)](#pdf-hoc-derma-timbrador)
   - [Propostas HOC Derma](#propostas-hoc-derma)
-  - [OCI Auto](#oci-auto)
 - [Privacidade e segurança](#privacidade-e-segurança)
 - [Solução de problemas](#solução-de-problemas)
 - [Para desenvolvedores](#para-desenvolvedores)
@@ -42,7 +41,6 @@ Tudo roda **no seu navegador**. Os scripts mudam só o que você vê na tela: ne
 | **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Lista de espera com contador do DR. EXAMES, menu de engrenagem, limpeza da interface, login com sessão dupla, especialidade e protocolo de dilatação, atalho para o prontuário. | 4.9.5.1 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
 | **PDF HOC Derma** (`hoc-derma-stamping-tool.user.js`) | Janela que aplica o cabeçalho e o rodapé HOC Derma em qualquer PDF, ajusta o encaixe e exporta/imprime o PDF timbrado. | 3.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js)) |
 | **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário: editor de valores e folha A4 com o timbrado HOC Derma. | 1.3.4 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
-| **OCI Auto** (`oci-auto-tool.user.js`) | Preenche a ficha OCI/APAC em PDF com os dados do prontuário, com a assinatura do médico, e imprime ou baixa. | 1.0.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/oci-auto-tool.user.js) (sempre à parte) |
 
 A versão vigente de cada script é a do `@version` no respectivo `.meta.js`. Documentação detalhada:
 
@@ -50,7 +48,6 @@ A versão vigente de cada script é a do `@version` no respectivo `.meta.js`. Do
 - [docs/suite-principal.md](docs/suite-principal.md): todas as funções da Suite e o menu de engrenagem.
 - [docs/pdf-hoc-derma-timbrador.md](docs/pdf-hoc-derma-timbrador.md): guia completo do Timbrador.
 - [docs/hoc-derma-propostas.md](docs/hoc-derma-propostas.md): guia completo das Propostas HOC Derma.
-- [docs/oci-auto.md](docs/oci-auto.md): guia completo do OCI Auto.
 
 ```mermaid
 flowchart LR
@@ -58,7 +55,6 @@ flowchart LR
     CORE -- baixa + cache 60 min --> SUITE[Suite principal]
     SUITE -- se ON na engrenagem --> PDF[PDF HOC Derma]
     SUITE -- se ON na engrenagem --> PROP[Propostas HOC Derma]
-    TM --> OCI[OCI Auto - instalado à parte]
 ```
 
 ---
@@ -76,10 +72,6 @@ flowchart LR
 2. Abra o Feegow (`app.feegow.com`) e recarregue a página. O Core baixa a Suite, e a Suite baixa o Timbrador e as Propostas.
 3. A engrenagem aparece na barra superior do Feegow. Pronto.
 
-### OCI Auto (opcional)
-
-Clique em **instalar** do OCI Auto na tabela e confirme. Ele não entra na cascata, então é instalado à parte, com ou sem o Core.
-
 ### Instalação avulsa (sem o Core)
 
 Cada script também funciona sozinho: abra o link *avulso* da tabela e confirme no Tampermonkey. Use isso para testar um script isolado.
@@ -94,7 +86,6 @@ Há dois mecanismos, e eles se complementam:
 
 | Mecanismo | Vale para | Como funciona |
 | :--- | :--- | :--- |
-| **`@updateURL` do Tampermonkey** | Scripts instalados diretamente (Core, OCI Auto, ou qualquer avulso) | O Tampermonkey consulta o `.meta.js` no GitHub periodicamente. Se o `@version` for maior, baixa o `.user.js` novo. Para forçar: Painel do Tampermonkey → selecione o script → **Verificar atualizações** (ou, no menu da extensão, *Verificar atualizações de scripts do usuário*). |
 | **Cascata com cache de 60 min** | Suite, Timbrador e Propostas carregados pelo Core | A cada carregamento do Feegow, se o código salvo tiver mais de 60 minutos, ele é baixado de novo de `raw.githubusercontent.com`. Uma versão publicada chega a todos os computadores em até cerca de 1 hora, sem ninguém fazer nada. |
 
 Detalhes, chaves de cache e como forçar o download na hora: [docs/core-e-cascata.md](docs/core-e-cascata.md).
@@ -156,19 +147,6 @@ Os ajustes ficam salvos no navegador, por arquivo. Guia completo: [docs/pdf-hoc-
 
 Guia completo (editor, configurações, opções de impressão): [docs/hoc-derma-propostas.md](docs/hoc-derma-propostas.md).
 
-### OCI Auto
-
-`oci-auto-tool.user.js` funciona só na tela do prontuário (`?p=pacientes&i=<id>&pers=1`). A pílula **OCI Auto** no canto inferior direito abre um painel que:
-
-1. lê os dados do paciente do prontuário;
-2. mostra os **58 campos** da ficha OCI/APAC para conferir e corrigir;
-3. deixa escolher a **assinatura** do médico (24 embutidas, opcional);
-4. monta o PDF sobre o formulário OCI em branco e **imprime** ou **baixa** (`OCI_<PACIENTE>.pdf`).
-
-O PDF sai exatamente com o que está no painel: confira antes de imprimir. Guia completo: [docs/oci-auto.md](docs/oci-auto.md).
-
----
-
 ## Privacidade e segurança
 
 O que foi verificado no código de cada script:
@@ -179,7 +157,6 @@ O que foi verificado no código de cada script:
 | Suite | `GET` em `raw.githubusercontent.com` (código do Timbrador e das Propostas). Consulta a lista de espera no **próprio Feegow** (`app.feegow.com`), com a sessão já aberta. No login com sessão dupla, reenvia usuário e senha **só para o formulário de login do Feegow**. As imagens da tela de carregamento vêm dos servidores do Feegow. | Preferências da engrenagem e cache, no Tampermonkey. Usuário e senha digitados ficam no `sessionStorage` da aba (ver aviso abaixo). |
 | PDF HOC Derma | Nenhum no uso normal: pdf.js e pdf-lib vão embutidos e o PDF é processado no navegador. Só se o navegador não suportar `DecompressionStream` (versões anteriores a 2020) ou bloquear workers `blob:`, baixa as mesmas bibliotecas de `cdnjs.cloudflare.com` / `unpkg.com`, sem cookies. | Ajustes por arquivo no `localStorage` do Feegow (`hocderma:v3:*`). |
 | Propostas HOC Derma | Nenhum. Só lê a tela. | Preferências no Tampermonkey. |
-| OCI Auto | Lê o prontuário da tela. Se o Feegow tiver um token de API no `localStorage`, consulta o cadastro do paciente na **API do próprio Feegow** (`api.feegow.com`). pdf-lib embutido; CDN só em navegador sem `DecompressionStream`. | Nenhum dado de paciente é salvo. |
 
 Em resumo:
 
@@ -197,7 +174,6 @@ Em resumo:
 - Confira se o Core está **ativo** no Tampermonkey e se a página é `https://<algo>.feegow.com/...` (o Core e a Suite não rodam em `feegow.com.br`).
 - A engrenagem se ancora no Caixa, em Tarefas ou no sino da barra superior. Os botões da barra somem em janelas estreitas (classes `hidden-sm hidden-xs` do Feegow): aumente a janela.
 - O Timbrador e as Propostas precisam estar **ON** na engrenagem.
-- O contador DR. EXAMES só aparece na Lista de Espera; o OCI Auto, só no prontuário.
 
 **Publiquei uma versão e ela não chegou**
 - Pela cascata, espere até 60 minutos ou force: Tampermonkey → Painel → **Configurações** → *Modo de configuração*: **Avançado** → abra o script **Core** → aba **Armazenamento** → apague `last_fetch_time` (Suite), `hoc_derma_fetch_time` (Timbrador) ou `hoc_propostas_fetch_time` (Propostas) → salve e recarregue o Feegow.
@@ -205,18 +181,14 @@ Em resumo:
 
 **Impressão bloqueada**
 - Timbrador: o Imprimir abre o PDF em nova aba; se o pop-up for bloqueado, ele usa a impressão antiga. Libere pop-ups para o Feegow ou escolha **Sempre nesta janela** no menu ⋯. O **Diagnóstico** (menu ⋯) mostra o que falha.
-- OCI Auto: se a impressão falhar, use **Baixar PDF**.
 - Propostas: imprime num iframe oculto e não depende de pop-up.
 
 **Sem internet**
 - A cascata roda da cópia guardada, mesmo vencida. Só falha na primeira execução, com o cache vazio.
-- Timbrador e OCI Auto não dependem de CDN. O contador, o login e o prontuário dependem do Feegow online.
 
 **Outros**
 - *"Erro ao buscar dados da API"* no console: a conexão caiu ou a sessão do Feegow expirou.
 - O login automático não disparou: os dados só são capturados no clique em **Entrar**; um preenchimento automático que pule o botão impede a repetição.
-- Campos vazios no OCI Auto: digite no painel; o PDF usa o que estiver lá.
-- Logs: F12 → Console. Prefixos: `[Core Injector]`, `[Script Tampermonkey]` (Suite), `[Propostas HOC Derma]`, `[OCI Auto]`.
 
 ---
 
@@ -229,13 +201,11 @@ core.user.js / core.meta.js                          Core (injetor da cascata)
 VERIFICAR-DR-EXAMES.user.js / .meta.js               Suite principal
 hoc-derma-stamping-tool.user.js / .meta.js           PDF HOC Derma (Timbrador)
 hoc-derma-propostas.user.js / .meta.js               Propostas HOC Derma
-oci-auto-tool.user.js / .meta.js                     OCI Auto
 docs/                                                Guias por script
 LICENSE                                              MIT
 ```
 
 - O `.user.js` é o script completo; o `.meta.js` contém **só** o bloco `// ==UserScript== ... // ==/UserScript==` e é o que o Tampermonkey consulta (`@updateURL`) para saber se há versão nova. `@downloadURL` aponta para o `.user.js`.
-- Os scripts grandes não usam `@require` nem CDN: bibliotecas e imagens vão embutidas em gzip + base64 (por isso o Timbrador tem ~1,3 MB, o OCI Auto ~700 KB e as Propostas ~540 KB). Isso é necessário porque a cascata só faz `eval` do texto e porque o sandbox do Tampermonkey não enxerga scripts de CDN.
 - Os scripts carregados em cascata rodam dentro do contexto do Core: usam as permissões (`@grant`) e o armazenamento do Core. Um recurso que dependa de `GM_registerMenuCommand`, por exemplo, só aparece quando o script está instalado avulso.
 
 ### Geração das Propostas (`montar_userscripts.py`)
@@ -255,7 +225,6 @@ Ele só grava arquivos locais: não faz commit nem push. Os outros scripts são 
 - **Ganchos de teste:**
   - Timbrador: `window.HOC_DERMA.diagnostico()`, `montarPdf()`, `abrirArquivo()`.
   - Propostas: `window.__HOCDERMA_PROPOSTAS_OPCOES__` (ex.: `modoTeste: true`) e `window.__HOCDERMA_PROPOSTAS_HOOKS__.dispararPrint(win, html)`.
-  - OCI Auto: `window.__OCI_AUTO_HOOKS__ = { baixar: (bytes, nome) => ..., imprimir: ..., dispararPrint: ... }` captura o PDF sem abrir diálogo.
 - **No Feegow, sem esperar o cache:** desative o Core e instale a versão local avulsa (Tampermonkey → Utilitários → Importar de arquivo), ou apague as chaves de horário do cache.
 - **Sintaxe:** `node --check arquivo.user.js` antes de publicar.
 
@@ -280,7 +249,6 @@ Ele só grava arquivos locais: não faz commit nem push. Os outros scripts são 
 | Propostas 1.3.0 | Tabela de itens oculta por padrão, nome de quem gerou no fim da folha, tela de configurações |
 | Core 1.1.1.0 · Suite 4.9.5.1 | O Core só aceita resposta válida do GitHub e usa o cache vencido sem rede |
 | Suite 4.9.5.0 · Propostas 1.0.x | Novo módulo Propostas HOC Derma em cascata, com item na engrenagem |
-| OCI Auto 1.0.0 | Ficha OCI/APAC do prontuário com 58 campos, assinatura e impressão |
 | Timbrador 3.1.0 | Exportação de PDF nativo com texto selecionável (pdf-lib embutido) |
 | Timbrador 3.0.5 a 3.0.7 | Acesso só pela barra superior, AUTO, ajuste por página |
 
