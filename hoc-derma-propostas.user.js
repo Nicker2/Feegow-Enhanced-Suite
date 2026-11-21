@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.1
+// @version      1.3.2
 // @description  Na proposta do prontuário (form#frmProposta) adiciona o botão "Imprimir HOC Derma" ao lado do Imprimir padrão: editor de valores antes de imprimir e folha própria com cabeçalho/rodapé HOC Derma, sem a tabela padrão. Só lê a tela; nada é gravado no Feegow.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.1
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.2
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -117,6 +117,14 @@ window.HOCDERMA_TIMBRADO = {
  *     O total nunca sai antes ou no meio das descrições. A opção "Posição" saiu do modal.
  *   - Paginação: o total não começa folha sozinho (leva junto a última linha da tabela
  *     ou o último bloco, com o cabeçalho da tabela repetido).
+ *
+ * v1.3.2 (21/11/2026)
+ *   - Item adicionado na proposta SEM recarregar a página agora sai na impressão: a linha nova
+ *     (inserida por AJAX) usa ids com "-" (row-82911, ItemID-82911) mas data-val sem o "-";
+ *     o id real vem de tr.id/propostaItem (data-val só de reserva). Descrição, valores e o
+ *     casamento com o catálogo funcionam para o item novo.
+ *   - Item novo com ValorUnitario "0,00" e total da linha já preenchido: o unitário é
+ *     derivado do total da linha (desfazendo desconto/acréscimo).
  *
  * v1.3.1 (21/11/2026)
  *   - Com "Mostrar validade" ligado, some a frase "PROPOSTA VÁLIDA POR X DIAS." vinda do Feegow (redundante).
@@ -730,7 +738,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.1';
+  const VERSAO = '1.3.2';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -794,7 +802,7 @@ window.HOCDERMA_TIMBRADO = {
     status: 'select[id="StaID"]',
     tabelaPreco: 'select[id="TabelaID"]',
     tbodyItens: '[id="order-tbody"]',
-    linhaItem: 'tr[class*="proposta-item"][data-val]',
+    linhaItem: 'tr[class*="proposta-item"][data-val], tr[class*="proposta-item"][id^="row"]',
     descontoTotal: '[id="DescontoTotal"]',
     total: '[id="total"]',
     valorHidden: '[id="Valor"]',
@@ -1423,10 +1431,26 @@ window.HOCDERMA_TIMBRADO = {
     return { base, descR, acrR, total: arred(base - descR + acrR) };
   }
 
+  // v1.3.2: id real da linha. Item JÁ SALVO: tr#row82910 / ItemID82910. Item NOVO (inserido por
+  // AJAX, ainda não salvo): tr#row-82911, propostaItem = "-82911", ItemID-82911, mas data-val="82911"
+  // (sem o "-"). Tenta tr.id sem "row", depois o propostaItem, depois o data-val, e fica com o
+  // primeiro que tem os campos (ItemID/ValorUnitario/Quantidade) no form.
+  function idDaLinha(form, tr) {
+    const cands = [];
+    const m = String(tr.id || '').match(/^row(-?\d+)$/i);
+    if (m) cands.push(m[1]);
+    const pi = q(tr, 'input[name="propostaItem"]');
+    if (pi && /^-?\d+$/.test(String(pi.value).trim())) cands.push(String(pi.value).trim());
+    const dv = String(tr.getAttribute('data-val') || '').trim();
+    if (dv) { cands.push(dv); if (dv.charAt(0) !== '-') cands.push('-' + dv); }
+    const ok = cands.find((c) => porId(form, 'ItemID' + c) || porId(form, 'ValorUnitario' + c) || porId(form, 'Quantidade' + c));
+    return ok != null ? ok : (cands[0] || '');
+  }
+
   function lerItens(form) {
     const tb = q(form, SEL.tbodyItens) || form;
     return qa(tb, SEL.linhaItem).filter((tr) => tr.id !== 'footItens').map((tr) => {
-      const id = tr.getAttribute('data-val');
+      const id = idDaLinha(form, tr);
       const sel = porId(form, 'ItemID' + id);
       let descricao = textoOpcao(sel);
       if (!descricao) {
@@ -1450,6 +1474,17 @@ window.HOCDERMA_TIMBRADO = {
         modo: 'linha',
         subFeegow: subEl ? lerValor(subEl.textContent || subEl.value) : null
       };
+      // v1.3.2: item recém-adicionado pode vir com ValorUnitario "0,00" enquanto o Feegow já mostra o
+      // total da linha (sub). Nesse caso deriva o unitário do sub (desfazendo desconto/acréscimo).
+      if (!(it.unitario > 0) && it.subFeegow > 0) {
+        const q1 = num(it.qtd) || 1;
+        const d = Math.max(0, num(it.desconto));
+        const a = Math.max(0, num(it.acrescimo));
+        let u;
+        if (it.descontoTipo === 'P') u = d < 100 ? (it.subFeegow - a) / (q1 * (1 - d / 100)) : 0;
+        else u = (it.subFeegow - a + d) / q1;
+        if (u > 0) { it.unitario = arred(u); it.unitarioDerivado = true; }
+      }
       // Descobre o modo comparando com o total que o próprio Feegow mostra.
       if (it.subFeegow != null && it.qtd > 1) {
         const tl = calcLinha(it).total;
