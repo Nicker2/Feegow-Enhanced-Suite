@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.2
+// @version      1.3.3
 // @description  Na proposta do prontuário (form#frmProposta) adiciona o botão "Imprimir HOC Derma" ao lado do Imprimir padrão: editor de valores antes de imprimir e folha própria com cabeçalho/rodapé HOC Derma, sem a tabela padrão. Só lê a tela; nada é gravado no Feegow.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
