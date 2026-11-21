@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.0.1
+// @version      1.3.0
 // @description  Na proposta do prontuário (form#frmProposta) adiciona o botão "Imprimir HOC Derma" ao lado do Imprimir padrão: editor de valores antes de imprimir e folha própria com cabeçalho/rodapé HOC Derma, sem a tabela padrão. Só lê a tela; nada é gravado no Feegow.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -11,7 +11,9 @@
 // @icon         https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://app.feegow.com/&size=16
 // @run-at       document-idle
 // @noframes
-// @grant        none
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_registerMenuCommand
 // @downloadURL  https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js
 // @updateURL    https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.meta.js
 // ==/UserScript==
@@ -33,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.0.1
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.0
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -64,16 +66,668 @@ window.HOCDERMA_TIMBRADO = {
  *   window.__HOCDERMA_PROPOSTAS_HOOKS__ = {
  *     dispararPrint: (win, html) => {}  // substitui o print() real (testes)
  *   }
+ *
+ * v1.1.0 (20/11/2026)
+ *   - Opção "Ocultar tabela de itens" e opção separada "Mostrar total".
+ *   - Descrições pré-definidas por procedimento (catálogo DESCRICOES_PROCEDIMENTOS
+ *     logo abaixo): um bloco por procedimento detectado, com quebra de página
+ *     que não corta o bloco. No modal: liga/desliga geral, posição, incluir/
+ *     excluir cada bloco e editar o texto só para esta impressão.
+ *   - Opções do modal lembradas (GM_getValue/GM_setValue do próprio script;
+ *     sem GM disponível, ficam na memória até recarregar a página).
+ *
+ * v1.1.1 (20/11/2026)
+ *   - Tabela oculta: abaixo de cada descrição sai o valor do procedimento (itens
+ *     que ativaram o bloco, com os valores editados; vários itens = uma linha por
+ *     item + total do procedimento), preso ao bloco (break-inside: avoid).
+ *   - Tabela oculta: itens SEM descrição impressa (sem cadastro, bloco desmarcado
+ *     ou descrições desligadas) saem em "Outros itens" (nome + valor), para o
+ *     total bater. "Outras despesas" volta a sair também com a tabela oculta.
+ *   - Opção "Valor em cada descrição" (lembrada; vem ligada; só vale com a tabela oculta).
+ *
+ * v1.2.0 (21/11/2026)
+ *   - Catálogo real: 61 descrições vindas dos modelos "Textos e Atestados" do
+ *     Feegow (filtradas para a HOC Derma; 8 marcadas "a revisar" no modal).
+ *     Lista do que entrou/saiu: modelos_feegow/classificacao_hocderma.txt.
+ *   - Detecção tolerante: sem acento, sem maiúsculas, palavras de ligação
+ *     ignoradas, "01SS"/"3SS" = sessões, zeros à esquerda, tabela de APELIDOS
+ *     editável (BACIO = BACCIO, BOTOX = TOXINA, SUP = SUPERIOR, LUZ INTENSA
+ *     PULSADA = LIP...) e erro de 1 letra em palavras longas.
+ *   - "Investimento" em cada descrição (substitui o bloco de valor da v1.1.1):
+ *     fonte por bloco = Automático (valor atual da proposta no Feegow; sem
+ *     valor no Feegow, o do texto do modelo) | Feegow | Modelo | Manual |
+ *     Não imprimir. A fonte e o texto manual ficam lembrados por procedimento.
+ *     No modal, aviso discreto quando o Feegow e o modelo têm valores diferentes.
+ *   - Folha: título do bloco em duas linhas (procedimento + detalhe), selo
+ *     "Cortesia", subtítulos de seção ("## ") e separador ("---") no texto.
+ *
+ * v1.2.1 (21/11/2026)
+ *   - Paginação real: o conteúdo é medido e repartido em folhas A4 (210x297mm), cada
+ *     uma com o cabeçalho e o rodapé do timbrado e o conteúdo só na área útil entre
+ *     eles (sem position:fixed). Blocos, linhas da tabela e o total não são cortados;
+ *     a tabela longa repete o cabeçalho; bloco maior que a folha é repartido por
+ *     parágrafos. "Página X de Y" no rodapé. A prévia do modal mostra as folhas.
+ *   - Tabela oculta: não sai mais nenhuma linha "item · qtd × unitário · total" (em
+ *     "Outros itens" e nos blocos com vários itens), que fazia a tabela parecer só
+ *     "sem formatação". "Outros itens" = lista de nomes + um Investimento (a soma).
+ *
+ * v1.2.2 (21/11/2026)
+ *   - Ordem fixa na folha: dados → "Sobre os procedimentos" (todas as descrições) →
+ *     "Outros itens" → tabela de itens (se visível) → outras despesas → TOTAL → finais.
+ *     O total nunca sai antes ou no meio das descrições. A opção "Posição" saiu do modal.
+ *   - Paginação: o total não começa folha sozinho (leva junto a última linha da tabela
+ *     ou o último bloco, com o cabeçalho da tabela repetido).
+ *
+ * v1.3.0 (21/11/2026)
+ *   - Padrão SEM tabela (descrições + total no fim). "Mostrar tabela" fica lembrado
+ *     no PC (preferências antigas, de antes da 1.3.0, voltam ao novo padrão).
+ *   - Nome de quem fez a proposta no fim da folha (assinatura; sem a linha de
+ *     assinatura, "Proposta elaborada por ..."): automático = "Criado por" do Feegow,
+ *     senão o profissional; dá para fixar outro nome e um cargo/registro.
+ *   - Tela "Configurações das propostas" (menu do Tampermonkey e botão no editor):
+ *     nome, cargo e opções padrão, gravados com GM_setValue no Tampermonkey do PC,
+ *     com "Restaurar padrão" (apaga também as escolhas de Investimento).
  * ========================================================================== */
 
 (function () {
   'use strict';
 
+  /* ==========================================================================
+   * ★ CATÁLOGO DE DESCRIÇÕES DOS PROCEDIMENTOS (edite AQUI) ★
+   *
+   * Cada procedimento da proposta que casar com uma entrada abaixo ganha, na
+   * impressão, um bloco "título + texto" (um bloco por entrada, sem repetir
+   * mesmo que o procedimento apareça duas vezes na proposta).
+   *
+   * CAMPOS
+   *   id            identificador único, sem espaços (ex.: 'toxina-botulinica')
+   *   titulo        título do bloco na folha
+   *   palavrasChave frases que identificam o procedimento pelo NOME no Feegow.
+   *                 Ignora acento, maiúsculas e pontuação. Uma frase casa quando
+   *                 TODAS as palavras dela aparecem no nome, em qualquer ordem.
+   *                 'peeling*' = qualquer palavra que comece com "peeling".
+   *                 Plural simples (s) é aceito. Use palavras específicas.
+   *   excluir       (opcional) frases que, se aparecerem no nome, impedem o casamento
+   *   codigos       (opcional) ID do item no Feegow (value do select do procedimento)
+   *                 ou código (TUSS etc.) que apareça no nome. Código casado vence
+   *                 as palavras-chave.
+   *   texto         texto do bloco. Linha em branco = novo parágrafo;
+   *                 linha começando com "- " ou "• " = item de lista;
+   *                 **assim** = negrito; "## TÍTULO" = subtítulo de seção dentro
+   *                 do bloco; "---" = linha separadora.
+   *   titulo        "PROCEDIMENTO | DETALHE | ..." sai em duas linhas na folha
+   *                 (procedimento em destaque, detalhes menores); a parte com
+   *                 CORTESIA vira selo.
+   *   investimento  valor do texto do modelo do Feegow (ex.: 'R$ 1.700,00',
+   *                 'R$ 1.300,00 cada', 'de R$ 15.000,00 por R$ 12.000,00').
+   *                 Vazio = o modelo não tinha valor. Na impressão, o padrão é o
+   *                 valor ATUAL da proposta no Feegow; este só entra quando o item
+   *                 está sem valor na proposta, ou quando escolhido no modal.
+   *   revisar       (opcional) motivo de dúvida na triagem HOC × HOC Derma: no
+   *                 modal aparece o selo "A REVISAR" (não sai na folha).
+   *   incluirPadrao (opcional) false = o bloco vem desmarcado no modal.
+   *   modeloFeegow  ID do modelo em "Textos e Atestados" de onde veio o texto.
+   *   exemplo       true = texto provisório: no modal aparece marcado "EXEMPLO" e
+   *                 vem DESMARCADO (só vem marcado no MODO TESTE).
+   *
+   * Se duas entradas casarem com o mesmo procedimento por frases parecidas, vence
+   * a mais específica (ex.: "toxina terco superior" ganha de "toxina pescoco" só
+   * quando o nome tem essas palavras; "laser manchas 3 sessoes" ganha de "laser manchas").
+   * Num item combinado ("TOXINA + PREENCHIMENTO") saem os dois blocos.
+   *
+   * Gerado de modelos_feegow/modelos_procedimentos.json em 21/11/2026 (sem a linha
+   * "Investimento" no texto: ela virou o campo investimento). Pode editar à mão.
+   * ======================================================================== */
+
+  const DESCRICOES_PROCEDIMENTOS = [
+    {
+      id: "baccio-lip",
+      modeloFeegow: 85,
+      titulo: "BACIO LIP | REVITALIZAÇÃO LABIAL",
+      palavrasChave: ["baccio lip", "revitalizacao labial"],
+      investimento: "R$ 1.700,00",
+      texto: "Tratamento com ácido hialurônico e vitamina B12 que hidrata e revitaliza os lábios, melhorando a textura e a definição, para uma aparência mais macia, lisa e bem cuidada."
+    },
+    {
+      id: "bioestimulador-radiesse-02-frascos",
+      modeloFeegow: 54,
+      titulo: "BIOESTIMULADOR DE COLÁGENO | RADIESSE",
+      palavrasChave: ["radiesse 2 frascos"],
+      investimento: "R$ 1.800,00 cada",
+      texto: "Tratamento injetável que estimula a produção natural de colágeno, melhorando a firmeza e a qualidade da pele e suavizando a flacidez. Os resultados aparecem de forma gradual, proporcionando uma aparência mais firme e rejuvenescida."
+    },
+    {
+      id: "bioestimulador-radiesse-01-frasco",
+      modeloFeegow: 53,
+      titulo: "BIOESTIMULADOR DE COLÁGENO | RADIESSE",
+      palavrasChave: ["radiesse", "radiesse 1 frasco"],
+      investimento: "R$ 2.000,00",
+      texto: "Tratamento injetável que estimula a produção natural de colágeno, melhorando a firmeza e a qualidade da pele e suavizando a flacidez. Os resultados aparecem de forma gradual, proporcionando uma aparência mais firme e rejuvenescida."
+    },
+    {
+      id: "bioestimulador-sculptra-02-frascos",
+      modeloFeegow: 52,
+      titulo: "BIOESTIMULADOR DE COLÁGENO | SCULPTRA",
+      palavrasChave: ["sculptra 2 frascos"],
+      investimento: "R$ 2.500,00 cada",
+      texto: "Tratamento injetável que estimula a produção natural de colágeno, melhorando a firmeza e a qualidade da pele e suavizando a flacidez. Os resultados aparecem de forma gradual, proporcionando uma aparência mais firme e rejuvenescida."
+    },
+    {
+      id: "bioestimulador-sculptra-01-frasco",
+      modeloFeegow: 50,
+      titulo: "BIOESTIMULADOR DE COLÁGENO | SCULPTRA",
+      palavrasChave: ["sculptra", "sculptra 1 frasco"],
+      investimento: "R$ 2.700,00",
+      texto: "Tratamento injetável que estimula a produção natural de colágeno, melhorando a firmeza e a qualidade da pele e suavizando a flacidez. Os resultados aparecem de forma gradual, proporcionando uma aparência mais firme e rejuvenescida."
+    },
+    {
+      id: "blefaro-inferior",
+      modeloFeegow: 97,
+      titulo: "BLEFAROPLASTIA INFERIOR",
+      palavrasChave: ["blefaro inferior"],
+      investimento: "",
+      revisar: "cirurgia palpebral (blefaroplastia): oculoplástica, pode ser do HOC e não da Derma",
+      texto: "Cirurgia para tratar as bolsas de gordura e o excesso de pele abaixo dos olhos, suavizando o volume e melhorando o contorno das pálpebras inferiores."
+    },
+    {
+      id: "blefaro-superior",
+      modeloFeegow: 48,
+      titulo: "BLEFAROPLASTIA | SUPERIOR",
+      palavrasChave: ["blefaro superior"],
+      investimento: "",
+      revisar: "cirurgia palpebral (blefaroplastia): oculoplástica, pode ser do HOC e não da Derma",
+      texto: "Cirurgia para remover o excesso de pele das pálpebras superiores, suavizando o aspecto de cansaço e deixando o olhar mais leve e descansado."
+    },
+    {
+      id: "blefaro-superior-inferior",
+      modeloFeegow: 47,
+      titulo: "BLEFAROPLASTIA | SUPERIOR E INFERIOR",
+      palavrasChave: ["blefaro superior inferior"],
+      investimento: "",
+      revisar: "cirurgia palpebral (blefaroplastia): oculoplástica, pode ser do HOC e não da Derma",
+      texto: "Cirurgia para remover o excesso de pele e tratar as bolsas de gordura das pálpebras superiores e inferiores, suavizando o aspecto de cansaço e deixando o olhar mais leve e descansado."
+    },
+    {
+      id: "botox-sup-inf-e-masseter",
+      modeloFeegow: 86,
+      titulo: "TOXINA BOTULÍNICA | TERÇO SUPERIOR, INFERIOR E MASSETER",
+      palavrasChave: ["toxina superior inferior masseter", "toxina masseter"],
+      investimento: "",
+      texto: "Tratamento injetável que suaviza as linhas de expressão e melhora o contorno facial. No masseter, relaxa a musculatura e reduz seu volume gradualmente, afinando a parte inferior do rosto."
+    },
+    {
+      id: "drug-delivery",
+      modeloFeegow: 80,
+      titulo: "DRUG DELIVERY",
+      palavrasChave: ["drug delivery"],
+      investimento: "R$ 1.000,00",
+      texto: "Aplicação de ativos específicos após procedimentos como laser ou microagulhamento, aproveitando os pequenos canais formados na pele para favorecer sua penetração e complementar o tratamento."
+    },
+    {
+      id: "ecg-ate-05-lesoes",
+      modeloFeegow: 102,
+      titulo: "ELETROCOAGULAÇÃO (ECG) DE LESÃO | ATÉ 05 LESÕES",
+      palavrasChave: ["ecg", "ecg lesao"],
+      investimento: "R$ 750,00",
+      texto: "Procedimento que utiliza o calor gerado por uma corrente elétrica para cauterizar a lesão na pele."
+    },
+    {
+      id: "enzimas",
+      modeloFeegow: 107,
+      titulo: "EMPTERS | TERÇO MÉDIO E INFERIOR DO ROSTO",
+      palavrasChave: ["enzimas", "empters"],
+      investimento: "R$ 3.500,00",
+      texto: "Aplicação de enzimas para auxiliar na redução da gordura localizada nas bochechas e na parte inferior do rosto, buscando suavizar o excesso de volume e melhorar a definição do contorno facial."
+    },
+    {
+      id: "exerese-baixa-complexidade",
+      modeloFeegow: 98,
+      titulo: "EXÉRESE DE LESÃO | BAIXA COMPLEXIDADE",
+      palavrasChave: ["exerese baixa complexidade"],
+      investimento: "",
+      texto: "Procedimento cirúrgico de menor porte para retirar uma lesão da pele, com cuidados para favorecer a cicatrização da região."
+    },
+    {
+      id: "exerese-cisto",
+      modeloFeegow: 93,
+      titulo: "EXÉRESE DE CISTO | MÉDIA COMPLEXIDADE",
+      palavrasChave: ["exerese cisto", "exerese cisto media complexidade"],
+      investimento: "",
+      texto: "Cirurgia para retirar o cisto e a cápsula que o envolve, com cuidados específicos conforme o tamanho, a profundidade e a localização da lesão. A retirada completa ajuda a reduzir a chance de o cisto voltar no mesmo local."
+    },
+    {
+      id: "exerese-lipoma",
+      modeloFeegow: 96,
+      titulo: "EXÉRESE DE LIPOMA",
+      palavrasChave: ["exerese lipoma", "lipoma"],
+      investimento: "",
+      texto: "Cirurgia para retirar um nódulo de gordura localizado sob a pele, que pode causar volume aparente ou desconforto na região."
+    },
+    {
+      id: "exerese-media-complexidade",
+      modeloFeegow: 99,
+      titulo: "EXÉRESE DE LESÃO | MÉDIA COMPLEXIDADE",
+      palavrasChave: ["exerese media complexidade", "exerese lesao media complexidade"],
+      investimento: "",
+      texto: "Cirurgia para retirar uma lesão da pele que exige cuidados adicionais pelo tamanho, profundidade ou localização, com atenção ao fechamento e à cicatrização da área."
+    },
+    {
+      id: "fios-aptos-hammok",
+      modeloFeegow: 51,
+      titulo: "FIOS APTOS HAMMOCK | PESCOÇO",
+      palavrasChave: ["fios aptos hammock", "fios pescoco", "fios hammock"],
+      investimento: "R$ 10.000,00",
+      texto: "Tratamento com fios de sustentação para dar suporte aos tecidos do pescoço, melhorar a flacidez e definir o contorno da região abaixo do queixo. Os fios também estimulam a produção de colágeno, contribuindo para a firmeza da pele ao longo do tempo."
+    },
+    {
+      id: "fios-aptos-rosto",
+      modeloFeegow: 55,
+      titulo: "FIOS APTOS | ROSTO",
+      palavrasChave: ["fios aptos", "fios aptos rosto"],
+      investimento: "R$ 8.000,00",
+      texto: "Tratamento com fios de sustentação que ajudam a reposicionar os tecidos do rosto, suavizar a flacidez e melhorar a definição do contorno facial. Os fios também estimulam a produção de colágeno, contribuindo para a firmeza e a qualidade da pele ao longo do tempo."
+    },
+    {
+      id: "fotobiomodulacao-pos-blefaro",
+      modeloFeegow: 74,
+      titulo: "FOTOBIOMODULAÇÃO PÓS-BLEFAROPLASTIA | CORTESIA — 03 SESSÕES",
+      palavrasChave: ["fotobiomodulacao blefaro"],
+      investimento: "",
+      revisar: "fotobiomodulação pós-blefaroplastia: cortesia ligada à cirurgia palpebral",
+      texto: "Tratamento com luz que auxilia na cicatrização e na redução do inchaço, contribuindo para maior conforto e recuperação no pós-operatório."
+    },
+    {
+      id: "fotobiomodulacao-pos-laser",
+      modeloFeegow: 75,
+      titulo: "FOTOBIOMODULAÇÃO PÓS-LASER | CORTESIA — 03 SESSÕES",
+      palavrasChave: ["fotobiomodulacao laser"],
+      investimento: "",
+      texto: "Tratamento com luz que auxilia na recuperação da pele e na redução da vermelhidão e do inchaço, proporcionando mais conforto após o laser."
+    },
+    {
+      id: "gluteo-up-hd",
+      modeloFeegow: 67,
+      titulo: "GLÚTEO UP HD | VOLUMIZADOR + BIOESTIMULADOR",
+      palavrasChave: ["gluteo up", "gluteo up hd"],
+      investimento: "",
+      texto: "Tratamento para glúteos mais volumosos, com maior projeção e contornos definidos, valorizando as curvas.\n\n## BIOESTIMULADOR CORPORAL\n\nTratamento que estimula a produção de colágeno para uma pele mais firme e glúteos com aparência mais lisa, melhorando a flacidez da região."
+    },
+    {
+      id: "hialuronidase",
+      modeloFeegow: 106,
+      titulo: "HIALURONIDASE",
+      palavrasChave: ["hialuronidase"],
+      investimento: "R$ 1.700,00",
+      texto: "Aplicação de uma enzima que dissolve o ácido hialurônico previamente injetado, permitindo reduzir o excesso de volume e corrigir irregularidades na região tratada."
+    },
+    {
+      id: "hiperidrose-axilas",
+      modeloFeegow: 87,
+      titulo: "TOXINA BOTULÍNICA | HIPERIDROSE AXILAR",
+      palavrasChave: ["hiperidrose", "toxina axila"],
+      investimento: "R$ 2.300,00",
+      texto: "Aplicação de toxina botulínica nas axilas para reduzir o suor excessivo, bloqueando temporariamente os sinais que estimulam as glândulas sudoríparas."
+    },
+    {
+      id: "laser-co2-cirurgia",
+      modeloFeegow: 49,
+      titulo: "LASER DE CO2",
+      palavrasChave: ["laser co2"],
+      investimento: "",
+      revisar: "laser de CO2 para incisão de pálpebras: parte da blefaroplastia",
+      texto: "**CORTE CIRÚRGICO:** Utilização do laser de CO2 para realizar as incisões nas pálpebras, com precisão e controle do sangramento, podendo contribuir para maior conforto no pós-operatório.\n\n**RESURFACING | CORTESIA:** Aplicação do laser de CO2 para renovar a pele e estimular a produção de colágeno, melhorando a textura e suavizando linhas finas e rugas na região tratada."
+    },
+    {
+      id: "laser-manchas-01ss",
+      modeloFeegow: 58,
+      titulo: "LASER PARA MANCHAS",
+      palavrasChave: ["laser manchas", "laser manchas 1 sessoes"],
+      investimento: "R$ 690,00",
+      texto: "Tratamento a laser que atua na pigmentação das manchas, auxiliando no seu clareamento e contribuindo para uma pele com tom mais uniforme."
+    },
+    {
+      id: "laser-manchas-03ss",
+      modeloFeegow: 59,
+      titulo: "LASER PARA MANCHAS | 03 SESSÕES",
+      palavrasChave: ["laser manchas 3 sessoes"],
+      investimento: "R$ 2.000,00",
+      texto: "Tratamento a laser que atua na pigmentação das manchas, auxiliando no seu clareamento e contribuindo para uma pele com tom mais uniforme."
+    },
+    {
+      id: "laser-olhos",
+      modeloFeegow: 79,
+      titulo: "LASER ÉRBIUM | ÁREA DOS OLHOS",
+      palavrasChave: ["laser olhos", "laser erbium"],
+      investimento: "",
+      texto: "Tratamento que promove a renovação da pele e estimula a produção de colágeno, suavizando linhas finas e rugas ao redor dos olhos e melhorando a textura da região."
+    },
+    {
+      id: "laser-qualidade-de-pele",
+      modeloFeegow: 56,
+      titulo: "LASER PARA QUALIDADE DA PELE | 01 SESSÃO",
+      palavrasChave: ["laser qualidade pele", "laser qualidade pele 1 sessoes"],
+      investimento: "R$ 1.500,00",
+      texto: "Tratamento a laser que promove a renovação da pele e estimula a produção de colágeno, contribuindo para melhorar a textura, suavizar linhas finas e proporcionar uma aparência mais uniforme e revitalizada."
+    },
+    {
+      id: "laser-qualidade-de-pele-3ss",
+      modeloFeegow: 57,
+      titulo: "LASER PARA QUALIDADE DA PELE | 03 SESSÕES",
+      palavrasChave: ["laser qualidade pele 3 sessoes"],
+      investimento: "R$ 3.600,00",
+      texto: "Tratamento a laser que promove a renovação da pele e estimula a produção de colágeno, contribuindo para melhorar a textura, suavizar linhas finas e proporcionar uma aparência mais uniforme e revitalizada."
+    },
+    {
+      id: "liftera-pre-blefaro",
+      modeloFeegow: 71,
+      titulo: "LIFTERA | PREPARO PARA BLEFAROPLASTIA",
+      palavrasChave: ["liftera pre blefaro", "liftera blefaro"],
+      investimento: "",
+      texto: "Tratamento com ultrassom microfocado que estimula a produção de colágeno e melhora a firmeza da pele ao redor dos olhos, complementando o planejamento da cirurgia."
+    },
+    {
+      id: "liftera-rosto-e-pescoco",
+      modeloFeegow: 69,
+      titulo: "LIFTERA | ROSTO E PESCOÇO",
+      palavrasChave: ["liftera rosto pescoco"],
+      investimento: "",
+      texto: "Tecnologia com exclusividade médica, que promove efeito lifting sem cirurgia, estimula o colágeno e melhora a flacidez do rosto e do pescoço. Também auxilia na redução de gordura localizada, valorizando o contorno do rosto e a região da papada."
+    },
+    {
+      id: "liftera-pescoco",
+      modeloFeegow: 82,
+      titulo: "LIFTERA | PESCOÇO",
+      palavrasChave: ["liftera pescoco"],
+      investimento: "",
+      texto: "Tecnologia de uso exclusivo médico que utiliza ultrassom microfocado para um efeito lifting sem cirurgia. Estimula a produção de colágeno para dar mais firmeza à pele do pescoço e pode ajudar a reduzir a gordura localizada na papada, definindo melhor o contorno abaixo do queixo."
+    },
+    {
+      id: "liftera-rosto",
+      modeloFeegow: 68,
+      titulo: "LIFTERA | ROSTO",
+      palavrasChave: ["liftera rosto"],
+      investimento: "",
+      texto: "Tecnologia com exclusividade médica, que promove efeito lifting sem cirurgia, estimula o colágeno e melhora a firmeza da pele. Também auxilia na redução de gordura localizada, deixando o contorno facial mais definido."
+    },
+    {
+      id: "liftera-terco-medio-e-papada",
+      modeloFeegow: 108,
+      titulo: "LIFTERA | TERÇO MÉDIO E PAPADA | 03 SESSÕES",
+      palavrasChave: ["liftera terco medio papada", "liftera papada"],
+      investimento: "de R$ 15.000,00 por R$ 12.000,00",
+      texto: "Tratamento com ultrassom microfocado que estimula a produção de colágeno e promove efeito lifting sem cirurgia. Ajuda a melhorar a firmeza das bochechas e a flacidez abaixo do queixo, deixando o contorno do rosto mais definido."
+    },
+    {
+      id: "liftera-area-dos-olhos",
+      modeloFeegow: 70,
+      titulo: "LIFTERA | ÁREA DOS OLHOS",
+      palavrasChave: ["liftera olhos"],
+      investimento: "",
+      texto: "Tecnologia que promove efeito lifting sem cirurgia e estimula a produção de colágeno, melhorando a firmeza da pele e suavizando linhas finas ao redor dos olhos, para um olhar mais aberto e descansado."
+    },
+    {
+      id: "lifting-cirurgico-do-terco-medio-do-rosto-e-do-pescoco",
+      modeloFeegow: 83,
+      titulo: "LIFTING CIRÚRGICO DO TERÇO MÉDIO DO ROSTO E DO PESCOÇO",
+      palavrasChave: ["lifting cirurgico", "lifting terco medio"],
+      investimento: "R$ 25.000,00",
+      texto: "Cirurgia que reposiciona os tecidos das bochechas e do pescoço para dar mais sustentação às maçãs do rosto, suavizar a flacidez e definir melhor o contorno entre o queixo e o pescoço."
+    },
+    {
+      id: "lifting-de-supercilio",
+      modeloFeegow: 60,
+      titulo: "LIFTING DE SUPERCÍLIOS | TÉCNICA DE CASTANHARES",
+      palavrasChave: ["lifting supercilio", "lifting sobrancelha"],
+      investimento: "",
+      revisar: "lifting de supercílio (técnica de Castanhares): cirurgia, confirmar se é da Derma",
+      texto: "Cirurgia que eleva e reposiciona as sobrancelhas, proporcionando um olhar mais aberto e uma expressão mais leve."
+    },
+    {
+      id: "limpeza-de-pele",
+      modeloFeegow: 103,
+      titulo: "LIMPEZA DE PELE",
+      palavrasChave: ["limpeza pele"],
+      investimento: "R$ 230,00",
+      texto: "Procedimento que combina a limpeza da pele com a remoção de cravos, do excesso de oleosidade e de células mortas, deixando a pele mais macia ao toque."
+    },
+    {
+      id: "lip",
+      modeloFeegow: 88,
+      titulo: "LUZ INTENSA PULSADA (LIP) | VERMELHIDÃO E VASINHOS",
+      palavrasChave: ["lip"],
+      investimento: "",
+      texto: "Tratamento com pulsos de luz que atua nos pequenos vasos sanguíneos da pele, ajudando a reduzir a vermelhidão e os vasinhos aparentes, deixando o tom da pele mais uniforme."
+    },
+    {
+      id: "luz-intensa-pulsada-3ss",
+      modeloFeegow: 101,
+      titulo: "LUZ INTENSA PULSADA | 3 SESSÕES",
+      palavrasChave: ["lip 3 sessoes"],
+      investimento: "R$ 3.600,00",
+      texto: "Tratamento com pulsos de luz que ajudam a clarear manchas de sol e a suavizar a vermelhidão e os vasinhos aparentes, deixando o tom da pele mais uniforme."
+    },
+    {
+      id: "microagulhamento-3ss",
+      modeloFeegow: 84,
+      titulo: "MICROAGULHAMENTO | 03 SESSÕES",
+      palavrasChave: ["microagulhamento"],
+      investimento: "R$ 2.480,00",
+      texto: "Tratamento que utiliza agulhas finas para estimular a produção de colágeno e a renovação da pele. Ajuda a suavizar linhas finas e marcas de acne, deixando a textura da pele mais uniforme."
+    },
+    {
+      id: "mmp-03ss",
+      modeloFeegow: 73,
+      titulo: "MMP CAPILAR | 03 SESSÕES",
+      palavrasChave: ["mmp 3 sessoes", "mmp capilar 3 sessoes"],
+      investimento: "R$ 1.883,00",
+      texto: "Tratamento que aplica medicamentos diretamente no couro cabeludo por meio de microagulhas, auxiliando no controle da queda, no fortalecimento dos fios e no estímulo ao crescimento capilar.\n\n## FOTOBIOMODULAÇÃO CAPILAR | CORTESIA\n\nAplicação de luz no couro cabeludo que auxilia na saúde dos folículos e no crescimento capilar, complementando o tratamento com MMP."
+    },
+    {
+      id: "mmp-capilar-01ss",
+      modeloFeegow: 72,
+      titulo: "MMP CAPILAR | 01 SESSÃO",
+      palavrasChave: ["mmp capilar", "mmp capilar 1 sessoes"],
+      investimento: "",
+      texto: "Tratamento que aplica medicamentos diretamente no couro cabeludo por meio de microagulhas, auxiliando no controle da queda, no fortalecimento dos fios e no estímulo ao crescimento capilar.\n\n## FOTOBIOMODULAÇÃO CAPILAR | CORTESIA\n\nAplicação de luz no couro cabeludo que auxilia na saúde dos folículos e no crescimento capilar, complementando o tratamento com MMP."
+    },
+    {
+      id: "mmp-face",
+      modeloFeegow: 91,
+      titulo: "MMP FACIAL | CICATRIZES DE ACNE",
+      palavrasChave: ["mmp face", "mmp facial", "mmp acne"],
+      investimento: "",
+      texto: "Tratamento com microagulhas e aplicação de ativos na pele, que estimula a produção de colágeno e auxilia na melhora das cicatrizes de acne, suavizando irregularidades e deixando a textura mais uniforme."
+    },
+    {
+      id: "mmp-sobrancelhas",
+      modeloFeegow: 89,
+      titulo: "MMP | SOBRANCELHAS",
+      palavrasChave: ["mmp sobrancelha"],
+      investimento: "R$ 1.450,00",
+      texto: "Tratamento que aplica ativos na região das sobrancelhas por meio de microagulhas, auxiliando no estímulo ao crescimento dos fios e na melhora das áreas com falhas."
+    },
+    {
+      id: "nctf",
+      modeloFeegow: 77,
+      titulo: "NCTF | REVITALIZAÇÃO DA PELE",
+      palavrasChave: ["nctf"],
+      investimento: "",
+      texto: "Tratamento injetável com ácido hialurônico e uma combinação de vitaminas, minerais e aminoácidos que ajuda a melhorar a hidratação, a luminosidade e a textura da pele, suavizando linhas finas."
+    },
+    {
+      id: "nctf-couro-cabeludo",
+      modeloFeegow: 78,
+      titulo: "NCTF CAPILAR | ASSOCIADO AO MMP",
+      palavrasChave: ["nctf couro cabeludo", "nctf capilar"],
+      investimento: "",
+      texto: "Combinação de ácido hialurônico, vitaminas, aminoácidos, minerais e antioxidantes aplicada no couro cabeludo por meio do MMP. Esses componentes ajudam na hidratação e nos cuidados com o couro cabeludo, complementando o tratamento capilar."
+    },
+    {
+      id: "peeling-ar-jessner",
+      modeloFeegow: 76,
+      titulo: "PEELING DE ÁCIDO RETINOICO + JESSNER | 03 SESSÕES",
+      palavrasChave: ["peeling jessner", "peeling retinoico"],
+      investimento: "R$ 1.480,00",
+      texto: "Tratamento que promove a renovação da pele, auxiliando no clareamento de manchas e na melhora da textura e de linhas finas, para uma pele mais uniforme e luminosa."
+    },
+    {
+      id: "peeling-superficial",
+      modeloFeegow: 40,
+      titulo: "PEELING SUPERFICIAL",
+      palavrasChave: ["peeling superficial", "peeling quimico"],
+      investimento: "",
+      revisar: "o texto é de cuidados pós-peeling, não uma descrição do procedimento para proposta",
+      incluirPadrao: false,
+      texto: "**Cuidados essenciais após o peeling químico**\n\n- Lavar o rosto 6 horas após a aplicação do peeling, com água fria e sabonete suave.\n- Manter uso de filtro solar pela manhã e à tarde e aplicar (Epidrat Calm, Cicalfate Avène, Nutrel Balm Suavizante) creme à noite durante uma semana (suspender a fórmula com ácido).\n- Não puxar a pele, deixar que a descamação ocorra naturalmente.\n- Não se expor ao sol.\n- Não se expor ao frio ou calor excessivos (próximo ao forno ou freezer por exemplo).\n- Não usar maquiagens ou cosméticos, além dos prescritos, durante uma semana.\n- Evitar banhos muito quentes. Sensações de ardência e secura nas áreas aplicadas são normais e costumam durar poucos dias.\n- Devido à evaporação do peeling pode ocorrer descamação em áreas não aplicadas como orelhas, pálpebras, pescoço, porém com menor intensidade.\n- Caso a irritação seja maior, entrar em contato com a clínica."
+    },
+    {
+      id: "preenchimento-01ss",
+      modeloFeegow: 61,
+      titulo: "ÁCIDO HIALURÔNICO",
+      palavrasChave: ["preenchimento", "acido hialuronico", "preenchimento 1 sessoes"],
+      investimento: "R$ 1.500,00",
+      texto: "Tratamento injetável para dar volume, definir contornos e realçar a região tratada."
+    },
+    {
+      id: "preenchimento-02ss",
+      modeloFeegow: 62,
+      titulo: "ÁCIDO HIALURÔNICO",
+      palavrasChave: ["preenchimento 2 sessoes"],
+      investimento: "R$ 1.300,00 cada",
+      texto: "Tratamento injetável para dar volume, definir contornos e realçar a região tratada."
+    },
+    {
+      id: "preenchimento-03",
+      modeloFeegow: 63,
+      titulo: "ÁCIDO HIALURÔNICO",
+      palavrasChave: ["preenchimento 3"],
+      investimento: "R$ 1.200,00 cada",
+      texto: "Tratamento injetável para dar volume, definir contornos e realçar a região tratada."
+    },
+    {
+      id: "prophilo",
+      modeloFeegow: 109,
+      titulo: "PROFHILO | ROSTO",
+      palavrasChave: ["profhilo"],
+      investimento: "",
+      texto: "Tratamento injetável à base de ácido hialurônico de alta pureza, que promove hidratação profunda, estimula a produção de colágeno e elastina e melhora a firmeza e a qualidade da pele. Auxilia na redução da flacidez e das linhas finas, proporcionando uma aparência mais viçosa, revitalizada e natural."
+    },
+    {
+      id: "prx",
+      modeloFeegow: 94,
+      titulo: "PRX | REVITALIZAÇÃO DA PELE",
+      palavrasChave: ["prx"],
+      investimento: "",
+      texto: "Tratamento com aplicação de uma solução de ácidos que ajuda a melhorar a firmeza, a textura e a luminosidade da pele, suavizando linhas finas e contribuindo para uma aparência mais uniforme."
+    },
+    {
+      id: "ptose-palpebral",
+      modeloFeegow: 66,
+      titulo: "CORREÇÃO DE PTOSE",
+      palavrasChave: ["ptose"],
+      investimento: "",
+      revisar: "correção de ptose palpebral: cirurgia oculoplástica (menciona campo de visão)",
+      texto: "Cirurgia que eleva a pálpebra caída, deixando o olhar mais aberto e melhorando o campo de visão quando ele está comprometido."
+    },
+    {
+      id: "skin-booster",
+      modeloFeegow: 92,
+      titulo: "SKINBOOSTER",
+      palavrasChave: ["skin booster"],
+      investimento: "",
+      texto: "Tratamento injetável com ácido hialurônico para melhorar a hidratação e a textura da pele, suavizando linhas finas e proporcionando mais maciez e luminosidade."
+    },
+    {
+      id: "skin-vive",
+      modeloFeegow: 100,
+      titulo: "SKINVIVE | HIDRATAÇÃO DA PELE",
+      palavrasChave: ["skin vive"],
+      investimento: "R$ 990,00",
+      texto: "Tratamento injetável com ácido hialurônico que melhora a hidratação e a suavidade da pele, deixando as bochechas mais macias e com textura mais uniforme."
+    },
+    {
+      id: "toxina-pescoco",
+      modeloFeegow: 95,
+      titulo: "TOXINA BOTULÍNICA | PESCOÇO",
+      palavrasChave: ["toxina pescoco"],
+      investimento: "R$ 1.460,00",
+      texto: "Aplicação de toxina botulínica para suavizar as faixas musculares que ficam marcadas no pescoço, ajudando a melhorar o contorno da mandíbula e deixando a região com aparência mais rejuvenescida."
+    },
+    {
+      id: "toxina-rosto-e-pescoco",
+      modeloFeegow: 64,
+      titulo: "TOXINA BOTULÍNICA | ROSTO E PESCOÇO",
+      palavrasChave: ["toxina rosto pescoco"],
+      investimento: "R$ 1.980,00",
+      texto: "Tratamento injetável que suaviza linhas de expressão, melhora o contorno facial e deixa o pescoço com uma aparência mais rejuvenescida."
+    },
+    {
+      id: "toxina-terco-sup",
+      modeloFeegow: 65,
+      titulo: "TOXINA BOTULÍNICA | TERÇO SUPERIOR",
+      palavrasChave: ["toxina terco superior"],
+      investimento: "R$ 1.560,00",
+      texto: "Tratamento injetável que suaviza as linhas de expressão da testa, entre as sobrancelhas e ao redor dos olhos."
+    },
+    {
+      id: "tranex-com-nctf",
+      modeloFeegow: 90,
+      titulo: "ÁCIDO TRANEXÂMICO + NCTF",
+      palavrasChave: ["tranex nctf", "tranex"],
+      investimento: "",
+      texto: "Associação de ativos que auxilia no clareamento de manchas e na melhora da qualidade da pele. O ácido tranexâmico atua na pigmentação, enquanto o NCTF contribui para a hidratação, a textura e a luminosidade."
+    }
+  ];
+
+  /* ==========================================================================
+   * ★ APELIDOS / GRAFIAS (edite AQUI) ★
+   *
+   * Aplicados no nome do item da proposta E nas palavras-chave, antes de comparar
+   * (já sem acento e em minúsculas). Cada par é [como pode vir escrito, como fica].
+   * Vale palavra inteira ou expressão de várias palavras. Para acrescentar uma
+   * grafia nova (ex.: o Feegow chama de "BIOESTIM."), basta uma linha nova.
+   * Além disso: "01SS"/"3 SS" = "1 sessoes"/"3 sessoes", "sessao" = "sessoes",
+   * zeros à esquerda caem ("03" = "3"), palavras de ligação são ignoradas
+   * (de, da, do, e, com, para...) e palavras com 6+ letras aceitam 1 letra trocada.
+   * ======================================================================== */
+
+  const APELIDOS = [
+    ['bacio', 'baccio'],
+    ['baccio labial', 'baccio lip'],
+    ['botox', 'toxina'],
+    ['toxina botulinica', 'toxina'],
+    ['botulinica', 'toxina'],
+    ['sup', 'superior'],
+    ['inf', 'inferior'],
+    ['blefaroplastia', 'blefaro'],
+    ['palpebra superior', 'blefaro superior'],
+    ['palpebra inferior', 'blefaro inferior'],
+    ['luz intensa pulsada', 'lip'],
+    ['eletrocoagulacao', 'ecg'],
+    ['axilar', 'axila'],
+    ['hammok', 'hammock'],
+    ['prophilo', 'profhilo'],
+    ['profilo', 'profhilo'],
+    ['skinbooster', 'skin booster'],
+    ['skinvive', 'skin vive'],
+    ['tranexamico', 'tranex'],
+    ['acido tranex', 'tranex'],
+    ['sobrancelhas', 'sobrancelha'],
+    ['supercilios', 'supercilio'],
+    ['emptor', 'empters'],
+    ['enzima', 'enzimas'],
+    ['microinfusao', 'mmp'],
+    ['co 2', 'co2'],
+    ['ultraformer', 'liftera'],
+    ['ah', 'acido hialuronico'],
+    ['bioestimulador colageno', 'bioestimulador']
+  ];
+
   /* --------------------------------------------------------------------------
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.0.1';
+  const VERSAO = '1.3.0';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -102,7 +756,9 @@ window.HOCDERMA_TIMBRADO = {
       validadeDias: 30,
       rodapeLegal: 'Valores válidos até a data indicada. Esta proposta não substitui avaliação médica.',
       assinaturaRotulo: 'Assinatura do(a) paciente / responsável',
-      assinaturaClinica: 'HOC Derma'
+      assinaturaClinica: 'HOC Derma',
+      tituloDescricoes: 'Sobre os procedimentos',
+      tituloOutrosItens: 'Outros itens'
     },
     // 'nome_sobrenome' converte "SOBRENOME , NOME" em "NOME SOBRENOME";
     // 'feegow' mantém o texto como está no select.
@@ -232,6 +888,394 @@ window.HOCDERMA_TIMBRADO = {
       if (i >= 0) juntar(h.slice(i + 1));
     } catch (e) { /* href inválido */ }
     return out;
+  }
+
+  /* --------------------------------------------------------------------------
+   * 2.1 PREFERÊNCIAS DO MODAL (lembradas entre impressões)
+   *     Só o armazenamento GM do PRÓPRIO script (nunca cookies/storage do site).
+   * ------------------------------------------------------------------------ */
+
+  const PREF_CHAVE = 'hoc_propostas_prefs';
+  // padrões pedidos pelo Nicolas (20/11): validade ligada; colunas de desconto e acréscimo desligadas
+  const PREF_PADRAO = {
+    mostrarValidade: true,
+    mostrarDescontoPorItem: false,
+    mostrarAcrescimo: false,
+    mostrarAssinatura: true,
+    ocultarTabela: true, // v1.3.0: padrão SEM tabela; mostrar fica lembrado no PC
+    mostrarTotal: true,
+    incluirDescricoes: true,
+    posicaoDescricoes: 'depois', // v1.2.2: sem efeito (ordem fixa: descrições antes da tabela e do total)
+    valorNasDescricoes: true     // tabela oculta: valor do procedimento abaixo de cada descrição
+  };
+  const PREF_VERSAO = 130;
+  let prefsMemoria = null;
+
+  function lerPrefs() {
+    let salvo = null;
+    try {
+      if (typeof GM_getValue === 'function') salvo = GM_getValue(PREF_CHAVE, null); // eslint-disable-line no-undef
+    } catch (e) { salvo = null; }
+    if (salvo == null) salvo = prefsMemoria;
+    if (typeof salvo === 'string') { try { salvo = JSON.parse(salvo); } catch (e) { salvo = null; } }
+    const out = Object.assign({}, PREF_PADRAO);
+    if (salvo && typeof salvo === 'object') {
+      Object.keys(PREF_PADRAO).forEach((k) => { if (typeof salvo[k] === typeof PREF_PADRAO[k]) out[k] = salvo[k]; });
+      // preferências gravadas antes da v1.3.0 salvavam "tabela visível" sem a pessoa escolher:
+      // nelas vale o novo padrão (sem tabela)
+      if (!(salvo._v >= PREF_VERSAO)) out.ocultarTabela = PREF_PADRAO.ocultarTabela;
+    }
+    if (out.posicaoDescricoes !== 'antes') out.posicaoDescricoes = 'depois';
+    return out;
+  }
+
+  function salvarPrefs(d) {
+    const p = { _v: PREF_VERSAO };
+    Object.keys(PREF_PADRAO).forEach((k) => { p[k] = d[k]; });
+    prefsMemoria = p;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(PREF_CHAVE, JSON.stringify(p)); // eslint-disable-line no-undef
+    } catch (e) { /* sem GM: fica só na memória */ }
+    return p;
+  }
+
+  function limparPrefs() {
+    prefsMemoria = null;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(PREF_CHAVE, ''); // eslint-disable-line no-undef
+    } catch (e) { /* noop */ }
+  }
+
+  /* --------------------------------------------------------------------------
+   * 2.1.1 CONFIGURAÇÕES DO PC (v1.3.0): nome/cargo no fim da folha
+   *       Gravadas no Tampermonkey daquele PC (GM_setValue). Nome vazio = automático
+   *       ("Criado por" da proposta no Feegow; sem ele, o profissional).
+   * ------------------------------------------------------------------------ */
+
+  const CFG_CHAVE = 'hoc_propostas_config';
+  const CFG_PADRAO = { nomeFinal: '', cargoFinal: '' };
+  let cfgMemoria = null;
+
+  function lerConfig() {
+    let salvo = null;
+    try {
+      if (typeof GM_getValue === 'function') salvo = GM_getValue(CFG_CHAVE, null); // eslint-disable-line no-undef
+    } catch (e) { salvo = null; }
+    if (salvo == null) salvo = cfgMemoria;
+    if (typeof salvo === 'string') { try { salvo = JSON.parse(salvo); } catch (e) { salvo = null; } }
+    const out = Object.assign({}, CFG_PADRAO);
+    if (salvo && typeof salvo === 'object') {
+      Object.keys(CFG_PADRAO).forEach((k) => { if (typeof salvo[k] === 'string') out[k] = limpa(salvo[k]); });
+    }
+    return out;
+  }
+  function salvarConfig(c) {
+    const p = {};
+    Object.keys(CFG_PADRAO).forEach((k) => { p[k] = limpa((c || {})[k]); });
+    cfgMemoria = p;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(CFG_CHAVE, JSON.stringify(p)); // eslint-disable-line no-undef
+    } catch (e) { /* sem GM: fica só na memória */ }
+    return p;
+  }
+  function limparConfig() {
+    cfgMemoria = null;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(CFG_CHAVE, ''); // eslint-disable-line no-undef
+    } catch (e) { /* noop */ }
+  }
+
+  /* --------------------------------------------------------------------------
+   * 2.2 DETECÇÃO DAS DESCRIÇÕES (catálogo × itens da proposta)
+   * ------------------------------------------------------------------------ */
+
+  // "Toxina Botulínica - Terço SUP." → "toxina botulinica terco sup"
+  function normalizar(s) {
+    return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+  const normCodigo = (c) => String(c == null ? '' : c).replace(/[^0-9a-z]/gi, '').toLowerCase().replace(/^0+(?=.)/, '');
+
+  // palavras de ligação ignoradas na comparação
+  const LIGACAO = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'com', 'para', 'a', 'o', 'as', 'os', 'em', 'no', 'na', 'ao', 'por']);
+  let apelidosCache = null;
+  function apelidosCompilados() {
+    const chave = JSON.stringify(APELIDOS);
+    if (apelidosCache && apelidosCache.chave === chave) return apelidosCache.lista;
+    const lista = APELIDOS.filter((p) => p && normalizar(p[0]) && p[1] != null).map((p) => ({
+      re: new RegExp('(^| )' + normalizar(p[0]) + '(?= |$)', 'g'),
+      por: '$1' + normalizar(p[1])
+    }));
+    apelidosCache = { chave, lista };
+    return lista;
+  }
+  // "BACIO LIP 03SS" → "baccio lip 3 sessoes" (só para COMPARAR; não muda o que é impresso)
+  function normalizarBusca(s) {
+    let n = ' ' + normalizar(s) + ' ';
+    n = n.replace(/ 0*(\d+) ?ss(?= )/g, ' $1 sessoes ').replace(/ sessao(?= )/g, ' sessoes');
+    n = n.replace(/ 0+(\d)/g, ' $1').replace(/\s+/g, ' ').trim();
+    apelidosCompilados().forEach((a) => { n = n.replace(a.re, a.por); });
+    return n.split(' ').filter((t) => t && !LIGACAO.has(t)).join(' ');
+  }
+
+  // distância de edição ≤ 1 (uma letra trocada, faltando ou sobrando)
+  function quase(a, b) {
+    if (a === b) return true;
+    const la = a.length;
+    const lb = b.length;
+    if (Math.abs(la - lb) > 1) return false;
+    let i = 0;
+    while (i < la && i < lb && a[i] === b[i]) i++;
+    if (la === lb) return a.slice(i + 1) === b.slice(i + 1);
+    return la > lb ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+  }
+
+  // frase → [{ t: 'toxina', pref: false }, ...] ("peeling*" = prefixo)
+  function compilarFrase(frase) {
+    const bruto = String(frase || '');
+    const prefixos = new Set(bruto.split(/\s+/).filter((w) => /\*+$/.test(w))
+      .map((w) => normalizarBusca(w.replace(/\*+$/, '')).split(' ').pop()).filter(Boolean));
+    return normalizarBusca(bruto.replace(/\*/g, ' ')).split(' ').filter(Boolean)
+      .map((t) => ({ t, pref: prefixos.has(t) }));
+  }
+
+  function palavraCasa(f, n) {
+    if (f.pref) return n.indexOf(f.t) === 0;
+    if (n === f.t || n === f.t + 's' || f.t === n + 's') return true;
+    // erro de digitação: só em palavras longas e nunca em números
+    return f.t.length >= 6 && n.length >= 6 && !/\d/.test(f.t + n) && quase(f.t, n);
+  }
+  function fraseCasa(frase, tokensNome) {
+    return frase.length > 0 && frase.every((f) => tokensNome.some((n) => palavraCasa(f, n)));
+  }
+
+  function catalogo() {
+    const vistos = new Set();
+    return DESCRICOES_PROCEDIMENTOS.filter((e) => e && e.id && !vistos.has(e.id) && vistos.add(e.id)).map((e) => ({
+      id: String(e.id),
+      titulo: limpa(e.titulo) || String(e.id),
+      texto: String(e.texto || '').replace(/\r/g, '').trim(),
+      exemplo: !!e.exemplo,
+      revisar: limpa(e.revisar),
+      incluirPadrao: e.incluirPadrao !== false,
+      investimento: limpa(e.investimento),
+      valorModelo: valorDoInvestimento(e.investimento),
+      frases: (e.palavrasChave || []).map(compilarFrase).filter((f) => f.length),
+      excluir: (e.excluir || []).map(compilarFrase).filter((f) => f.length),
+      codigos: (e.codigos || []).map(normCodigo).filter(Boolean)
+    }));
+  }
+
+  function codigosDoItem(it) {
+    const s = new Set();
+    // o ID do Feegow só vale se a descrição não foi trocada no editor
+    const mesmoItem = it.descricaoOriginal == null || limpa(it.descricaoOriginal) === limpa(it.descricao);
+    if (mesmoItem && it.codigoFeegow && it.codigoFeegow !== '0') s.add(normCodigo(it.codigoFeegow));
+    (String(it.descricao || '').match(/\b\d{5,}\b/g) || []).forEach((c) => s.add(normCodigo(c)));
+    return s;
+  }
+
+  function entradasDoItem(it, cat) {
+    const cods = codigosDoItem(it);
+    const porCodigo = cat.filter((en) => en.codigos.some((c) => cods.has(c)));
+    if (porCodigo.length) return porCodigo;
+    const toks = normalizarBusca(it.descricao).split(' ').filter(Boolean);
+    if (!toks.length) return [];
+    const cand = [];
+    cat.forEach((en) => {
+      if (en.excluir.some((f) => fraseCasa(f, toks))) return;
+      let melhor = null;
+      en.frases.forEach((f) => { if (fraseCasa(f, toks) && (!melhor || f.length > melhor.length)) melhor = f; });
+      if (melhor) cand.push({ en, frase: melhor });
+    });
+    // mais específico vence: se duas entradas casaram com frases que dividem alguma palavra
+    // (mesma "família", ex.: "toxina botulinica" × "toxina terco superior"), fica só a de
+    // frase mais longa. Frases sem palavra em comum (item combinado) ficam as duas.
+    return cand.filter((a) => !cand.some((b) => b !== a && b.frase.length > a.frase.length &&
+      a.frase.some((ta) => b.frase.some((tb) => tb.t === ta.t)))).map((x) => x.en);
+  }
+
+  // Retorna { blocos:[{id,titulo,texto,incluir,exemplo,editado,itens:[nomes],idx:[índices dos itens]}], semDescricao:[nomes] }.
+  // "anteriores" preserva incluir/título/texto editados no modal.
+  function detectarDescricoes(itens, anteriores) {
+    const cat = catalogo();
+    const prev = new Map(((anteriores && anteriores.blocos) || []).map((b) => [b.id, b]));
+    const modoTeste = opcoes().modoTeste;
+    const blocos = [];
+    const porId = new Map();
+    const sem = [];
+    const semVistos = new Set();
+    (itens || []).forEach((it, iItem) => {
+      const nome = limpa(it.descricao);
+      if (!nome) return;
+      const ents = entradasDoItem(it, cat);
+      if (!ents.length) {
+        const k = normalizar(nome);
+        if (!semVistos.has(k)) { semVistos.add(k); sem.push(nome); }
+        return;
+      }
+      ents.forEach((en) => {
+        let b = porId.get(en.id);
+        if (!b) {
+          const p = prev.get(en.id);
+          const lembrado = investLembrado(en.id);
+          b = p ? Object.assign({}, p, { itens: [], idx: [] }) : {
+            id: en.id,
+            titulo: en.titulo,
+            texto: en.texto,
+            tituloOriginal: en.titulo,
+            textoOriginal: en.texto,
+            exemplo: en.exemplo,
+            revisar: en.revisar,
+            incluir: (!en.exemplo || modoTeste) && en.incluirPadrao,
+            editado: false,
+            // "Investimento": valor do texto do modelo + fonte escolhida (lembrada por procedimento)
+            investModelo: en.investimento,
+            valorModelo: en.valorModelo,
+            fonte: lembrado.fonte,
+            manual: lembrado.manual,
+            itens: [],
+            idx: []
+          };
+          porId.set(en.id, b);
+          blocos.push(b);
+        }
+        if (b.itens.indexOf(nome) < 0) b.itens.push(nome);
+        b.idx.push(iItem);
+      });
+    });
+    return { blocos, semDescricao: sem };
+  }
+
+  // Texto simples do catálogo → HTML seguro (parágrafos, listas, **negrito**).
+  function textoParaHtml(txt) {
+    const fmt = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    let out = '';
+    let par = [];
+    let lista = false;
+    const fecharPar = () => { if (par.length) { out += '<p>' + par.map(fmt).join('<br>') + '</p>'; par = []; } };
+    const fecharLista = () => { if (lista) { out += '</ul>'; lista = false; } };
+    String(txt || '').replace(/\r/g, '').split('\n').forEach((l) => {
+      const m = l.match(/^\s*[-•]\s+(.*)$/);
+      const sub = l.match(/^\s*##\s+(.+)$/);
+      if (m) { fecharPar(); if (!lista) { out += '<ul>'; lista = true; } out += '<li>' + fmt(m[1]) + '</li>'; }
+      else if (sub) { fecharPar(); fecharLista(); out += tituloHtml(sub[1], 'h4', 'sub'); }
+      else if (/^\s*-{3,}\s*$/.test(l)) { fecharPar(); fecharLista(); out += '<hr>'; }
+      else if (!l.trim()) { fecharPar(); fecharLista(); }
+      else { fecharLista(); par.push(l.trim()); }
+    });
+    fecharPar();
+    fecharLista();
+    return out;
+  }
+
+  // "LIFTERA | TERÇO MÉDIO E PAPADA | 03 SESSÕES" → procedimento + detalhes; "CORTESIA" vira selo
+  function tituloHtml(titulo, tag, classe) {
+    const partes = limpa(titulo).split(/\s*\|\s*/).filter(Boolean);
+    const principal = partes.shift() || '';
+    let cortesia = false;
+    const detalhes = partes.map((p) => {
+      if (!/cortesia/i.test(p)) return p;
+      cortesia = true;
+      return p.replace(/cortesia\s*[—–:-]?\s*/i, '').trim();
+    }).filter(Boolean);
+    return `<${tag} class="${classe}"><span class="t1">${esc(principal)}</span>${cortesia ? '<span class="selo">Cortesia</span>' : ''}` +
+      `${detalhes.length ? `<span class="t2">${detalhes.map(esc).join(' <i>·</i> ')}</span>` : ''}</${tag}>`;
+  }
+
+  /* --------------------------------------------------------------------------
+   * 2.3 INVESTIMENTO POR DESCRIÇÃO (Feegow × modelo × manual)
+   * ------------------------------------------------------------------------ */
+
+  const FONTES_INVEST = ['auto', 'feegow', 'modelo', 'manual', 'nenhum'];
+  const INVEST_CHAVE = 'hoc_propostas_invest'; // { idDoBloco: { fonte, manual } }
+  let investMemoria = {};
+
+  // último valor em reais do texto ("de R$ 15.000,00 por R$ 12.000,00" → 12000)
+  function valorDoInvestimento(s) {
+    const m = String(s || '').match(/\d{1,3}(?:\.\d{3})*,\d{2}/g);
+    return m ? lerValor(m[m.length - 1]) : null;
+  }
+
+  function lerInvestTodos() {
+    let o = null;
+    try {
+      if (typeof GM_getValue === 'function') o = GM_getValue(INVEST_CHAVE, null); // eslint-disable-line no-undef
+    } catch (e) { o = null; }
+    if (o == null) return investMemoria;
+    if (typeof o === 'string') { try { o = JSON.parse(o || '{}'); } catch (e) { o = {}; } }
+    return o && typeof o === 'object' ? o : {};
+  }
+  function investLembrado(id) {
+    const x = lerInvestTodos()[id] || {};
+    return { fonte: FONTES_INVEST.indexOf(x.fonte) >= 0 ? x.fonte : 'auto', manual: typeof x.manual === 'string' ? x.manual : '' };
+  }
+  function salvarInvest(b) {
+    const todos = Object.assign({}, lerInvestTodos());
+    if ((b.fonte || 'auto') === 'auto' && !limpa(b.manual)) delete todos[b.id];
+    else todos[b.id] = { fonte: b.fonte || 'auto', manual: String(b.manual || '') };
+    investMemoria = todos;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(INVEST_CHAVE, JSON.stringify(todos)); // eslint-disable-line no-undef
+    } catch (e) { /* sem GM: fica só na memória */ }
+  }
+  function limparInvest() {
+    investMemoria = {};
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(INVEST_CHAVE, ''); // eslint-disable-line no-undef
+    } catch (e) { /* noop */ }
+  }
+
+  // Quem é "dono" de cada item: o 1º bloco impresso que casou com ele (o valor do item
+  // aparece só ali, para a soma dos blocos bater com o total). Retorna
+  // { blocosImp, dono: Map(iItem → bloco), info: Map(bloco → { meus, total, qtd, unit, incluidoEm }) }.
+  function distribuirItens(d, c) {
+    const blocosImp = d.incluirDescricoes ? (d.blocos || []).filter((b) => b.incluir && (limpa(b.titulo) || limpa(b.texto))) : [];
+    const dono = new Map();
+    blocosImp.forEach((b) => (b.idx || []).forEach((i) => {
+      const it = d.itens[i];
+      if (it && b.itens.indexOf(limpa(it.descricao)) >= 0 && !dono.has(i)) dono.set(i, b);
+    }));
+    const info = new Map();
+    (d.blocos || []).forEach((b) => {
+      const idx = (b.idx || []).filter((i, k, arr) => arr.indexOf(i) === k && d.itens[i]);
+      const impresso = blocosImp.indexOf(b) >= 0;
+      const meus = impresso ? idx.filter((i) => dono.get(i) === b) : idx.filter((i) => !dono.has(i));
+      const total = arred(meus.reduce((s, i) => s + c.linhas[i].total, 0));
+      const qtd = meus.length === 1 ? num(d.itens[meus[0]].qtd) : 0;
+      const outro = meus.length ? null : idx.map((i) => dono.get(i)).find((x) => x && x !== b);
+      info.set(b, { meus, total, qtd, unit: qtd ? arred(total / qtd) : 0, incluidoEm: outro || null });
+    });
+    return { blocosImp, dono, info };
+  }
+
+  const textoManual = (s) => (/^\s*(r\$)?\s*[\d.]+(,\d{1,2})?\s*$/i.test(String(s || '')) ? fmtBRL(lerValor(s)) : limpa(s));
+
+  // Resolve o "Investimento" do bloco: { fonte: efetiva, html, valor, temFeegow, dif }
+  function investimentoDoBloco(b, inf) {
+    const temFeegow = !!(inf && inf.meus.length);
+    const feegowOk = temFeegow && inf.total > 0;
+    const pedida = FONTES_INVEST.indexOf(b.fonte) >= 0 ? b.fonte : 'auto';
+    let fonte = pedida;
+    if (pedida === 'auto') fonte = feegowOk ? 'feegow' : (inf && inf.incluidoEm ? 'incluido' : (limpa(b.investModelo) ? 'modelo' : 'nenhum'));
+    else if (pedida === 'feegow' && !temFeegow) fonte = inf && inf.incluidoEm ? 'incluido' : 'nenhum';
+    else if (pedida === 'modelo' && !limpa(b.investModelo)) fonte = 'nenhum';
+    else if (pedida === 'manual' && !limpa(b.manual)) fonte = 'nenhum';
+    let html = '';
+    let valor = null;
+    if (fonte === 'feegow') {
+      valor = inf.total;
+      html = fmtBRL(inf.total) + (inf.qtd && inf.qtd !== 1 ? ` <small>(${esc(String(inf.qtd).replace('.', ','))} × ${fmtBRL(inf.unit)})</small>` : '');
+    } else if (fonte === 'modelo') {
+      valor = b.valorModelo;
+      html = esc(b.investModelo);
+    } else if (fonte === 'manual') {
+      valor = valorDoInvestimento(textoManual(b.manual));
+      html = esc(textoManual(b.manual));
+    }
+    const dif = feegowOk && b.valorModelo != null &&
+      Math.abs(inf.total - b.valorModelo) > 0.009 && Math.abs((inf.unit || inf.total) - b.valorModelo) > 0.009;
+    return { pedida, fonte, html, valor, temFeegow, feegowOk, dif };
   }
 
   /* --------------------------------------------------------------------------
@@ -393,6 +1437,8 @@ window.HOCDERMA_TIMBRADO = {
         idFeegow: id,
         tipo: tipoInput ? String(tipoInput.value || '') : '',
         descricao,
+        descricaoOriginal: descricao,
+        codigoFeegow: sel && /^[\w.-]+$/.test(String(sel.value || '')) && String(sel.value) !== '0' ? String(sel.value) : '',
         qtd: lerValor((porId(form, 'Quantidade' + id) || {}).value) || 1,
         unitario: lerValor((porId(form, 'ValorUnitario' + id) || {}).value),
         desconto: lerValor((porId(form, 'Desconto' + id) || {}).value),
@@ -481,7 +1527,7 @@ window.HOCDERMA_TIMBRADO = {
     const dataEl = q(form, SEL.data);
     const data = dataEl && /\d{2}\/\d{2}\/\d{4}/.test(dataEl.value) ? dataEl.value.trim() : hojeBR();
     const textoHtml = lerTextoComplementar(form);
-    return {
+    const d = {
       numero: propostaIdDoForm(form),
       pacienteId: pac.id,
       pacienteBruto: pac.nome,
@@ -502,13 +1548,19 @@ window.HOCDERMA_TIMBRADO = {
       totalFeegow,
       validadeDias: CONFIG.textos.validadeDias,
       // a forma de pagamento do Feegow costuma já trazer "PROPOSTA VÁLIDA POR X DIAS"
-      criadoPor: criadoPorDaProposta(form),
-      // padrões pedidos pelo Nicolas (20/11): validade ligada; colunas de desconto e acréscimo desligadas
-      mostrarValidade: true,
-      mostrarDescontoPorItem: false,
-      mostrarAcrescimo: false,
-      mostrarAssinatura: true
+      criadoPorAuto: criadoPorDaProposta(form),
+      tituloDescricoes: CONFIG.textos.tituloDescricoes
     };
+    // opções do modal (validade, colunas, assinatura, tabela, total, descrições): lembradas
+    Object.assign(d, lerPrefs());
+    // v1.3.0: nome/cargo no fim da folha: config do PC vence o automático
+    const cfg = lerConfig();
+    d.criadoPor = cfg.nomeFinal || d.criadoPorAuto;
+    d.cargoFinal = cfg.cargoFinal;
+    const det = detectarDescricoes(d.itens, null);
+    d.blocos = det.blocos;
+    d.semDescricao = det.semDescricao;
+    return d;
   }
 
   function calcular(d) {
@@ -610,8 +1662,8 @@ window.HOCDERMA_TIMBRADO = {
     .corpo{ flex:1; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); min-height:0; }
     .form{ overflow:auto; padding:14px 16px; border-right:1px solid #e5e5e5; }
     .previa{ background:#7b7068; overflow:auto; display:flex; justify-content:center; padding:14px; }
-    .previa .papel{ width:210mm; height:297mm; transform-origin:top center; background:#fff; box-shadow:0 4px 18px rgba(0,0,0,.4); flex:none; }
-    .previa iframe{ width:210mm; height:297mm; border:0; background:#fff; display:block; }
+    .previa .papel{ width:210mm; height:297mm; transform-origin:top center; background:transparent; flex:none; }
+    .previa iframe{ width:210mm; height:297mm; border:0; background:transparent; display:block; overflow:hidden; }
     .grade{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px 10px; margin-bottom:12px; }
     .grade .l2{ grid-column:span 2; } .grade .l4{ grid-column:1 / -1; }
     label{ display:flex; flex-direction:column; gap:3px; font-size:11px; font-weight:600; color:#555; }
@@ -646,7 +1698,43 @@ window.HOCDERMA_TIMBRADO = {
     .b{ border-radius:5px; padding:7px 16px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid #ccc; background:#fff; color:#333; }
     .b.pri{ background:${CONFIG.cores.botao}; border-color:${CONFIG.cores.botaoBorda}; color:#fff; }
     .vazio{ color:#a33; font-size:12px; padding:6px 0; }
+    .descs-op{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
+    .descs-op label.sel{ flex-direction:row; align-items:center; gap:6px; font-weight:500; color:#333; }
+    .descs-op label.sel select{ width:auto; padding:3px 6px; font-size:12px; }
+    .descs.off{ opacity:.45; }
+    .blk{ border:1px solid #e6ded6; border-left:4px solid ${CONFIG.cores.marca}; border-radius:5px; padding:6px 8px; margin:0 0 6px; background:#fcfaf8; }
+    .blk.fora{ border-left-color:#ccc; background:#f6f6f6; }
+    .blk .lin{ display:flex; gap:8px; align-items:flex-start; }
+    .blk .lin input[type=checkbox]{ width:auto; margin-top:2px; }
+    .blk .tt{ font-size:13px; font-weight:600; color:${CONFIG.cores.marca}; }
+    .blk .its{ font-size:11px; color:#777; margin-top:1px; }
+    .blk .tag{ display:inline-block; font-size:10px; font-weight:700; letter-spacing:.3px; border-radius:3px; padding:1px 5px; margin-left:6px; vertical-align:1px; }
+    .blk .tag.ex{ background:#fff3cd; color:#7a5300; border:1px solid #f0d27a; }
+    .blk .tag.ed{ background:#e8f1fb; color:#2a5d8f; border:1px solid #b9d3ee; }
+    .blk .tag.rv{ background:#f3ecfa; color:#5b3a86; border:1px solid #d8c6ee; cursor:help; }
+    .blk .inv{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0 0 22px; font-size:11.5px; color:#555; }
+    .blk .inv .rot{ font-size:10px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:${CONFIG.cores.marca}; }
+    .blk .inv select{ width:235px; padding:3px 5px; font-size:12px; }
+    .blk .inv input{ width:150px; padding:3px 6px; font-size:12px; }
+    .blk .inv .sai{ color:#333; }
+    .blk .inv .sai b{ color:${CONFIG.cores.marca}; }
+    .blk .inv .dif{ font-size:10.5px; color:#9a5b12; background:#fdf5e8; border:1px solid #f1dcb8; border-radius:3px; padding:1px 6px; }
+    .blk details{ margin-top:5px; }
+    .blk summary{ font-size:11px; color:${CONFIG.cores.marca}; cursor:pointer; font-weight:600; }
+    .blk details input{ margin:5px 0 4px; font-weight:600; }
+    .blk details textarea{ min-height:110px; font-size:12.5px; line-height:1.4; }
+    .blk .dica{ font-size:10.5px; color:#888; display:flex; justify-content:space-between; gap:8px; align-items:center; margin-top:2px; }
+    .blk .rest{ background:#fff; border:1px solid #ccc; border-radius:4px; font-size:11px; padding:2px 8px; cursor:pointer; }
+    .semdesc{ font-size:11.5px; color:#888; margin-top:4px; }
+    .semdesc li{ margin:1px 0; }
     @media (max-width:900px){ .corpo{ grid-template-columns:1fr; } .previa{ display:none; } .grade{ grid-template-columns:1fr 1fr; } }
+    .cfg-fundo{ position:fixed; inset:0; background:rgba(20,14,10,.55); z-index:2147483100; display:flex; align-items:center; justify-content:center; padding:16px; }
+    .cfg{ background:#fff; width:min(520px,100%); max-height:100%; overflow:auto; border-radius:10px; box-shadow:0 18px 50px rgba(0,0,0,.45); }
+    .cfg .topo h2{ font-size:14px; }
+    .cfg .cfg-corpo{ padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+    .cfg .cfg-corpo .dica{ font-size:11px; color:#888; font-weight:400; }
+    .cfg .cfg-ops{ display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }
+    .cfg .rodape .ok{ font-size:11px; color:#2e7d32; }
   `;
 
   const S = { shadow: null, dados: null, form: null };
@@ -668,9 +1756,134 @@ window.HOCDERMA_TIMBRADO = {
     S.dados = null;
     S.form = null;
   }
-  function teclaEsc(e) { if (e.key === 'Escape' && S.dados) { e.stopPropagation(); fecharEditor(); } }
+  function teclaEsc(e) {
+    if (e.key !== 'Escape' || !S.dados) return;
+    e.stopPropagation();
+    if (S.shadow && S.shadow.querySelector('[data-config]')) fecharConfig(); else fecharEditor();
+  }
 
-  const itemVazio = () => ({ descricao: '', qtd: 1, unitario: 0, desconto: 0, descontoTipo: 'V', acrescimo: 0, modo: 'linha' });
+  /* --------------------------------------------------------------------------
+   * 6.1 CONFIGURAÇÕES DAS PROPOSTAS (v1.3.0)
+   *     Menu do Tampermonkey "Configurações das propostas" ou botão no editor.
+   *     Tudo gravado com GM_setValue no Tampermonkey daquele PC.
+   * ------------------------------------------------------------------------ */
+
+  const OPS_CONFIG = [
+    ['mostrarTabela', 'Mostrar tabela de itens'],
+    ['mostrarTotal', 'Mostrar total'],
+    ['valorNasDescricoes', '"Investimento" em cada descrição'],
+    ['incluirDescricoes', 'Descrições dos procedimentos'],
+    ['mostrarValidade', 'Mostrar validade'],
+    ['mostrarAssinatura', 'Linha de assinatura']
+  ];
+  const valorOpConfig = (p, k) => (k === 'mostrarTabela' ? !p.ocultarTabela : !!p[k]);
+
+  function escConfig(e) {
+    if (e.key === 'Escape' && S.shadow && S.shadow.querySelector('[data-config]') && !S.dados) { e.stopPropagation(); fecharConfig(); }
+  }
+  function fecharConfig() {
+    const box = S.shadow && S.shadow.querySelector('[data-config]');
+    if (box) box.remove();
+    document.removeEventListener('keydown', escConfig, true);
+  }
+
+  // Copia os valores de S.dados para os campos do editor aberto (depois de salvar/restaurar).
+  function preencherCamposEditor() {
+    const sh = S.shadow;
+    const d = S.dados;
+    if (!sh || !d) return;
+    sh.querySelectorAll('.janela [data-k]').forEach((el) => {
+      const k = el.getAttribute('data-k');
+      if (el.type === 'checkbox') el.checked = !!d[k];
+      else if (k === 'descontoTotalPct') el.value = d[k] ? fmtPct(d[k]) : '';
+      else el.value = d[k] == null ? '' : d[k];
+    });
+    marcarDescsOff();
+  }
+
+  function abrirConfig(msg) {
+    const sh = garantirRoot();
+    if (!sh.querySelector('style')) { // aberto pelo menu, sem editor: o shadow root está vazio
+      const st = document.createElement('style');
+      st.textContent = CSS_MODAL;
+      sh.insertBefore(st, sh.firstChild);
+    }
+    fecharConfig();
+    const cfg = lerConfig();
+    const p = S.dados ? Object.assign(lerPrefs(), S.dados) : lerPrefs();
+    const auto = S.dados ? limpa(S.dados.criadoPorAuto || S.dados.profissional) : '';
+    const box = document.createElement('div');
+    box.className = 'cfg-fundo';
+    box.setAttribute('data-config', '');
+    box.innerHTML = `
+      <div class="cfg" role="dialog" aria-modal="true" aria-label="Configurações das propostas">
+        <div class="topo"><h2>Configurações das propostas HOC Derma (este PC)</h2><button class="x" data-c="fechar" title="Fechar (Esc)">×</button></div>
+        <div class="cfg-corpo">
+          <label>Nome que aparece no final da folha
+            <input data-cfg="nomeFinal" value="${esc(cfg.nomeFinal)}" placeholder="${esc(auto ? 'automático: ' + auto : 'automático')}">
+            <span class="dica">Vazio = automático: quem criou a proposta no Feegow ("Criado por"); sem isso, o profissional.</span></label>
+          <label>Cargo / registro (opcional)
+            <input data-cfg="cargoFinal" value="${esc(cfg.cargoFinal)}" placeholder="ex.: Consultora de estética"></label>
+          <div class="cfg-ops">
+            ${OPS_CONFIG.map(([k, rot]) => `<label class="chk"><input type="checkbox" data-cfgp="${k}"${valorOpConfig(p, k) ? ' checked' : ''}> ${esc(rot)}</label>`).join('')}
+          </div>
+          <div class="dica">Fica gravado no Tampermonkey deste PC e vale para as próximas propostas. A fonte do "Investimento" escolhida em cada procedimento também fica gravada. "Restaurar padrão" apaga tudo isso (padrão: sem tabela, com total).</div>
+        </div>
+        <div class="rodape">
+          <button class="b" data-c="restaurar">Restaurar padrão</button>
+          <span class="esp ok" data-cfg-msg>${esc(msg || '')}</span>
+          <button class="b" data-c="fechar">Cancelar</button>
+          <button class="b pri" data-c="salvar">Salvar</button>
+        </div>
+      </div>`;
+    sh.appendChild(box);
+    document.addEventListener('keydown', escConfig, true);
+    box.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-c]');
+      if (!b) return;
+      const a = b.getAttribute('data-c');
+      if (a === 'fechar') fecharConfig();
+      else if (a === 'salvar') {
+        const novo = salvarConfig({
+          nomeFinal: box.querySelector('[data-cfg="nomeFinal"]').value,
+          cargoFinal: box.querySelector('[data-cfg="cargoFinal"]').value
+        });
+        const prefs = S.dados || lerPrefs();
+        box.querySelectorAll('[data-cfgp]').forEach((el) => {
+          const k = el.getAttribute('data-cfgp');
+          if (k === 'mostrarTabela') prefs.ocultarTabela = !el.checked; else prefs[k] = el.checked;
+        });
+        salvarPrefs(prefs);
+        if (S.dados) {
+          S.dados.criadoPor = novo.nomeFinal || S.dados.criadoPorAuto;
+          S.dados.cargoFinal = novo.cargoFinal;
+          preencherCamposEditor();
+          atualizar(true);
+        }
+        fecharConfig();
+        log('configurações salvas neste PC.');
+      } else if (a === 'restaurar') {
+        limparPrefs();
+        limparInvest();
+        limparConfig();
+        if (S.dados) {
+          Object.assign(S.dados, PREF_PADRAO);
+          S.dados.criadoPor = S.dados.criadoPorAuto;
+          S.dados.cargoFinal = '';
+          (S.dados.blocos || []).forEach((bl) => { bl.fonte = 'auto'; bl.manual = ''; });
+          preencherCamposEditor();
+          renderDescricoes(true);
+          atualizar(true);
+        }
+        abrirConfig('Padrão restaurado.');
+      }
+    });
+    const ip = box.querySelector('[data-cfg="nomeFinal"]');
+    if (ip) ip.focus();
+    return box;
+  }
+
+  const itemVazio = () => ({ descricao: '', codigoFeegow: '', qtd: 1, unitario: 0, desconto: 0, descontoTipo: 'V', acrescimo: 0, modo: 'linha' });
 
   function abrirEditor(form) {
     const dados = lerProposta(form);
@@ -696,7 +1909,8 @@ window.HOCDERMA_TIMBRADO = {
                 <label>Data<input data-k="data"></label>
                 <label class="l2">Profissional<input data-k="profissional"></label>
                 <label class="l2">Título da folha<input data-k="titulo"></label>
-                <label class="l2">Assinatura da clínica (quem fez a proposta)<input data-k="criadoPor"></label>
+                <label class="l2">Nome no final da folha (quem fez a proposta)<input data-k="criadoPor" placeholder="${esc(dados.criadoPorAuto || dados.profissional || 'automático')}"></label>
+                <label class="l2">Cargo / registro (opcional)<input data-k="cargoFinal" placeholder="ex.: Consultora de estética"></label>
               </div>
               <h3><input data-k="tituloItens" title="Título da seção de itens"></h3>
               <table>
@@ -720,20 +1934,32 @@ window.HOCDERMA_TIMBRADO = {
               <textarea data-k="pagamento" rows="4"></textarea>
               <h3>Texto complementar</h3>
               <div class="rico" contenteditable="true" data-rico></div>
+              <h3>Descrições dos procedimentos</h3>
+              <div class="descs-op">
+                <label class="chk"><input type="checkbox" data-k="incluirDescricoes"> Incluir descrições dos procedimentos</label>
+                <span class="semdesc" style="margin:0">Na folha: descrições primeiro; a tabela (se visível) e o total vêm depois de todas elas.</span>
+              </div>
+              <label>Título da seção<input data-k="tituloDescricoes"></label>
+              <div class="descs" data-descs style="margin-top:8px"></div>
               <h3>Opções</h3>
               <div class="grade">
                 <label class="chk l2"><input type="checkbox" data-k="mostrarValidade"> Mostrar validade</label>
                 <label>Validade (dias)<input data-k="validadeDias" type="number" min="0" step="1"></label>
                 <span></span>
+                <label class="chk l2"><input type="checkbox" data-k="ocultarTabela"> Ocultar tabela de itens</label>
+                <label class="chk l2"><input type="checkbox" data-k="mostrarTotal"> Mostrar total</label>
+                <label class="chk l4" data-valor-desc title="Linha &quot;Investimento&quot; no fim de cada descrição; com a tabela oculta, também o valor em &quot;Outros itens&quot;"><input type="checkbox" data-k="valorNasDescricoes"> "Investimento" em cada descrição (e valor em "Outros itens" com a tabela oculta)</label>
                 <label class="chk l2"><input type="checkbox" data-k="mostrarDescontoPorItem"> Coluna de desconto</label>
                 <label class="chk l2"><input type="checkbox" data-k="mostrarAcrescimo"> Coluna de acréscimo</label>
                 <label class="chk l2"><input type="checkbox" data-k="mostrarAssinatura"> Linha de assinatura</label>
               </div>
+              <div class="semdesc" style="margin-top:2px">As opções desta seção e das descrições ficam lembradas para as próximas impressões. O "Investimento" de cada descrição vem, por padrão, do valor atual da proposta no Feegow (sem valor no Feegow, do texto do modelo); dá para trocar a fonte ou digitar o valor em cada bloco. Com a tabela oculta, os itens sem descrição saem em "Outros itens"; o total segue a opção "Mostrar total".</div>
             </div>
             <div class="previa"><div class="papel"><iframe title="Prévia da impressão" data-previa></iframe></div></div>
           </div>
           <div class="rodape">
-            <span class="esp">Esc fecha · Ctrl+Enter imprime · colunas ocultas embutem o valor no unitário</span>
+            <span class="esp">Esc fecha · Ctrl+Enter imprime · colunas ocultas embutem o valor no unitário · prévia: <b data-n-folhas>1 folha</b></span>
+            <button class="b" data-acao="config" title="Nome no final, tabela e opções padrão deste PC">⚙ Configurações</button>
             <button class="b" data-acao="fechar">Cancelar</button>
             <button class="b pri" data-acao="imprimir">Imprimir</button>
           </div>
@@ -755,8 +1981,55 @@ window.HOCDERMA_TIMBRADO = {
           const ip = sh.querySelector('[data-k="paciente"]');
           if (ip) ip.value = dados.paciente;
         } else dados[k] = el.value;
+        if (Object.prototype.hasOwnProperty.call(PREF_PADRAO, k)) salvarPrefs(dados);
+        if (k === 'incluirDescricoes' || k === 'ocultarTabela') marcarDescsOff();
         atualizar(false);
       });
+    });
+
+    // blocos de descrição: incluir/excluir, título e texto (só nesta impressão)
+    const descs = sh.querySelector('[data-descs]');
+    descs.addEventListener('change', (e) => {
+      const el = e.target;
+      if (el.hasAttribute('data-b-fonte')) {
+        const bf = dados.blocos[Number(el.getAttribute('data-b'))];
+        if (!bf) return;
+        bf.fonte = FONTES_INVEST.indexOf(el.value) >= 0 ? el.value : 'auto';
+        salvarInvest(bf);
+        atualizar(false);
+        if (bf.fonte === 'manual') { const im = el.parentNode.querySelector('[data-b-manual]'); if (im) im.focus(); }
+        return;
+      }
+      if (!el.hasAttribute('data-b-incluir')) return;
+      const b = dados.blocos[Number(el.getAttribute('data-b'))];
+      if (!b) return;
+      b.incluir = el.checked;
+      const card = el.closest('.blk');
+      if (card) card.classList.toggle('fora', !b.incluir);
+      atualizar(false);
+    });
+    descs.addEventListener('input', (e) => {
+      const el = e.target;
+      if (el.hasAttribute('data-b-manual')) {
+        const bm = dados.blocos[Number(el.getAttribute('data-b'))];
+        if (!bm) return;
+        bm.manual = el.value;
+        if (bm.fonte !== 'manual') bm.fonte = 'manual'; // digitou = quer o valor manual
+        salvarInvest(bm);
+        atualizar(false);
+        return;
+      }
+      const campo = el.getAttribute('data-b-campo');
+      if (!campo) return;
+      const b = dados.blocos[Number(el.getAttribute('data-b'))];
+      if (!b) return;
+      b[campo] = el.value;
+      b.editado = b.texto !== b.textoOriginal || b.titulo !== b.tituloOriginal;
+      const tt = el.closest('.blk') && el.closest('.blk').querySelector('.tt-txt');
+      if (tt && campo === 'titulo') tt.textContent = b.titulo || '(sem título)';
+      const tag = el.closest('.blk') && el.closest('.blk').querySelector('.tag.ed');
+      if (tag) tag.style.display = b.editado ? '' : 'none';
+      atualizar(false);
     });
 
     const rico = sh.querySelector('[data-rico]');
@@ -774,7 +2047,12 @@ window.HOCDERMA_TIMBRADO = {
       else if (a === 'rm') { dados.itens.splice(i, 1); renderItens(); atualizar(true); }
       else if (a === 'add-outra') { dados.outras.push({ descricao: '', valor: 0 }); renderOutras(); atualizar(true); }
       else if (a === 'rm-outra') { dados.outras.splice(i, 1); renderOutras(); atualizar(true); }
+      else if (a === 'restaurar-bloco') {
+        const b = dados.blocos[Number(acao.getAttribute('data-b'))];
+        if (b) { b.titulo = b.tituloOriginal; b.texto = b.textoOriginal; b.editado = false; renderDescricoes(true); atualizar(true); }
+      }
       else if (a === 'imprimir') imprimir(dados);
+      else if (a === 'config') abrirConfig();
     });
     sh.querySelector('.janela').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); imprimir(dados); }
@@ -783,6 +2061,8 @@ window.HOCDERMA_TIMBRADO = {
 
     renderItens();
     renderOutras();
+    renderDescricoes();
+    marcarDescsOff();
     atualizar(true);
     const prim = sh.querySelector('tbody [data-c="unitario"]');
     if (prim) prim.focus();
@@ -843,11 +2123,105 @@ window.HOCDERMA_TIMBRADO = {
     ligarCampos(tb, d.outras, () => atualizar(false));
   }
 
+  const assinaturaDescs = (d) => d.blocos.map((b) => b.id + ':' + b.itens.join('/') + '@' + (b.idx || []).join(',')).join('|') + '#' + d.semDescricao.join('/');
+
+  function renderDescricoes(manterAbertos) {
+    const sh = S.shadow;
+    const d = S.dados;
+    const box = sh && sh.querySelector('[data-descs]');
+    if (!box || !d) return;
+    const abertos = manterAbertos ? new Set(Array.from(box.querySelectorAll('details[open]')).map((x) => x.getAttribute('data-bid'))) : new Set();
+    d._sigDescs = assinaturaDescs(d);
+    const blocos = d.blocos.map((b, i) => `
+      <div class="blk${b.incluir ? '' : ' fora'}" data-bloco="${esc(b.id)}">
+        <label class="lin chk"><input type="checkbox" data-b-incluir data-b="${i}"${b.incluir ? ' checked' : ''}>
+          <span><span class="tt"><span class="tt-txt">${esc(b.titulo || '(sem título)')}</span></span>${b.exemplo ? '<span class="tag ex" title="Texto provisório do catálogo: substituir pelo texto real">EXEMPLO</span>' : ''}<span class="tag ed" style="${b.editado ? '' : 'display:none'}">editado</span>${b.revisar ? `<span class="tag rv" title="${esc(b.revisar)}">A REVISAR</span>` : ''}
+          <div class="its">Na proposta: ${esc(b.itens.join(' · '))}</div></span></label>
+        <div class="inv" data-inv="${i}">
+          <span class="rot">Investimento</span>
+          <select data-b-fonte data-b="${i}" title="De onde vem o valor impresso nesta descrição">
+            ${FONTES_INVEST.map((f) => `<option value="${f}"${(b.fonte || 'auto') === f ? ' selected' : ''}></option>`).join('')}
+          </select>
+          <input data-b-manual data-b="${i}" value="${esc(b.manual || '')}" placeholder="ex.: R$ 1.500,00" title="Valor manual (só com a fonte Manual)">
+          <span class="sai" data-inv-sai></span>
+          <span class="dif" data-inv-dif style="display:none"></span>
+        </div>
+        <details data-bid="${esc(b.id)}"${abertos.has(b.id) ? ' open' : ''}><summary>Editar texto (só nesta impressão)</summary>
+          <input data-b-campo="titulo" data-b="${i}" value="${esc(b.titulo)}" placeholder="Título do bloco">
+          <textarea data-b-campo="texto" data-b="${i}" rows="6">${esc(b.texto)}</textarea>
+          <div class="dica"><span>Linha em branco = parágrafo · "- " = lista · **negrito**</span><button class="rest" data-acao="restaurar-bloco" data-b="${i}">Restaurar texto do catálogo</button></div>
+        </details>
+      </div>`).join('');
+    const sem = d.semDescricao.length
+      ? `<div class="semdesc">Sem descrição cadastrada (não imprime bloco):<ul>${d.semDescricao.map((n) => '<li>' + esc(n) + '</li>').join('')}</ul></div>`
+      : '';
+    box.innerHTML = (blocos || '<div class="semdesc">Nenhum procedimento da proposta tem descrição cadastrada no catálogo.</div>') + sem;
+    atualizarInvestModal();
+  }
+
+  // Atualiza (sem recriar os campos) os rótulos do seletor, o "sai na folha" e o aviso de diferença.
+  function atualizarInvestModal(cPronto) {
+    const sh = S.shadow;
+    const d = S.dados;
+    if (!sh || !d) return;
+    const dist = distribuirItens(d, cPronto || calcular(d));
+    d.blocos.forEach((b, i) => {
+      const row = sh.querySelector('[data-inv="' + i + '"]');
+      if (!row) return;
+      const inf = dist.info.get(b);
+      const r = investimentoDoBloco(b, inf);
+      const sel = row.querySelector('[data-b-fonte]');
+      const vFeegow = r.temFeegow ? fmtBRL(inf.total) : (inf && inf.incluidoEm ? 'incluído em outro bloco' : 'sem valor');
+      const vModelo = limpa(b.investModelo) || 'sem valor';
+      const rot = {
+        auto: 'Automático (' + (r.feegowOk ? 'Feegow' : limpa(b.investModelo) ? 'modelo' : 'sem valor') + ')',
+        feegow: 'Feegow: ' + vFeegow,
+        modelo: 'Modelo: ' + vModelo,
+        manual: 'Manual',
+        nenhum: 'Não imprimir'
+      };
+      Array.from(sel.options).forEach((o) => { o.textContent = rot[o.value]; });
+      if (sel.value !== (b.fonte || 'auto')) sel.value = b.fonte || 'auto';
+      const im = row.querySelector('[data-b-manual]');
+      im.style.display = r.pedida === 'manual' ? '' : 'none';
+      const sai = row.querySelector('[data-inv-sai]');
+      const txt = r.fonte === 'incluido' ? 'valor incluído em outro bloco'
+        : r.fonte === 'nenhum' ? (d.valorNasDescricoes === false ? 'desligado nas opções' : 'não sai na folha')
+          : r.html.replace(/<[^>]+>/g, '');
+      sai.innerHTML = '→ na folha: <b></b>';
+      sai.querySelector('b').textContent = d.valorNasDescricoes === false && r.fonte !== 'nenhum' ? 'desligado nas opções' : txt;
+      const dif = row.querySelector('[data-inv-dif]');
+      dif.style.display = r.dif ? '' : 'none';
+      if (r.dif) dif.textContent = 'Feegow ' + fmtBRL(inf.unit && inf.qtd !== 1 ? inf.unit : inf.total) + (inf.qtd && inf.qtd !== 1 ? ' cada' : '') + ' ≠ modelo ' + fmtBRL(b.valorModelo);
+      row.setAttribute('data-fonte-efetiva', r.fonte);
+    });
+  }
+
+  function marcarDescsOff() {
+    const box = S.shadow && S.shadow.querySelector('[data-descs]');
+    if (box && S.dados) box.classList.toggle('off', !S.dados.incluirDescricoes);
+    // v1.2.0: "Investimento em cada descrição" vale com ou sem tabela (não desabilita mais)
+  }
+
+  // Itens editados no modal (nome trocado, linha nova/removida) → recalcula os blocos,
+  // preservando o que já foi marcado/editado.
+  function sincronizarDescricoes() {
+    const d = S.dados;
+    if (!d) return;
+    const det = detectarDescricoes(d.itens, d);
+    const novo = { blocos: det.blocos, semDescricao: det.semDescricao };
+    if (assinaturaDescs(novo) === d._sigDescs) return;
+    d.blocos = det.blocos;
+    d.semDescricao = det.semDescricao;
+    renderDescricoes(true);
+  }
+
   let timerPrevia = 0;
   function atualizar(previaJa) {
     const sh = S.shadow;
     const d = S.dados;
     if (!sh || !d) return;
+    sincronizarDescricoes();
     const c = calcular(d);
     c.linhas.forEach((l, i) => { const td = sh.querySelector('[data-tot="' + i + '"]'); if (td) td.textContent = fmtBRL(l.total); });
     sh.querySelector('[data-r="subtotal"]').textContent = fmtBRL(c.subtotal);
@@ -860,6 +2234,7 @@ window.HOCDERMA_TIMBRADO = {
       fg.textContent = 'Total no Feegow: ' + fmtBRL(d.totalFeegow) + (igual ? ' (confere)' : ' (diferente do editado)');
       fg.classList.toggle('dif', !igual);
     }
+    atualizarInvestModal(c);
     clearTimeout(timerPrevia);
     timerPrevia = setTimeout(renderPrevia, previaJa ? 0 : 250);
   }
@@ -871,11 +2246,34 @@ window.HOCDERMA_TIMBRADO = {
     const papel = sh.querySelector('.papel');
     const area = sh.querySelector('.previa');
     if (!ifr || !area) return;
+    // v1.2.1: a prévia mostra as folhas separadas (mesma paginação da impressão)
+    ifr.onload = () => {
+      let n = 1;
+      try { n = paginar(ifr.contentDocument) || 1; } catch (e) { log('paginação da prévia falhou: ' + e.message); }
+      ajustarPapel(n);
+    };
     ifr.srcdoc = montarHtmlImpressao(S.dados, { previa: true });
+    ajustarPapel(Number(papel.getAttribute('data-folhas')) || 1);
+  }
+
+  function ajustarPapel(n) {
+    const sh = S.shadow;
+    if (!sh) return;
+    const ifr = sh.querySelector('[data-previa]');
+    const papel = sh.querySelector('.papel');
+    const area = sh.querySelector('.previa');
+    if (!ifr || !papel || !area) return;
+    const mm = n * 297 + (n - 1) * GAP_FOLHAS_MM;
+    const px = mm * 96 / 25.4;
+    papel.setAttribute('data-folhas', String(n));
+    papel.style.height = mm + 'mm';
+    ifr.style.height = mm + 'mm';
     const larg = area.clientWidth - 28;
     const k = Math.max(0.2, Math.min(1, larg / (210 * 96 / 25.4)));
     papel.style.transform = 'scale(' + k.toFixed(3) + ')';
-    papel.style.marginBottom = (-(1 - k) * 297 * 96 / 25.4) + 'px';
+    papel.style.marginBottom = (-(1 - k) * px) + 'px';
+    const rot = sh.querySelector('[data-n-folhas]');
+    if (rot) rot.textContent = n + (n > 1 ? ' folhas' : ' folha');
   }
 
   /* --------------------------------------------------------------------------
@@ -892,6 +2290,13 @@ window.HOCDERMA_TIMBRADO = {
     };
   }
 
+  // Área útil da folha (entre o cabeçalho e o rodapé do timbrado), em mm a partir do topo/da base.
+  const GAP_FOLHAS_MM = 8; // espaço entre folhas na tela (na impressão não existe)
+  function areaUtil() {
+    const t = CONFIG.timbrado;
+    return { topoMm: t.cabTopoMm + t.cabAlturaMm + 4, baseMm: t.rodBaseMm + t.rodAlturaMm + 2 };
+  }
+
   function montarHtmlImpressao(d, opc) {
     const o = opc || {};
     const c = calcular(d);
@@ -899,12 +2304,71 @@ window.HOCDERMA_TIMBRADO = {
     const cor = CONFIG.cores;
     const t = CONFIG.timbrado;
     const e = CONFIG.empresa;
+    const AREA = areaUtil();
     const comDesc = d.mostrarDescontoPorItem && c.temDesc;
     const comAcr = d.mostrarAcrescimo && c.temAcr;
     const validade = hojeBR(somarDias(d.data, d.validadeDias));
     const nCols = 5 + (comDesc ? 1 : 0) + (comAcr ? 1 : 0);
     const textoHtml = sanitizarHtml(d.textoHtml); // sanitiza de novo (editável)
+    const comTabela = !d.ocultarTabela;
+    const comTotal = d.mostrarTotal !== false;
     const outras = (d.outras || []).filter((x) => x.descricao || num(x.valor));
+
+    // valor impresso de um item, igual à tabela (coluna oculta embute o valor no unitário)
+    const valorItem = (i) => {
+      const it = d.itens[i];
+      const l = c.linhas[i];
+      const qtd = num(it.qtd);
+      const efetivo = l.base - (comDesc ? 0 : l.descR) + (comAcr ? 0 : l.acrR);
+      return { it, l, qtd, unitImp: qtd ? arred(efetivo / qtd) : num(it.unitario) };
+    };
+
+    // descrições: um bloco por procedimento; o título da seção vai grudado no 1º bloco
+    const dist = distribuirItens(d, c);
+    const blocosImp = dist.blocosImp;
+    const donoDoItem = dist.dono;
+    // "Investimento" em cada descrição (vale com ou sem tabela); com a tabela oculta e
+    // vários itens no mesmo bloco, sai também uma linha por item acima do investimento.
+    const comInvest = d.valorNasDescricoes !== false;
+    const comValorBloco = !comTabela && comInvest; // usado em "Outros itens"
+    // v1.2.1: com a tabela oculta NÃO sai mais nenhuma linha "item · qtd × unitário · total"
+    // (era isso que fazia a tabela "voltar sem formatação"); só o Investimento de cada bloco.
+    const valorBlocoHtml = (b) => {
+      if (!comInvest) return '';
+      const inf = dist.info.get(b);
+      const r = investimentoDoBloco(b, inf);
+      if (r.fonte === 'incluido') return `<div class="val" data-valor-bloco><div class="vinc">Valor incluído em “${esc(limpa(inf.incluidoEm.titulo).split(/\s*\|\s*/)[0])}”.</div></div>`;
+      if (r.fonte === 'nenhum') return '';
+      const nItens = (r.fonte === 'feegow' && inf.meus.length > 1) ? ` <small>(${inf.meus.length} itens)</small>` : '';
+      return `<div class="val" data-valor-bloco data-fonte="${r.fonte}"><div class="inv" data-investimento><span class="inv-rot">Investimento</span><span class="inv-lin"></span><span class="inv-v">${r.html}${nItens}</span></div></div>`;
+    };
+    const blocoHtml = (b) => `<div class="proc" data-proc="${esc(b.id)}">${tituloHtml(b.titulo || '', 'h3', 'tit')}<div class="txt">${textoParaHtml(b.texto)}</div>${valorBlocoHtml(b)}</div>`;
+    // data-pg="dividir": a paginação pode repartir a seção entre folhas (bloco a bloco)
+    const descricoesHtml = blocosImp.length ? `<div class="desc-sec" data-pg="dividir" data-descricoes-hocderma>
+            <div class="desc-ini">${limpa(d.tituloDescricoes) ? `<h2 class="desc-tit"><span>${esc(d.tituloDescricoes)}</span></h2>` : ''}${blocoHtml(blocosImp[0])}</div>
+            ${blocosImp.slice(1).map(blocoHtml).join('')}
+          </div>` : '';
+    // tabela oculta: itens sem descrição impressa não podem sumir
+    const semBloco = comTabela ? [] : d.itens.map((it, i) => i).filter((i) => !donoDoItem.has(i) &&
+      (limpa(d.itens[i].descricao) || num(d.itens[i].unitario) || c.linhas[i].total));
+    // "Outros itens": só os NOMES (lista corrida) + UM Investimento com a soma deles,
+    // para a soma dos blocos continuar batendo com o total.
+    const somaOutros = arred(semBloco.reduce((s, i) => s + c.linhas[i].total, 0));
+    const outroItemHtml = (i) => {
+      const it = d.itens[i];
+      const q = num(it.qtd);
+      return `<li data-outro-item>${esc(it.descricao || '—')}${q && q !== 1 ? ` <small>(${esc(String(it.qtd).replace('.', ','))}×)</small>` : ''}</li>`;
+    };
+    const outrosItensHtml = semBloco.length ? `<div class="desc-sec outros-sec" data-outros-itens-hocderma>
+            <div class="proc outros"><h2 class="desc-tit"><span>${esc(CONFIG.textos.tituloOutrosItens)}</span></h2>
+              <ul class="lista-outros">${semBloco.map(outroItemHtml).join('')}</ul>
+              ${comValorBloco && somaOutros > 0 ? `<div class="val"><div class="inv" data-investimento data-investimento-outros><span class="inv-rot">Investimento</span><span class="inv-lin"></span><span class="inv-v">${fmtBRL(somaOutros)}</span></div></div>` : ''}
+            </div>
+          </div>` : '';
+    // v1.2.2: ordem fixa: descrições → "Outros itens" → tabela (se visível) → outras despesas → TOTAL → finais
+    // v1.3.0: quem gerou a proposta (config do PC > "Criado por" do Feegow > profissional) + cargo
+    const nomeFim = limpa(d.criadoPor) || limpa(d.profissional);
+    const cargoFim = limpa(d.cargoFinal);
 
     const cabHtml = tb.cab
       ? `<img src="${esc(tb.cab)}" alt="HOC Derma">`
@@ -914,11 +2378,7 @@ window.HOCDERMA_TIMBRADO = {
       : `<div class="ph-rod">${esc(e.telefone)} · ${esc(e.site)}<br>${esc(e.endereco)}</div>`;
 
     const linhas = d.itens.map((it, i) => {
-      const l = c.linhas[i];
-      const qtd = num(it.qtd);
-      // coluna oculta: o valor dela é embutido no unitário impresso
-      const efetivo = l.base - (comDesc ? 0 : l.descR) + (comAcr ? 0 : l.acrR);
-      const unitImp = qtd ? arred(efetivo / qtd) : num(it.unitario);
+      const { l, unitImp } = valorItem(i);
       const descTxt = l.descR ? '− ' + fmtBRL(l.descR) + (it.descontoTipo === 'P' ? ' <small>(' + fmtPct(num(it.desconto)) + '%)</small>' : '') : '—';
       return `<tr>
         <td class="n-item">${i + 1}</td>
@@ -937,14 +2397,35 @@ window.HOCDERMA_TIMBRADO = {
       html,body{ margin:0; padding:0; background:#fff; }
       body{ font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#2b2b2b; font-size:10.5pt; line-height:1.4;
             -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      .timbre-cab{ position:fixed; top:${t.cabTopoMm}mm; left:0; right:0; height:${t.cabAlturaMm}mm; text-align:center; }
-      .timbre-cab img{ height:100%; width:auto; }
-      .timbre-rod{ position:fixed; bottom:${t.rodBaseMm}mm; left:0; right:0; height:${t.rodAlturaMm}mm; text-align:center; }
-      .timbre-rod img{ height:100%; width:auto; max-width:100%; }
-      table.folha{ width:100%; border-collapse:collapse; }
-      .esp-cab{ height:${t.cabTopoMm + t.cabAlturaMm + 4}mm; }
-      .esp-rod{ height:${t.rodBaseMm + t.rodAlturaMm + 2}mm; }
-      .conteudo{ padding:0 18mm; }
+      /* v1.2.1: folhas A4 de verdade. Cada .folha (210×297mm) tem cabeçalho, área útil e rodapé;
+         a paginação (paginar) mede o conteúdo e o distribui entre as folhas. Nada de position:fixed. */
+      .folha{ position:relative; width:210mm; height:297mm; overflow:hidden; background:#fff; margin:0 auto;
+              page-break-after:always; break-after:page; }
+      .folha:last-child{ page-break-after:auto; break-after:auto; }
+      .f-cab{ position:absolute; top:${t.cabTopoMm}mm; left:0; right:0; height:${t.cabAlturaMm}mm; text-align:center; }
+      .f-cab img{ height:100%; width:auto; }
+      .f-rod{ position:absolute; bottom:${t.rodBaseMm}mm; left:0; right:0; height:${t.rodAlturaMm}mm; text-align:center; }
+      .f-rod img{ height:100%; width:auto; max-width:100%; }
+      .f-corpo{ position:absolute; left:0; right:0; top:${AREA.topoMm}mm; bottom:${AREA.baseMm}mm; overflow:hidden; }
+      .f-pag{ position:absolute; right:22mm; bottom:${t.rodBaseMm + t.rodAlturaMm - 2.1}mm; font-size:7pt; letter-spacing:1.6px;
+              text-transform:uppercase; color:#9a8b80; }
+      .f-pag:empty{ display:none; }
+      .folha.crua{ height:auto; min-height:297mm; padding:${AREA.topoMm}mm 0 ${AREA.baseMm}mm; }
+      .folha.crua .f-corpo{ position:static; overflow:visible; }
+      .conteudo{ padding:0 18mm; display:flow-root; }
+      .conteudo > :first-child{ margin-top:0 !important; }
+      .pg-cont{ border-top:0 !important; padding-top:0 !important; margin-top:0 !important; }
+      .pg-cont > .proc:first-child{ border-top:0; padding-top:1mm; }
+      @media screen{
+        html{ background:${o.previa ? 'transparent' : '#8a8079'}; }
+        body{ background:transparent; ${o.previa ? '' : 'padding:8mm 0;'} }
+        .folha{ box-shadow:0 2px 12px rgba(0,0,0,.35); }
+        .folha + .folha{ margin-top:${GAP_FOLHAS_MM}mm; }
+      }
+      @media print{
+        html,body{ background:#fff !important; padding:0 !important; }
+        .folha{ margin:0 !important; box-shadow:none !important; }
+      }
       h1{ font-size:15pt; letter-spacing:2.5px; font-weight:600; color:${cor.marca}; text-align:center; margin:0 0 5mm; }
       h1 small{ display:block; font-size:9pt; letter-spacing:.5px; font-weight:400; color:#777; margin-top:1mm; }
       .dados{ display:grid; grid-template-columns:1fr auto; gap:1.5mm 8mm; border:1px solid ${cor.marcaClara}; background:#faf7f4;
@@ -962,8 +2443,53 @@ window.HOCDERMA_TIMBRADO = {
       .n-item{ width:7mm; color:#999; }
       .forte{ font-weight:600; }
       .totais{ margin-left:auto; width:80mm; font-size:10pt; break-inside:avoid; page-break-inside:avoid; }
+      .desc-sec + table.itens, .desc-sec + .totais{ margin-top:6mm; }
       .totais div{ display:flex; justify-content:space-between; padding:.8mm 0; }
       .totais .final{ border-top:.4mm solid ${cor.marca}; margin-top:1mm; padding-top:2mm; font-size:13pt; font-weight:700; color:${cor.marca}; }
+      .totais.solo{ width:95mm; border:.3mm solid ${cor.marcaClara}; background:#faf7f4; border-radius:2mm; padding:2mm 4mm 2.5mm; margin-bottom:2mm; }
+      .totais.solo .final{ margin-top:0; }
+      .totais.solo div:first-child.final{ border-top:0; padding-top:0; }
+      .desc-sec{ margin-top:7mm; }
+      .desc-ini{ break-inside:avoid; page-break-inside:avoid; }
+      .desc-tit{ display:flex; align-items:center; gap:4mm; margin:0 0 4mm; font-weight:400; font-size:8.5pt; letter-spacing:3.2px;
+                 text-transform:uppercase; color:${cor.marca}; }
+      .desc-tit::before,.desc-tit::after{ content:""; flex:1; border-top:.25mm solid ${cor.marca}; opacity:.55; }
+      .proc{ break-inside:avoid; page-break-inside:avoid; padding:3.2mm 0 3.4mm; margin:0; border-top:.2mm solid #e4dbd2; }
+      .desc-ini .proc{ border-top:0; padding-top:0; }
+      .proc h3.tit{ margin:0 0 1.6mm; font-weight:400; color:${cor.marca}; line-height:1.15; }
+      .proc .t1{ font-family:"Palatino Linotype","Book Antiqua",Palatino,Georgia,"Times New Roman",serif; font-size:13.5pt; letter-spacing:1.4px; }
+      .proc .t2{ display:block; margin-top:.9mm; font-size:7.8pt; letter-spacing:2.2px; text-transform:uppercase; color:#8a7466; }
+      .proc .t2 i{ font-style:normal; color:#c4b3a5; padding:0 .6mm; }
+      .proc .selo{ display:inline-block; margin-left:2.5mm; vertical-align:2.2pt; font-size:6.8pt; letter-spacing:1.6px; text-transform:uppercase;
+                   border:.25mm solid ${cor.marca}; color:${cor.marca}; border-radius:5mm; padding:.35mm 2.2mm .25mm; font-family:"Segoe UI",Roboto,Arial,sans-serif; }
+      .proc h4.sub{ margin:2.6mm 0 1.2mm; font-weight:400; color:${cor.marca}; }
+      .proc h4.sub .t1{ font-size:10.5pt; letter-spacing:1px; }
+      .proc h4.sub .t2{ display:inline; margin:0 0 0 2mm; }
+      .proc .txt{ font-size:9.8pt; color:#3d3631; line-height:1.5; }
+      .proc .txt p{ margin:0 0 1.4mm; text-align:justify; hyphens:auto; }
+      .proc .txt ul{ margin:.6mm 0 1.4mm; padding-left:5mm; }
+      .proc .txt li{ margin:0 0 .7mm; }
+      .proc .txt li::marker{ color:${cor.marca}; }
+      .proc .txt strong{ color:${cor.marca}; font-weight:600; }
+      .proc .txt hr{ border:0; border-top:.2mm dashed #d9cdc2; margin:2.4mm 0; }
+      .proc .val{ margin-top:2mm; }
+      .proc .vl{ display:flex; gap:4mm; align-items:baseline; padding:.3mm 0; font-size:9pt; color:#6d625a; }
+      .proc .vn{ flex:1; }
+      .proc .vq{ white-space:nowrap; color:#8d8178; font-variant-numeric:tabular-nums; }
+      .proc .vq small{ color:#a39890; }
+      .proc .vt{ white-space:nowrap; min-width:26mm; text-align:right; color:#5a4a3f; font-variant-numeric:tabular-nums; }
+      .proc .inv{ display:flex; align-items:baseline; gap:2.5mm; margin-top:1mm; }
+      .proc .inv-rot{ font-size:7.8pt; letter-spacing:2.4px; text-transform:uppercase; color:${cor.marca}; }
+      .proc .inv-lin{ flex:1; border-bottom:.3mm dotted #c9b9ab; transform:translateY(-1mm); }
+      .proc .inv-v{ white-space:nowrap; font-family:"Palatino Linotype","Book Antiqua",Palatino,Georgia,serif; font-size:12pt; color:${cor.marca};
+                    font-variant-numeric:tabular-nums; }
+      .proc .inv-v small{ font-family:"Segoe UI",Roboto,Arial,sans-serif; font-size:8pt; color:#8d8178; }
+      .proc .vinc{ font-size:8.8pt; color:#8d8178; font-style:italic; }
+      .proc.outros{ border-top:0; padding-top:0; }
+      .lista-outros{ margin:0; padding-left:5mm; font-size:9.8pt; color:#3d3631; line-height:1.5; }
+      .lista-outros li{ margin:0 0 .5mm; }
+      .lista-outros li::marker{ color:${cor.marca}; }
+      .lista-outros small{ color:#8d8178; }
       .bloco{ margin-top:5mm; break-inside:avoid; page-break-inside:avoid; }
       .bloco h2{ font-size:9pt; text-transform:uppercase; letter-spacing:1px; color:${cor.marca}; margin:0 0 1.5mm; }
       .bloco p.pre{ margin:0; white-space:pre-wrap; }
@@ -972,48 +2498,194 @@ window.HOCDERMA_TIMBRADO = {
       .validade{ display:inline-block; border:.3mm solid ${cor.marca}; color:${cor.marca}; padding:1mm 3mm; border-radius:1mm; font-weight:600; font-size:9.5pt; }
       .assin{ display:flex; gap:14mm; margin-top:16mm; break-inside:avoid; page-break-inside:avoid; }
       .assin div{ flex:1; border-top:.3mm solid #555; text-align:center; padding-top:1.5mm; font-size:8.5pt; color:#555; }
+      .assin .cargo{ display:block; margin-top:.6mm; font-size:7.6pt; letter-spacing:.8px; text-transform:uppercase; color:#8a7466; }
+      .gerado{ margin-top:8mm; text-align:right; font-size:8.5pt; color:#5a4a3f; break-inside:avoid; page-break-inside:avoid; }
       .legal{ margin-top:6mm; font-size:7.5pt; color:#888; text-align:center; }
       .ph-cab{ height:100%; display:flex; align-items:center; justify-content:center; gap:5mm; color:${cor.marca}; border:1mm dashed #d9534f; }
       .ph-hoc{ font-family:Georgia,"Times New Roman",serif; font-size:30pt; letter-spacing:2mm; font-weight:300; }
       .ph-derma{ font-size:11pt; letter-spacing:2.5mm; }
       .ph-rod{ height:100%; border-top:.4mm solid ${cor.marca}; margin:0 15mm; padding-top:3mm; font-size:9pt; color:${cor.marca}; border-bottom:1mm dashed #d9534f; }
-      ${o.previa ? 'html{ overflow:hidden; } body{ height:297mm; position:relative; } .timbre-cab,.timbre-rod{ position:absolute; }' : ''}
     `;
 
     return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
       <title>Proposta ${esc(d.numero ? d.numero + ' ' : '')}- ${esc(d.paciente || 'Paciente')} - HOC Derma</title>
       <style>${css}</style></head><body>
-      <div class="timbre-cab">${cabHtml}</div>
-      <div class="timbre-rod">${rodHtml}</div>
-      <table class="folha">
-        <thead><tr><td><div class="esp-cab"></div></td></tr></thead>
-        <tfoot><tr><td><div class="esp-rod"></div></td></tr></tfoot>
-        <tbody><tr><td><div class="conteudo">
+      <div id="hd-folhas" class="folhas">
+      <section class="folha crua">
+        <div class="f-cab">${cabHtml}</div>
+        <div class="f-corpo"><div class="conteudo">
           <h1>${esc(d.titulo || CONFIG.textos.titulo)}${d.numero ? `<small>Proposta nº ${esc(d.numero)}</small>` : ''}</h1>
           <div class="dados">
             <span><b>Paciente:</b> ${esc(d.paciente || '—')}</span><span><b>Data:</b> ${esc(d.data || hojeBR())}</span>
             <span><b>Profissional:</b> ${esc(d.profissional || '—')}</span>${d.mostrarValidade ? `<span><b>Válida até:</b> ${validade}</span>` : '<span></span>'}
           </div>
-          <table class="itens" data-tabela-hocderma>
+          ${descricoesHtml + outrosItensHtml}
+          ${comTabela ? `<table class="itens" data-pg="dividir" data-tabela-hocderma>
             <thead><tr><th>#</th><th>${esc(d.tituloItens || 'Procedimento')}</th><th class="num">Qtd</th><th class="num">Valor unit.</th>${comDesc ? '<th class="num">Desconto</th>' : ''}${comAcr ? '<th class="num">Acréscimo</th>' : ''}<th class="num">Total</th></tr></thead>
             <tbody>${linhas || `<tr><td colspan="${nCols}">Nenhum item.</td></tr>`}</tbody>
-          </table>
+          </table>` : ''}
           ${outras.length ? `<div class="bloco"><h2>${esc(d.tituloOutros || 'Outras Despesas')}</h2>
             <table class="itens"><tbody>${outras.map((x) => `<tr><td>${esc(x.descricao || '—')}</td><td class="num forte">${fmtBRL(num(x.valor))}</td></tr>`).join('')}</tbody></table></div>` : ''}
-          <div class="totais">
+          ${comTotal ? `<div class="totais${comTabela ? '' : ' solo'}" data-pg-cola data-totais-hocderma>
             ${(c.descTotal || (outras.length && CONFIG.outrasSomamNoTotal)) ? `<div><span>Subtotal</span><span class="num">${fmtBRL(c.subtotal)}</span></div>` : ''}
             ${c.descTotal ? `<div><span>Desconto (${fmtPct(c.pct)}%)</span><span class="num">− ${fmtBRL(c.descTotal)}</span></div>` : ''}
             ${(outras.length && CONFIG.outrasSomamNoTotal) ? `<div><span>${esc(d.tituloOutros || 'Outras Despesas')}</span><span class="num">${fmtBRL(c.outras)}</span></div>` : ''}
             <div class="final"><span>Total</span><span class="num" data-total-impresso>${fmtBRL(c.total)}</span></div>
-          </div>
+          </div>` : ''}
           ${d.pagamento ? `<div class="bloco"><h2>${esc(d.tituloPagamento || 'Forma de Pagamento')}</h2><p class="pre">${esc(d.pagamento)}</p></div>` : ''}
           ${textoHtml ? `<div class="bloco rico">${textoHtml}</div>` : ''}
           ${d.mostrarValidade ? `<div class="bloco"><span class="validade">Proposta válida por ${parseInt(d.validadeDias, 10) || 0} dias, até ${validade}</span></div>` : ''}
-          ${d.mostrarAssinatura ? `<div class="assin"><div>${esc(CONFIG.textos.assinaturaRotulo)}</div><div>${esc(CONFIG.textos.assinaturaClinica)}${d.criadoPor ? ' · ' + esc(d.criadoPor) : (d.profissional ? ' · ' + esc(d.profissional) : '')}</div></div>` : ''}
+          ${d.mostrarAssinatura
+            ? `<div class="assin"><div>${esc(CONFIG.textos.assinaturaRotulo)}</div><div data-gerado-por>${esc(CONFIG.textos.assinaturaClinica)}${nomeFim ? ' · ' + esc(nomeFim) : ''}${cargoFim ? `<small class="cargo">${esc(cargoFim)}</small>` : ''}</div></div>`
+            : (nomeFim ? `<div class="gerado" data-gerado-por>Proposta elaborada por ${esc(nomeFim)}${cargoFim ? ' · ' + esc(cargoFim) : ''}</div>` : '')}
           <div class="legal">${esc(CONFIG.textos.rodapeLegal)}${e.mostrarCnpjNaFolha ? '<br>' + esc(e.razaoSocial) + ' · CNPJ ' + esc(e.cnpj) : ''}</div>
-        </div></td></tr></tbody>
-      </table>
+        </div></div>
+        <div class="f-rod">${rodHtml}</div>
+        <div class="f-pag"></div>
+      </section>
+      </div>
       </body></html>`;
+  }
+
+  /* --------------------------------------------------------------------------
+   * 7.1 PAGINAÇÃO (v1.2.1)
+   *     Recebe o documento já renderizado (iframe de impressão ou da prévia) com a
+   *     "folha crua" de montarHtmlImpressao e distribui os filhos de .conteudo em
+   *     folhas A4 iguais (cabeçalho + área útil + rodapé), medindo a altura real.
+   *     - Unidades inteiras: bloco de procedimento, linha de tabela, total etc. só
+   *       mudam de folha inteiros.
+   *     - data-pg="dividir" (tabela de itens, seção de descrições): reparte filho a
+   *       filho; a tabela repete o cabeçalho (thead) em cada folha.
+   *     - Um bloco maior que uma folha inteira é repartido pelos filhos (parágrafos,
+   *       itens de lista), corrido.
+   *     Retorna o número de folhas.
+   * ------------------------------------------------------------------------ */
+
+  function paginar(doc) {
+    const raiz = doc && doc.getElementById('hd-folhas');
+    if (!raiz) return 0;
+    if (raiz.getAttribute('data-folhas')) return Number(raiz.getAttribute('data-folhas'));
+    const modelo = raiz.querySelector('.folha');
+    const origem = modelo && modelo.querySelector('.conteudo');
+    if (!origem) return 0;
+    // documento não renderizado (iframe escondido): não dá para medir; fica a folha crua
+    if (modelo.getBoundingClientRect().width < 10) return 0;
+    const unidades = Array.from(origem.children);
+    modelo.classList.remove('crua');
+    const tpl = modelo.cloneNode(true);
+    tpl.querySelector('.conteudo').innerHTML = '';
+    raiz.innerHTML = '';
+
+    const pilha = []; // cascas abertas (seção/tabela/bloco sendo repartido)
+    let pg = null;
+    const casca = (no, cont) => {
+      const shell = no.cloneNode(false);
+      if (cont) shell.classList.add('pg-cont');
+      if (no.tagName === 'TABLE') {
+        if (no.tHead) shell.appendChild(no.tHead.cloneNode(true)); // repete o cabeçalho da tabela
+        const tb = doc.createElement('tbody');
+        shell.appendChild(tb);
+        return { shell, alvo: tb };
+      }
+      return { shell, alvo: shell };
+    };
+    function novaFolha() {
+      const el = tpl.cloneNode(true);
+      raiz.appendChild(el);
+      const corpo = el.querySelector('.f-corpo');
+      pg = { el, conteudo: el.querySelector('.conteudo'), H: corpo.getBoundingClientRect().height, n: 0 };
+      let pai = pg.conteudo;
+      pilha.forEach((p) => {
+        const c = casca(p.orig, true);
+        p.shell = c.shell; p.alvo = c.alvo; p.n = 0;
+        pai.appendChild(c.shell);
+        pai = c.alvo;
+      });
+    }
+    const paiAtual = () => (pilha.length ? pilha[pilha.length - 1].alvo : pg.conteudo);
+    const cabe = () => pg.conteudo.getBoundingClientRect().height <= pg.H + 0.5;
+    const marcar = (no) => { pg.n++; pg.ultimo = no; pilha.forEach((p) => { p.n++; }); };
+    // Leva a última unidade da folha anterior para a folha nova (com as cascas: tabela
+    // ganha cabeçalho de novo), para o total não ficar sozinho no topo da folha.
+    function levar(folhaVelha, no) {
+      const chain = [];
+      let a = no.parentNode;
+      while (a && a !== folhaVelha.conteudo) { chain.unshift(a); a = a.parentNode; }
+      let pai = pg.conteudo;
+      chain.forEach((anc) => {
+        if (anc.tagName === 'TBODY' || anc.tagName === 'THEAD') return;
+        const sh = anc.cloneNode(false);
+        sh.classList.add('pg-cont');
+        pai.appendChild(sh);
+        if (anc.tagName === 'TABLE') {
+          if (anc.tHead) sh.appendChild(anc.tHead.cloneNode(true));
+          const tb = doc.createElement('tbody');
+          sh.appendChild(tb);
+          pai = tb;
+        } else pai = sh;
+      });
+      pai.appendChild(no);
+      chain.slice().reverse().forEach((anc) => {
+        const vazio = anc.tagName === 'TABLE' ? !anc.querySelector('tbody tr') : !anc.children.length;
+        if (vazio) anc.remove();
+      });
+      marcar(no);
+    }
+    const filhosDe = (no) => (no.tagName === 'TABLE'
+      ? Array.from(no.tBodies).reduce((a, tb) => a.concat(Array.from(tb.rows)), [])
+      : Array.from(no.children || []));
+    function quebrar() {
+      for (let i = pilha.length - 1; i >= 0; i--) { if (!pilha[i].n) pilha[i].shell.remove(); } // casca vazia não fica para trás
+      novaFolha();
+    }
+    function tentar(no) {
+      const p = paiAtual();
+      p.appendChild(no);
+      if (cabe()) { marcar(no); return true; }
+      p.removeChild(no);
+      return false;
+    }
+    function dividir(no, filhos, corrido) {
+      const c = casca(no, false);
+      paiAtual().appendChild(c.shell);
+      const ent = { orig: no, shell: c.shell, alvo: c.alvo, n: 0 };
+      pilha.push(ent);
+      filhos.forEach((f) => colocar(f, corrido));
+      pilha.pop();
+      if (!ent.n) ent.shell.remove();
+    }
+    // corrido = está repartindo um bloco que não cabe nem numa folha vazia:
+    // reparte antes de pular de folha (não deixa o título sozinho para trás).
+    function colocar(no, corrido) {
+      if (tentar(no)) return;
+      const filhos = filhosDe(no);
+      if (no.getAttribute('data-pg') === 'dividir' && filhos.length) { dividir(no, filhos, false); return; }
+      if (corrido && filhos.length > 1) { dividir(no, filhos, true); return; }
+      // data-pg-cola (total): não começa folha sozinho; leva junto a última unidade da folha
+      if (no.hasAttribute('data-pg-cola') && !pilha.length && pg.n > 1 && pg.ultimo) {
+        const velha = pg;
+        const ult = pg.ultimo;
+        novaFolha();
+        levar(velha, ult);
+        if (tentar(no)) return;
+      }
+      if (pg.n > 0) { quebrar(); if (tentar(no)) return; }
+      if (filhos.length > 1 || (filhos.length === 1 && filhosDe(filhos[0]).length > 1)) { dividir(no, filhos, true); return; }
+      paiAtual().appendChild(no); // indivisível e maior que a folha: fica cortado pela área útil
+      no.setAttribute('data-pg-excede', '1');
+      marcar(no);
+    }
+
+    novaFolha();
+    unidades.forEach((u) => colocar(u, false));
+    const folhas = Array.from(raiz.querySelectorAll('.folha'));
+    folhas.forEach((f, i) => {
+      f.setAttribute('data-folha', String(i + 1));
+      const n = f.querySelector('.f-pag');
+      if (n) n.textContent = folhas.length > 1 ? 'Página ' + (i + 1) + ' de ' + folhas.length : '';
+    });
+    raiz.setAttribute('data-folhas', String(folhas.length));
+    return folhas.length;
   }
 
   /* --------------------------------------------------------------------------
@@ -1037,13 +2709,17 @@ window.HOCDERMA_TIMBRADO = {
     const imgs = Array.from(doc.images);
     Promise.all(imgs.map((im) => (im.complete ? Promise.resolve() : new Promise((r) => { im.onload = im.onerror = r; }))))
       .then(() => {
+        // v1.2.1: reparte em folhas A4 (cabeçalho e rodapé em cada uma) antes de imprimir
+        try { log('impressão em ' + paginar(doc) + ' folha(s).'); } catch (e) { log('paginação falhou: ' + e.message); }
         const h = hooks();
         if (typeof h.dispararPrint === 'function') { h.dispararPrint(win, html); return; }
         win.focus();
         win.print();
         setTimeout(() => { try { ifr.remove(); } catch (e) { /* noop */ } }, 1500);
       });
-    log('impressão disparada (' + dados.itens.length + ' itens, total ' + fmtBRL(calcular(dados).total) + ').');
+    log('impressão disparada (' + dados.itens.length + ' itens, total ' + fmtBRL(calcular(dados).total) +
+      (dados.ocultarTabela ? ', tabela oculta' : '') + ', ' +
+      (dados.incluirDescricoes ? (dados.blocos || []).filter((b) => b.incluir).length : 0) + ' descrição(ões)).');
     return html;
   }
 
@@ -1069,6 +2745,13 @@ window.HOCDERMA_TIMBRADO = {
 
   function iniciar() {
     if (!featureAtiva()) { log('desligado nas Configurações.'); return; }
+    // v1.3.0: menu do Tampermonkey (só com @grant GM_registerMenuCommand; carregado em cascata pela Suite pode não existir)
+    try {
+      if (typeof GM_registerMenuCommand === 'function' && !window.__HOCDERMA_PROPOSTAS_MENU__) { // eslint-disable-line no-undef
+        window.__HOCDERMA_PROPOSTAS_MENU__ = true;
+        GM_registerMenuCommand('Configurações das propostas', () => abrirConfig()); // eslint-disable-line no-undef
+      }
+    } catch (e) { /* sem menu: o botão do editor continua */ }
     varrer();
     observador = new MutationObserver((muts) => {
       for (const m of muts) { if (!ehMutacaoNossa(m)) { agendarVarredura(); return; } }
@@ -1102,8 +2785,25 @@ window.HOCDERMA_TIMBRADO = {
     sanitizarHtml,
     formatarNome,
     montarHtmlImpressao,
+    paginar, // v1.2.1
+    areaUtil,
     imprimir,
     desligar,
+    // v1.1.0: descrições e preferências
+    descricoes: DESCRICOES_PROCEDIMENTOS,
+    catalogo,
+    normalizar,
+    detectarDescricoes,
+    textoParaHtml,
+    // v1.2.0: apelidos, busca tolerante e investimento
+    apelidos: APELIDOS,
+    normalizarBusca,
+    investimentoDoBloco,
+    distribuirItens,
+    invest: { ler: investLembrado, salvar: salvarInvest, limpar: limparInvest },
+    prefs: { padrao: PREF_PADRAO, ler: lerPrefs, salvar: salvarPrefs, limpar: limparPrefs },
+    // v1.3.0: configurações do PC (nome/cargo no fim) e tela de configurações
+    config: { padrao: CFG_PADRAO, ler: lerConfig, salvar: salvarConfig, limpar: limparConfig, abrir: abrirConfig, fechar: fecharConfig },
     estado: () => ({
       editorAberto: !!S.dados,
       dados: S.dados,
