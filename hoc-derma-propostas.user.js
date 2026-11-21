@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.0
+// @version      1.3.1
 // @description  Na proposta do prontuário (form#frmProposta) adiciona o botão "Imprimir HOC Derma" ao lado do Imprimir padrão: editor de valores antes de imprimir e folha própria com cabeçalho/rodapé HOC Derma, sem a tabela padrão. Só lê a tela; nada é gravado no Feegow.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.0
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.1
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -117,6 +117,9 @@ window.HOCDERMA_TIMBRADO = {
  *     O total nunca sai antes ou no meio das descrições. A opção "Posição" saiu do modal.
  *   - Paginação: o total não começa folha sozinho (leva junto a última linha da tabela
  *     ou o último bloco, com o cabeçalho da tabela repetido).
+ *
+ * v1.3.1 (21/11/2026)
+ *   - Com "Mostrar validade" ligado, some a frase "PROPOSTA VÁLIDA POR X DIAS." vinda do Feegow (redundante).
  *
  * v1.3.0 (21/11/2026)
  *   - Padrão SEM tabela (descrições + total no fim). "Mostrar tabela" fica lembrado
@@ -727,7 +730,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.0';
+  const VERSAO = '1.3.1';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -2309,7 +2312,15 @@ window.HOCDERMA_TIMBRADO = {
     const comAcr = d.mostrarAcrescimo && c.temAcr;
     const validade = hojeBR(somarDias(d.data, d.validadeDias));
     const nCols = 5 + (comDesc ? 1 : 0) + (comAcr ? 1 : 0);
-    const textoHtml = sanitizarHtml(d.textoHtml); // sanitiza de novo (editável)
+    // v1.3.1: com "Mostrar validade" ligado, some a frase "PROPOSTA VÁLIDA POR X DIAS." que vem do Feegow (redundante)
+    const RX_VALIDADE = /\s*PROPOSTA\s+V[ÁAáa]LIDA\s+POR\s+\d+\s*DIAS\s*\.?/gi;
+    const tirarValidade = (s) => d.mostrarValidade ? String(s || '').replace(RX_VALIDADE, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() : (s || '');
+    const pagamentoTxt = tirarValidade(d.pagamento);
+    let textoHtml = sanitizarHtml(d.textoHtml); // sanitiza de novo (editável)
+    if (d.mostrarValidade && textoHtml) {
+      textoHtml = textoHtml.replace(RX_VALIDADE, ' ').replace(/<(p|div|span|strong|b)[^>]*>(\s|&nbsp;|<br\s*\/?>)*<\/\1>/gi, '').trim();
+      if (!textoHtml.replace(/<[^>]+>|&nbsp;|\s/g, '')) textoHtml = '';
+    }
     const comTabela = !d.ocultarTabela;
     const comTotal = d.mostrarTotal !== false;
     const outras = (d.outras || []).filter((x) => x.descricao || num(x.valor));
@@ -2532,7 +2543,7 @@ window.HOCDERMA_TIMBRADO = {
             ${(outras.length && CONFIG.outrasSomamNoTotal) ? `<div><span>${esc(d.tituloOutros || 'Outras Despesas')}</span><span class="num">${fmtBRL(c.outras)}</span></div>` : ''}
             <div class="final"><span>Total</span><span class="num" data-total-impresso>${fmtBRL(c.total)}</span></div>
           </div>` : ''}
-          ${d.pagamento ? `<div class="bloco"><h2>${esc(d.tituloPagamento || 'Forma de Pagamento')}</h2><p class="pre">${esc(d.pagamento)}</p></div>` : ''}
+          ${pagamentoTxt ? `<div class="bloco"><h2>${esc(d.tituloPagamento || 'Forma de Pagamento')}</h2><p class="pre">${esc(pagamentoTxt)}</p></div>` : ''}
           ${textoHtml ? `<div class="bloco rico">${textoHtml}</div>` : ''}
           ${d.mostrarValidade ? `<div class="bloco"><span class="validade">Proposta válida por ${parseInt(d.validadeDias, 10) || 0} dias, até ${validade}</span></div>` : ''}
           ${d.mostrarAssinatura
