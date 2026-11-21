@@ -41,7 +41,7 @@ Tudo roda **no seu navegador**. Os scripts mudam só o que você vê na tela: ne
 | **Core** (`core.user.js`) | Injetor: baixa a Suite do GitHub, guarda em cache e executa. É o único que você precisa instalar para ter a Suite, o Timbrador e as Propostas. | 1.1.1.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js) |
 | **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Lista de espera com contador do DR. EXAMES, menu de engrenagem, limpeza da interface, login com sessão dupla, especialidade e protocolo de dilatação, atalho para o prontuário. | 4.9.5.1 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
 | **PDF HOC Derma** (`hoc-derma-stamping-tool.user.js`) | Janela que aplica o cabeçalho e o rodapé HOC Derma em qualquer PDF, ajusta o encaixe e exporta/imprime o PDF timbrado. | 3.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js)) |
-| **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário: editor de valores e folha A4 com o timbrado HOC Derma. | 1.3.x | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
+| **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário: editor de valores e folha A4 com o timbrado HOC Derma. | 1.3.4 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
 | **OCI Auto** (`oci-auto-tool.user.js`) | Preenche a ficha OCI/APAC em PDF com os dados do prontuário, com a assinatura do médico, e imprime ou baixa. | 1.0.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/oci-auto-tool.user.js) (sempre à parte) |
 
 A versão vigente de cada script é a do `@version` no respectivo `.meta.js`. Documentação detalhada:
@@ -273,6 +273,7 @@ Ele só grava arquivos locais: não faz commit nem push. Os outros scripts são 
 
 | Versão | Mudança |
 | :--- | :--- |
+| Propostas 1.3.4 | Versão de produção: logs de depuração desligados por padrão, correção na API de console e guia completo em docs/hoc-derma-propostas.md |
 | Propostas 1.3.3 | Prévia do editor sem barra de rolagem interna em qualquer zoom |
 | Propostas 1.3.2 | Item adicionado sem recarregar a página entra na impressão |
 | Propostas 1.3.1 | Com "Mostrar validade", some a frase de validade duplicada do Feegow |
