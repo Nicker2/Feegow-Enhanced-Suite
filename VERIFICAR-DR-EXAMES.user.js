@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.5.1
+// @version      4.9.5.2
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra o PDF HOC Derma v3 em cascata (baixa e executa o timbrador do GitHub, com atalho vermelho à esquerda do Configs que abre a janela flutuante).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -507,100 +507,153 @@ const protocolosDilatacao = {
         document.body.appendChild(overlay);
     }
 
-    // Função para interceptar o clique no botão "Entrar" e salvar os dados
-    function interceptarLogin() {
-        const botaoEntrar = document.getElementById('Entrar');
+    // =========================================================================
+    // LOGIN: bypass de sessão dupla — rota SSO (nova) e rota legada
+    // A rota /main/?P=Login morreu; o Feegow agora usa /main/sso/ em 2 etapas
+    // (e-mail -> Continuar -> senha -> Entrar). O conflito de sessão não é mais
+    // uma frase solta: vem com input[name="disconnect"] value="1" no formulário.
+    // =========================================================================
+    const LOGIN_MSG_CONFLITO = 'Este usuário já está conectado em outra máquina.';
+    const LOGIN_MSG_SENHA_SSO = 'E-mail ou senha incorretos';
+    const LOGIN_MSG_SENHA_LEGADO = 'E-mail de acesso ou senha não conferem';
+    const LOGIN_INTERVALO_RETRY = 1500;   // reenvia a cada 1,5s
+    const LOGIN_MAX_TENTATIVAS = 40;      // ~60s no pior caso
 
-        if (botaoEntrar && !botaoEntrar.dataset.interceptado) {
-            botaoEntrar.dataset.interceptado = "true";
-
-            botaoEntrar.addEventListener('click', function() {
-                const usuarioInput = document.getElementById('User');
-                const senhaInput = document.getElementById('password');
-                const formElement = botaoEntrar.closest('form');
-
-                if (usuarioInput && senhaInput && formElement) {
-                    sessionStorage.setItem('feegow_user_temp', usuarioInput.value);
-                    sessionStorage.setItem('feegow_pass_temp', senhaInput.value);
-                    sessionStorage.setItem('feegow_action_temp', formElement.action || window.location.href);
-                    log('Dados de login interceptados para possível bypass.');
-                }
-            });
-        }
+    function salvarCredenciaisLogin(user, pass, action) {
+        try {
+            sessionStorage.setItem('feegow_user_temp', user);
+            sessionStorage.setItem('feegow_pass_temp', pass);
+            sessionStorage.setItem('feegow_action_temp', action || '');
+        } catch (e) { /* modo privado/quota: segue sem cofre */ }
     }
 
-    // Função para rodar o Bypass INVISÍVEL no background usando Fetch API
-    async function executarBypassInvisivel(actionUrl, user, pass) {
-        const formData = new URLSearchParams();
-        formData.append('User', user);
-        formData.append('password', pass);
+    function lerCredenciaisLogin() {
+        let user = null, pass = null, action = null;
+        try {
+            user = sessionStorage.getItem('feegow_user_temp');
+            pass = sessionStorage.getItem('feegow_pass_temp');
+            action = sessionStorage.getItem('feegow_action_temp');
+        } catch (e) { /* ignora */ }
+        const elU = document.querySelector('#User, input[name="User"]');
+        const elP = document.querySelector('#password, input[name="password"]');
+        if (!user && elU && elU.value) user = elU.value;
+        if (!pass && elP && elP.value) pass = elP.value;
+        return { user: user, pass: pass, action: action };
+    }
 
-        let sucesso = false;
-        let tentativas = 0;
+    function limparCredenciaisLogin() {
+        try {
+            sessionStorage.removeItem('feegow_user_temp');
+            sessionStorage.removeItem('feegow_pass_temp');
+            sessionStorage.removeItem('feegow_action_temp');
+        } catch (e) { /* ignora */ }
+    }
 
-        while (!sucesso) {
-            tentativas++;
+    function ehTelaDeLogin() {
+        const u = window.location.href.toLowerCase();
+        return u.indexOf('/main/sso') !== -1 || u.indexOf('/main/?p=login') !== -1;
+    }
+
+    // Conflito = frase de sessão ocupada OU o input hidden disconnect.
+    // Senha errada NÃO é conflito (senão o script martela o servidor por causa de um typo).
+    function emConflitoDeSessao() {
+        const t = document.body ? (document.body.innerText || document.body.textContent || '') : '';
+        if (t.indexOf(LOGIN_MSG_SENHA_SSO) !== -1 || t.indexOf(LOGIN_MSG_SENHA_LEGADO) !== -1) return false;
+        if (t.indexOf(LOGIN_MSG_CONFLITO) !== -1) return true;
+        return !!document.querySelector('input[name="disconnect"]');
+    }
+
+    // A senha é apagada quando a página de conflito é renderizada. Sem capturar
+    // no submit (fase de CAPTURA, antes do sso-login.js), não há como reenviar.
+    function instalarCapturaDeCredenciais() {
+        if (window.__hocCapturaLogin) return;
+        window.__hocCapturaLogin = true;
+        document.addEventListener('submit', function (ev) {
+            const f = ev.target;
+            if (!f || !f.tagName || f.tagName !== 'FORM') return;
+            const u = f.querySelector('#User, input[name="User"]');
+            const p = f.querySelector('#password, input[name="password"]');
+            if (u && p && p.value) {
+                salvarCredenciaisLogin(u.value, p.value, f.action || window.location.href);
+                log('Dados de login capturados (' + (window.location.href.toLowerCase().indexOf('/main/sso') !== -1 ? 'rota SSO' : 'rota legada') + ').');
+            }
+        }, true);
+    }
+
+    // Reenvia o login em intervalo curto até a resposta deixar de ser a tela de conflito.
+    async function executarBypassInvisivel(user, pass) {
+        const ehSSO = window.location.href.toLowerCase().indexOf('/main/sso') !== -1;
+        const alvo = ehSSO ? (window.location.origin + '/main/sso/') : (window.location.origin + '/main/?P=Login');
+
+        mostrarTelaDeCarregamento();
+
+        for (let tentativa = 1; tentativa <= LOGIN_MAX_TENTATIVAS; tentativa++) {
             try {
-                // Envia os dados silenciosamente por debaixo dos panos (sem recarregar a tela)
-                const res = await fetch(actionUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: formData.toString()
-                });
+                const corpo = new URLSearchParams();
+                if (ehSSO) corpo.set('step', 'password');
+                corpo.set('User', user);
+                corpo.set('password', pass);
 
+                const res = await fetch(alvo, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: corpo.toString()
+                });
                 const html = await res.text();
 
-                // Verifica se a resposta do servidor AINDA é a tela de erro
-                if (html.includes('Este usuário já está conectado em outra máquina.')) {
-                    log(`[Bypass Background] Tentativa ${tentativas}: Sessão ainda ocupada. Disparando novamente em 50ms...`);
-                    // Espera só 50ms (ultra rápido) e tenta de novo. O visual do usuário fica 100% congelado!
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                } else {
-                    // A resposta mudou! O login passou!
-                    log(`[Bypass Background] SUCESSO na tentativa ${tentativas}! Acesso liberado.`);
-                    sucesso = true;
-
-                    // Limpa o cofre
-                    sessionStorage.removeItem('feegow_user_temp');
-                    sessionStorage.removeItem('feegow_pass_temp');
-
-                    // Agora sim, redireciona a página inteira para o sistema principal
-                    window.location.href = res.url || 'https://app.feegow.com/main/';
+                if (html.indexOf(LOGIN_MSG_SENHA_SSO) !== -1 || html.indexOf(LOGIN_MSG_SENHA_LEGADO) !== -1) {
+                    log('[Bypass] O servidor recusou a SENHA (não é conflito de sessão). Parando para o usuário corrigir.');
+                    const inp = document.querySelector('#password');
+                    if (inp) { inp.value = pass; inp.focus(); }
+                    return;
                 }
-            } catch (error) {
-                log(`[Bypass Background] Erro de rede: ${error.message}. Tentando novamente...`);
-                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const aindaConflito = html.indexOf(LOGIN_MSG_CONFLITO) !== -1 || /name=["']disconnect["']/i.test(html);
+                if (!aindaConflito) {
+                    log('[Bypass] SUCESSO na tentativa ' + tentativa + '. Entrando...');
+                    limparCredenciaisLogin();
+                    window.location.href = res.url || (window.location.origin + '/main/');
+                    return;
+                }
+
+                log('[Bypass] Tentativa ' + tentativa + ': sessão ainda ocupada. Reenviando em ' + (LOGIN_INTERVALO_RETRY / 1000) + 's...');
+                await new Promise(function (r) { setTimeout(r, LOGIN_INTERVALO_RETRY); });
+            } catch (err) {
+                log('[Bypass] Erro de rede: ' + (err && err.message ? err.message : err) + ' — tentando de novo.');
+                await new Promise(function (r) { setTimeout(r, LOGIN_INTERVALO_RETRY); });
             }
         }
+
+        log('[Bypass] Desisti após ' + LOGIN_MAX_TENTATIVAS + ' tentativas. A senha foi devolvida no campo para tentar na mão.');
+        const inpFim = document.querySelector('#password');
+        if (inpFim && !inpFim.value) inpFim.value = pass;
     }
 
-    // Verifica se caiu na tela de erro e aciona a tela de loading + loop invisível
+    // Ponto de entrada: roda nas duas rotas, em qualquer etapa do SSO.
     function verificarMensagemLogin() {
-        // Transforma a URL atual inteira em minúscula para evitar bugs do Feegow
-        const urlAtual = window.location.href.toLowerCase();
+        if (!ehTelaDeLogin()) return;
+        instalarCapturaDeCredenciais();
 
-        // Busca pela versão minúscula do login
-        if (urlAtual.includes('feegow.com') && urlAtual.includes('/main/?p=login')) {
-            const mensagem = document.body.textContent || document.body.innerText;
-
-            if (mensagem.includes('Este usuário já está conectado em outra máquina.')) {
-                log('Mensagem de conexão detectada. Congelando a tela e iniciando bypass de background...');
-
-                const user = sessionStorage.getItem('feegow_user_temp');
-                const pass = sessionStorage.getItem('feegow_pass_temp');
-                const actionUrl = sessionStorage.getItem('feegow_action_temp') || window.location.href;
-
-                if (user && pass) {
-                    // 1. Congela a tela original com a nossa interface bonita
-                    mostrarTelaDeCarregamento();
-
-                    // 2. Inicia o loop assíncrono que não recarrega a página
-                    executarBypassInvisivel(actionUrl, user, pass);
-                }
-            } else {
-                interceptarLogin();
-            }
+        if (!emConflitoDeSessao()) {
+            // Sem conflito: nada a fazer (o submit normal segue o fluxo do site).
+            return;
         }
+        if (window.__hocBypassRodando) return;
+        window.__hocBypassRodando = true;
+
+        const cred = lerCredenciaisLogin();
+        if (!cred.user || !cred.pass) {
+            log('[Bypass] Conflito detectado, mas não tenho a senha (usuário ainda não enviou o formulário).');
+            // Repõe a senha se ela estiver no cofre (ex.: recarregou a página)
+            const inp = document.querySelector('#password');
+            if (inp && cred.pass && !inp.value) inp.value = cred.pass;
+            window.__hocBypassRodando = false;
+            return;
+        }
+
+        log('Conflito de sessão detectado. Reenviando o login a cada ' + (LOGIN_INTERVALO_RETRY / 1000) + 's...');
+        executarBypassInvisivel(cred.user, cred.pass);
     }
 
 // Função para injetar o CSS do Badge e do Tooltip animado
