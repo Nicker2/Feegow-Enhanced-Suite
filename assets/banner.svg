@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="Feegow Enhanced Suite">
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1f2a"/>
+      <stop offset="1" stop-color="#0f4c5c"/>
+    </linearGradient>
+    <linearGradient id="peca" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="300" rx="24" fill="url(#fundo)"/>
+
+  <!-- janela do navegador -->
+  <g transform="translate(70 62)">
+    <rect width="230" height="176" rx="14" fill="#f8fafc"/>
+    <rect width="230" height="34" rx="14" fill="#cbd5e1"/>
+    <rect y="20" width="230" height="14" fill="#cbd5e1"/>
+    <circle cx="20" cy="17" r="6" fill="#ef4444"/>
+    <circle cx="40" cy="17" r="6" fill="#f59e0b"/>
+    <circle cx="60" cy="17" r="6" fill="#22c55e"/>
+    <rect x="80" y="10" width="136" height="14" rx="7" fill="#f1f5f9"/>
+    <!-- linhas de conteúdo -->
+    <rect x="18" y="52" width="120" height="10" rx="5" fill="#cbd5e1"/>
+    <rect x="18" y="72" width="90" height="10" rx="5" fill="#e2e8f0"/>
+    <rect x="18" y="92" width="110" height="10" rx="5" fill="#e2e8f0"/>
+    <rect x="18" y="112" width="70" height="10" rx="5" fill="#e2e8f0"/>
+    <rect x="18" y="140" width="84" height="22" rx="11" fill="#dc2626"/>
+    <!-- engrenagem -->
+    <g transform="translate(180 110)" fill="url(#peca)">
+      <circle r="30"/>
+      <g>
+        <rect x="-8" y="-44" width="16" height="18" rx="3"/>
+        <rect x="-8" y="26" width="16" height="18" rx="3"/>
+        <rect x="-44" y="-8" width="18" height="16" rx="3"/>
+        <rect x="26" y="-8" width="18" height="16" rx="3"/>
+        <g transform="rotate(45)">
+          <rect x="-8" y="-44" width="16" height="18" rx="3"/>
+          <rect x="-8" y="26" width="16" height="18" rx="3"/>
+          <rect x="-44" y="-8" width="18" height="16" rx="3"/>
+          <rect x="26" y="-8" width="18" height="16" rx="3"/>
+        </g>
+      </g>
+      <circle r="12" fill="#f8fafc"/>
+    </g>
+  </g>
+
+  <!-- textos -->
+  <text x="350" y="138" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="58" font-weight="700" fill="#f8fafc">Feegow Enhanced Suite</text>
+  <text x="352" y="186" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="26" fill="#cbd5e1">Recursos a mais para o Feegow, direto no navegador.</text>
+
+  <!-- etiquetas -->
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600">
+    <rect x="352" y="214" width="170" height="36" rx="18" fill="#164e63"/>
+    <text x="437" y="238" text-anchor="middle" fill="#e2e8f0">Tampermonkey</text>
+    <rect x="534" y="214" width="190" height="36" rx="18" fill="#164e63"/>
+    <text x="629" y="238" text-anchor="middle" fill="#e2e8f0">Atualiza sozinho</text>
+    <rect x="736" y="214" width="220" height="36" rx="18" fill="#164e63"/>
+    <text x="846" y="238" text-anchor="middle" fill="#e2e8f0">Nada grava no Feegow</text>
+    <rect x="968" y="214" width="170" height="36" rx="18" fill="#164e63"/>
+    <text x="1053" y="238" text-anchor="middle" fill="#e2e8f0">Chrome · Edge</text>
+  </g>
+</svg>

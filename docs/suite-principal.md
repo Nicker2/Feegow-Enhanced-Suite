@@ -43,16 +43,17 @@ Vale na **Lista de Espera** (URL com `p=ListaEspera&Pers=1`, sem diferença de m
 
 Nas telas de agenda (`agenda-1`) e de equipamentos alocados, um botão aparece ao lado do nome do paciente e abre o **prontuário em nova aba**, sem sair da agenda.
 
-## 4. Login com sessão dupla
+## 4. Entrada com sessão ocupada
 
-Quando o Feegow recusa o login com *"Este usuário já está conectado em outra máquina."*:
+Quando o Feegow recusa a entrada com *"Este usuário já está conectado em outra máquina."*, a Suite:
 
-1. Ao clicar em **Entrar**, a Suite já tinha copiado usuário, senha e endereço do formulário para o `sessionStorage` da aba.
-2. Na tela de erro, ela cobre a página com uma tela de carregamento no visual do Feegow.
-3. Em segundo plano, reenvia o formulário de login ao próprio Feegow (Fetch API) a cada ~0,8 s, até a resposta deixar de ser a mensagem de sessão ocupada.
-4. Quando passa, apaga usuário e senha do `sessionStorage` e entra no sistema.
+1. cobre a página com uma tela de espera no visual do Feegow;
+2. tenta entrar de novo sozinha, a cada 1,5 s, por cerca de 1 minuto;
+3. quando a sessão é liberada, entra no sistema e apaga os dados de acesso que tinha guardado.
 
-A Suite **não derruba** a sessão do outro computador; ela só repete a tentativa até a sessão ser liberada. Veja o aviso de privacidade sobre o `sessionStorage` no [README](../README.md#privacidade-e-segurança). Se o preenchimento automático do navegador enviar o formulário sem clicar em **Entrar**, os dados não são capturados e a repetição não acontece.
+Funciona na tela de login nova do Feegow (em duas etapas: e-mail → Continuar → senha → Entrar) e na antiga. Se a **senha estiver errada**, a Suite avisa na hora e não fica tentando. Se não conseguir entrar em cerca de 1 minuto, devolve a senha no campo para você tentar na mão.
+
+Os dados de acesso só são guardados quando você clica em **Entrar** (um preenchimento automático que envie o formulário sozinho impede a nova tentativa). Veja o aviso de privacidade no [README](../README.md#-privacidade).
 
 ## 5. Botão PDF HOC Derma e cascata
 

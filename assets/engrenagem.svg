@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="490" viewBox="0 0 720 490" role="img" aria-label="Ilustração do menu de engrenagem da Suite, com cada função ligada ou desligada">
+<rect width="720" height="490" rx="14" fill="#eef2f6"/>
+<!-- barra superior do sistema (desenho) -->
+<rect x="0" y="0" width="720" height="56" rx="14" fill="#1f2937"/>
+<rect x="0" y="40" width="720" height="16" fill="#1f2937"/>
+<rect x="24" y="18" width="120" height="20" rx="10" fill="#374151"/>
+<rect x="404" y="14" width="150" height="28" rx="14" fill="#dc2626"/>
+<text x="479" y="33" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#ffffff">PDF HOC Derma</text>
+<g transform="translate(588 28)" fill="#34d399"><circle r="11"/><rect x="-3" y="-16" width="6" height="32" rx="2"/><rect x="-16" y="-3" width="32" height="6" rx="2"/><g transform="rotate(45)"><rect x="-3" y="-16" width="6" height="32" rx="2"/><rect x="-16" y="-3" width="32" height="6" rx="2"/></g><circle r="5" fill="#1f2937"/></g>
+<rect x="624" y="18" width="72" height="20" rx="10" fill="#374151"/>
+<!-- menu -->
+<rect x="250" y="66" width="440" height="364" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+<path d="M580 66 l8 -10 l8 10 z" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+<rect x="578" y="64" width="20" height="4" fill="#ffffff"/>
+<text x="270" y="98" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#334155">Configurações da Suite</text>
+<text x="270" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#1f2937">DR. EXAMES (Lista de Espera)</text>
+<rect x="616" y="117" width="56" height="22" rx="11" fill="#16a34a"/><text x="644" y="133" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">ON</text>
+<line x1="266" y1="146" x2="674" y2="146" stroke="#e2e8f0"/>
+<text x="270" y="168" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#1f2937">Avisos Amarelos</text>
+<rect x="616" y="153" width="56" height="22" rx="11" fill="#16a34a"/><text x="644" y="169" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">ON</text>
+<line x1="266" y1="182" x2="674" y2="182" stroke="#e2e8f0"/>
+<text x="270" y="204" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#1f2937">Notificações Flutuantes</text>
+<rect x="616" y="189" width="56" height="22" rx="11" fill="#16a34a"/><text x="644" y="205" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">ON</text>
+<line x1="266" y1="218" x2="674" y2="218" stroke="#e2e8f0"/>
+<text x="270" y="240" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#1f2937">Barra DP Spaces</text>
+<rect x="616" y="225" width="56" height="22" rx="11" fill="#16a34a"/><text x="644" y="241" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">ON</text>
+<line x1="266" y1="254" x2="674" y2="254" stroke="#e2e8f0"/>
+<text x="270" y="276" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#1f2937">IA Feegow</text>
+<rect x="616" y="261" width="56" height="22" rx="11" fill="#16a34a"/><text x="644" y="277" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">ON</text>
+<line x1="266" y1="290" x2="674" y2="290" stroke="#e2e8f0"/>
+<text x="270" y="312" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#1f2937">Anúncios Feegow</text>
+<rect x="616" y="297" width="56" height="22" rx="11" fill="#16a34a"/><text x="644" y="313" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">ON</text>
+<line x1="266" y1="326" x2="674" y2="326" stroke="#e2e8f0"/>
+<text x="270" y="348" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#1f2937">Pedir Notificações</text>
+<rect x="616" y="333" width="56" height="22" rx="11" fill="#16a34a"/><text x="644" y="349" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">ON</text>
+<line x1="266" y1="362" x2="674" y2="362" stroke="#e2e8f0"/>
+<text x="270" y="384" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#1f2937">PDF HOC Derma (v3)</text>
+<rect x="616" y="369" width="56" height="22" rx="11" fill="#16a34a"/><text x="644" y="385" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">ON</text>
+<line x1="266" y1="398" x2="674" y2="398" stroke="#e2e8f0"/>
+<text x="270" y="420" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#1f2937">Imprimir HOC Derma (Propostas)</text>
+<rect x="616" y="405" width="56" height="22" rx="11" fill="#16a34a"/><text x="644" y="421" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">ON</text>
+<text x="24" y="474" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#64748b">ilustração: cada clique liga ou desliga a função e recarrega a página</text>
+</svg>
