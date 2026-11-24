@@ -9,7 +9,7 @@
 | Core | 1.1.1.0 |
 | Suite principal | 4.9.5.2 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.3.6 |
+| Propostas HOC Derma | 1.3.7 |
 
 ---
 
@@ -18,6 +18,11 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.3.7 (24/11/2026)
+
+- **O que muda na janela vai para o Feegow**: quantidade, valor unitário, desconto e acréscimo de cada item da proposta são gravados na linha real e a proposta é salva (1,5 s depois da última tecla ou ao sair do campo). O total é conferido.
+- **Fontes**: a janela e a folha passam a usar a **Poppins** (embutida no script, funciona sem internet). O botão "Aa Tamanho das fontes" permite escolher a fonte e o tamanho de cada parte da folha, com mudança na hora na prévia e na impressão e gravação neste PC. Os botões "Padrão Poppins" e "Padrão original" (fontes e tamanhos da 1.3.6) substituem tudo, depois de uma confirmação.
 
 ### Propostas 1.3.6 (24/11/2026)
 
