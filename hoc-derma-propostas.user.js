@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.7
+// @version      1.3.8
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.7
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.8
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -212,6 +212,12 @@ window.HOCDERMA_TIMBRADO = {
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
  *
+ *
+ * v1.3.8 (24/11/2026)
+ *   - Aviso do topo da janela curto ("Itens, valores e descontos são salvos no Feegow · Descrições e
+ *     textos valem só para a impressão") numa faixa fina própria abaixo da barra, numa linha só
+ *     (reticências; texto completo na dica). A barra superior volta à altura da 1.3.6. Faixa do
+ *     modo teste encurtada.
  * ========================================================================== */
 
 (function () {
@@ -804,7 +810,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.7';
+  const VERSAO = '1.3.8';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -1975,8 +1981,8 @@ window.HOCDERMA_TIMBRADO = {
     .fundo{ position:fixed; inset:0; background:rgba(20,14,10,.55); z-index:2147483000; display:flex; align-items:center; justify-content:center; padding:16px; }
     .janela{ background:#fff; width:min(1320px,100%); height:min(880px,100%); border-radius:10px; box-shadow:0 18px 50px rgba(0,0,0,.45); display:flex; flex-direction:column; overflow:hidden; }
     .topo{ display:flex; align-items:center; gap:10px; padding:10px 16px; background:${CONFIG.cores.marca}; color:#fff; }
-    .topo h2{ margin:0; font-size:15px; font-weight:600; letter-spacing:.3px; flex:1; }
-    .topo .aviso{ font-size:11px; opacity:.85; }
+    .topo h2{ margin:0; font-size:15px; font-weight:600; letter-spacing:.3px; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .aviso-faixa{ flex:none; padding:3px 16px; font-size:11px; line-height:16px; color:#5a4a3f; background:${CONFIG.cores.marcaClara}; border-bottom:1px solid #e0d6cc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .teste{ background:#fff3cd; color:#7a5300; border-bottom:1px solid #f0d27a; padding:6px 16px; font-size:12px; font-weight:700; letter-spacing:.3px; }
     .x{ background:transparent; border:0; color:#fff; font-size:22px; cursor:pointer; line-height:1; }
     .corpo{ flex:1; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); min-height:0; }
@@ -2253,6 +2259,10 @@ window.HOCDERMA_TIMBRADO = {
     return box;
   }
 
+  // v1.3.8: aviso curto numa faixa própria abaixo da barra (texto completo na dica)
+  const AVISO_CURTO = 'Itens, valores e descontos são salvos no Feegow · Descrições e textos valem só para a impressão';
+  const AVISO_COMPLETO = 'Quantidade, valor unitário, desconto e acréscimo dos itens, o desconto total e os itens novos (＋ Feegow) são gravados e salvos na proposta real do Feegow. Descrições, textos e opções valem só para esta impressão.';
+
   const itemVazio = () => ({ descricao: '', codigoFeegow: '', qtd: 1, unitario: 0, desconto: 0, descontoTipo: 'V', acrescimo: 0, modo: 'linha' });
 
   function abrirEditor(form) {
@@ -2267,10 +2277,10 @@ window.HOCDERMA_TIMBRADO = {
         <div class="janela" role="dialog" aria-modal="true" aria-label="Imprimir proposta HOC Derma">
           <div class="topo">
             <h2>Imprimir proposta: HOC Derma${dados.numero ? ' · nº ' + esc(dados.numero) : ''}</h2>
-            <span class="aviso">As alterações valem só para esta impressão; qtd, valores, descontos e acréscimos dos itens, o desconto total e o "＋ Feegow" são gravados e salvos na proposta real; descrições e textos valem só para a impressão</span>
             <button class="x" data-acao="fechar" title="Fechar (Esc)">×</button>
           </div>
-          ${o.modoTeste ? `<div class="teste" data-modo-teste>MODO TESTE: botão liberado só para o paciente de teste${o.somentePaciente ? ' (ID ' + esc(o.somentePaciente) + ')' : ''}. O clique salva a proposta no Feegow (botão SALVAR); qtd/valores/descontos/acréscimos dos itens, o desconto total e o "＋ Feegow" são gravados e salvos no Feegow; descrições e textos não.</div>` : ''}
+          <div class="aviso-faixa" data-aviso title="${esc(AVISO_COMPLETO)}">${esc(AVISO_CURTO)}</div>
+          ${o.modoTeste ? `<div class="teste" data-modo-teste>MODO TESTE: botão liberado só para o paciente de teste${o.somentePaciente ? ' (ID ' + esc(o.somentePaciente) + ')' : ''}. Itens, valores e descontos são salvos no Feegow.</div>` : ''}
           <div class="corpo">
             <div class="form">
               <div class="grade">

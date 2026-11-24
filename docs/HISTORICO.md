@@ -9,7 +9,7 @@
 | Core | 1.1.1.0 |
 | Suite principal | 4.9.5.2 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.3.7 |
+| Propostas HOC Derma | 1.3.8 |
 
 ---
 
@@ -18,6 +18,10 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.3.8 (24/11/2026)
+
+- O aviso do topo da janela ficou curto, numa faixa fina própria, e a barra superior voltou à altura de antes.
 
 ### Propostas 1.3.7 (24/11/2026)
 
