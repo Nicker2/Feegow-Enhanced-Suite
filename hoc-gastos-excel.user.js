@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HOC Gastos para Excel (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.0.0
-// @description  Na linha do tempo do prontuário do Feegow, coloca o botão "📋 Copiar para Excel" em cada registro de GASTO (tabela MATERIAL | QTDE | MEDICAMENTO | QTDE). Copia só os itens com quantidade (Item e Qtde, materiais primeiro e depois medicamentos), separados por TAB e também como tabela HTML, para colar direto no Excel. Não copia dados do paciente e não grava nada no Feegow.
+// @version      1.1.0
+// @description  Na linha do tempo do prontuário do Feegow, coloca o botão "📋 Copiar para Excel" em cada registro de GASTO (tabela MATERIAL | QTDE | MEDICAMENTO | QTDE). Copia só os itens com quantidade (Item e Qtde, materiais primeiro e depois medicamentos), separados por TAB e também como tabela HTML, para colar direto no Excel. Não copia dados do paciente e não grava nada no Feegow. Já vem com o Core da Feegow Enhanced Suite (item "Gastos para Excel" na engrenagem); com o Core instalado, este avulso não é necessário.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
 // @match        https://feegow.com/*
@@ -18,8 +18,20 @@
 (function () {
     'use strict';
 
-    var VERSAO = '1.0.0';
+    var VERSAO = '1.1.0';
     var MARCA = 'data-hoc-gastos-excel';
+
+    // Roda uma vez só por página: o módulo pode vir do Core (cascata da Suite) e
+    // também do script avulso. Quem chegar primeiro marca o <html>; o outro sai.
+    // (Marcador no DOM, e não em window, porque o avulso roda no contexto da
+    // página e o Core na sandbox do Tampermonkey: os dois só compartilham o DOM.)
+    var ATIVO = 'data-hoc-gastos-excel-ativo';
+    var raizDoc = document.documentElement;
+    if (!raizDoc || raizDoc.hasAttribute(ATIVO)) {
+        if (raizDoc) console.info('[HOC Gastos para Excel] Já ativo nesta página (v' + raizDoc.getAttribute(ATIVO) + '); esta cópia não roda.');
+        return;
+    }
+    raizDoc.setAttribute(ATIVO, VERSAO);
     var ROTULO = '\uD83D\uDCCB Copiar para Excel';
 
     // ---------- texto ----------

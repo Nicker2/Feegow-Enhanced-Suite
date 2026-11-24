@@ -13,7 +13,7 @@
   <img alt="Userscript Tampermonkey" src="https://img.shields.io/badge/userscript-Tampermonkey-00485B?logo=tampermonkey&logoColor=white">
   <img alt="Chrome | Edge" src="https://img.shields.io/badge/navegador-Chrome%20%7C%20Edge-4285F4?logo=googlechrome&logoColor=white">
   <img alt="Plataforma Feegow" src="https://img.shields.io/badge/plataforma-Feegow-2ea44f">
-  <img alt="Suite 4.9.5.2" src="https://img.shields.io/badge/suite-4.9.5.2-blue">
+  <img alt="Suite 4.9.6.0" src="https://img.shields.io/badge/suite-4.9.6.0-blue">
   <a href="LICENSE"><img alt="Licença MIT" src="https://img.shields.io/github/license/Nicker2/Feegow-Enhanced-Suite?label=licen%C3%A7a"></a>
   <img alt="Último commit" src="https://img.shields.io/github/last-commit/Nicker2/Feegow-Enhanced-Suite?label=%C3%BAltima%20atualiza%C3%A7%C3%A3o">
 </p>
@@ -63,7 +63,7 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 | ⚙️ | **Engrenagem de configurações** | Um botão na barra superior liga e desliga cada função, por computador. |
 | 🖨️ | **PDF HOC Derma (Timbrador)** | Aplica o cabeçalho e o rodapé HOC Derma em **qualquer PDF**, encaixa o conteúdo sozinho e exporta um PDF com texto selecionável. O arquivo não sai do computador. |
 | 💼 | **Propostas HOC Derma** | Botão **Imprimir HOC Derma** na proposta do prontuário: editor com prévia A4, descrição de cada procedimento, valores editáveis só para a impressão e timbrado HOC Derma. |
-| 📋 | **Gastos para Excel** | Na linha do tempo do prontuário, botão **Copiar para Excel** em cada registro de gasto: copia só os itens com quantidade (Item e Qtde), sem dados do paciente. Script avulso. |
+| 📋 | **Gastos para Excel** | Na linha do tempo do prontuário, botão **Copiar para Excel** em cada registro de gasto: copia só os itens com quantidade (Item e Qtde), sem dados do paciente. Já vem com o Core. |
 | 🔄 | **Atualiza sozinho** | Instalando só o Core, uma versão nova chega a todos os computadores em até cerca de 1 hora. Sem internet, roda a última cópia guardada. |
 
 <p align="center">
@@ -77,11 +77,11 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 
 | Script | Para que serve | Versão | Instalar |
 | :--- | :--- | :---: | :--- |
-| 🚀 **Core** (`core.user.js`) | Injetor: baixa a Suite do GitHub, guarda em cache e executa. É o **único** que você precisa instalar para ter a Suite, o Timbrador e as Propostas. | 1.1.1.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js) |
-| 🧩 **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Contador do DR. EXAMES, especialidade e dilatação, engrenagem, limpeza da tela, atalho para o prontuário e entrada com sessão ocupada. | 4.9.5.2 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
+| 🚀 **Core** (`core.user.js`) | Injetor: baixa a Suite do GitHub, guarda em cache e executa. É o **único** que você precisa instalar para ter a Suite, o Timbrador, as Propostas e o Gastos para Excel. | 1.1.2.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js) |
+| 🧩 **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Contador do DR. EXAMES, especialidade e dilatação, engrenagem, limpeza da tela, atalho para o prontuário e entrada com sessão ocupada. | 4.9.6.0 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
 | 🖨️ **PDF HOC Derma** (`hoc-derma-stamping-tool.user.js`) | Janela que aplica o timbrado HOC Derma em qualquer PDF, ajusta o encaixe e exporta ou imprime. | 3.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js)) |
 | 💼 **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário, com editor e folha A4 timbrada. | 1.3.8 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
-| 📋 **HOC Gastos para Excel** (`hoc-gastos-excel.user.js`) | Botão **📋 Copiar para Excel** nos registros de gasto da linha do tempo do prontuário. | 1.0.0 | **avulso, não vem com o Core** ([instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js)) |
+| 📋 **HOC Gastos para Excel** (`hoc-gastos-excel.user.js`) | Botão **📋 Copiar para Excel** nos registros de gasto da linha do tempo do prontuário. | 1.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js)) |
 
 A versão vigente de cada script é a do `@version` no respectivo `.meta.js`.
 
@@ -104,6 +104,7 @@ flowchart TD
     S --> K[🧹 Limpeza da tela e<br/>🗂️ atalho para o prontuário]
     S -->|PDF HOC Derma ON| T[🖨️ Timbrador]
     S -->|Propostas ON| P[💼 Propostas HOC Derma]
+    S -->|Gastos para Excel ON| X[📋 Gastos para Excel]
 ```
 
 A Suite carrega o Timbrador e as Propostas do mesmo jeito (cópia guardada por até 60 min), mas só quando o item está **ON** na engrenagem. Nenhum dos scripts grava no Feegow por conta própria: eles leem a tela e acrescentam botões e informações. A única exceção são as **Propostas**: o Imprimir HOC Derma clica no SALVAR da proposta antes de abrir o editor (desde a 1.3.5), e no editor o "＋ Feegow" de uma linha nova, as quantidades, valores, descontos e acréscimos dos itens e o desconto total gravam na proposta real, seguidos de SALVAR (1.3.6 e 1.3.7).
@@ -159,6 +160,7 @@ Clique na **engrenagem** da barra superior. Cada clique liga ou desliga o item e
 | Pedir Notificações | Esconde o pedido de permissão de notificações | ON |
 | PDF HOC Derma (v3) | Carrega o Timbrador e mostra o botão vermelho **PDF HOC Derma** | ON |
 | Imprimir HOC Derma (Propostas) | Carrega o módulo de Propostas | ON |
+| Gastos para Excel | Botão **📋 Copiar para Excel** nos registros de gasto do prontuário | ON |
 
 ### Configurações das Propostas
 
@@ -183,7 +185,7 @@ O Timbrador lembra o encaixe de cada PDF sozinho. Modo de impressão e diagnóst
 | Feegow diz "usuário já conectado em outra máquina" | Não faça nada: a tela de espera aparece e a Suite tenta entrar sozinha. Se a senha estiver errada, ela avisa e para. |
 | Pôr o timbrado HOC Derma num PDF | Botão vermelho **PDF HOC Derma** (barra superior ou painel **Arquivos do Paciente**) ou `Ctrl + Shift + H` → escolha ou arraste o PDF → confira a prévia → **Exportar PDF nativo** ou **Imprimir**. |
 | Imprimir uma proposta da HOC Derma | Prontuário → aba **Propostas** → abra a proposta → **Imprimir HOC Derma** → ajuste no editor → **Imprimir** (ou `Ctrl + Enter`). Para PDF, escolha **Salvar como PDF**. |
-| Passar os itens de um gasto para o Excel | Prontuário → linha do tempo → no registro de gasto, **📋 Copiar para Excel** → Ctrl+V no Excel (requer o script [HOC Gastos para Excel](docs/hoc-gastos-excel.md)). |
+| Passar os itens de um gasto para o Excel | Prontuário → linha do tempo → no registro de gasto, **📋 Copiar para Excel** → Ctrl+V no Excel (item **Gastos para Excel** ON na engrenagem; detalhes em [docs/hoc-gastos-excel.md](docs/hoc-gastos-excel.md)). |
 | Desligar uma função neste computador | Engrenagem → clique no item (vira OFF e a página recarrega). |
 
 ---

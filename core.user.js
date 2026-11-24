@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced Core Injector Agent
 // @namespace    https://github.com/Nicker2
-// @version      1.1.1.0
-// @description  Puxa o código fonte do GitHub de forma inteligente usando Cache.
+// @version      1.1.2.0
+// @description  Puxa o código fonte do GitHub de forma inteligente usando Cache. Inclui a Suite, o PDF HOC Derma, as Propostas HOC Derma e o HOC Gastos para Excel.
 // @author       Nicolas Bonza Cavalari Borges
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js
 // @updateURL   https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.meta.js
@@ -23,6 +23,12 @@
     const agora = new Date().getTime();
     const ultimoFetch = GM_getValue('last_fetch_time', 0);
     const scriptEmCache = GM_getValue('cached_script', '');
+
+    // Core atualizado pelo Tampermonkey (versão diferente da última que rodou):
+    // baixa a Suite na hora, sem esperar o cache vencer, para os módulos novos
+    // (ex.: Gastos para Excel, desde o Core 1.1.2.0) chegarem logo.
+    const versaoCore = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '';
+    const coreAtualizado = !!versaoCore && GM_getValue('core_versao', '') !== versaoCore;
 
     // O ?nocache continua aqui para quando precisarmos furar o cache do GitHub
     const url = "https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js?nocache=" + agora;
@@ -51,7 +57,7 @@
     }
 
     // Se já passou o tempo limite OU se o cofre está vazio (primeira vez rodando)
-    if (agora - ultimoFetch > (TEMPO_CACHE_MINUTOS * 60 * 1000) || !scriptEmCache) {
+    if (agora - ultimoFetch > (TEMPO_CACHE_MINUTOS * 60 * 1000) || !scriptEmCache || coreAtualizado) {
 
         GM_xmlhttpRequest({
             method: "GET",
@@ -70,6 +76,7 @@
                     // Só guarda no cofre a versão que rodou sem erro.
                     GM_setValue('cached_script', novoCodigo);
                     GM_setValue('last_fetch_time', agora);
+                    if (versaoCore) GM_setValue('core_versao', versaoCore);
                 } else if (scriptEmCache && scriptEmCache !== novoCodigo) {
                     usarCacheReserva("A versão nova falhou ao iniciar.");
                 }

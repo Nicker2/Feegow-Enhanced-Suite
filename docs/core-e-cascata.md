@@ -9,7 +9,8 @@ Tampermonkey
  └─ core.user.js                       (instalado; @updateURL = core.meta.js)
      └─ VERIFICAR-DR-EXAMES.user.js    (Suite, baixada pelo Core)
          ├─ hoc-derma-stamping-tool.user.js   (se "PDF HOC Derma" estiver ON)
-         └─ hoc-derma-propostas.user.js       (se "Imprimir HOC Derma" estiver ON)
+         ├─ hoc-derma-propostas.user.js       (se "Imprimir HOC Derma" estiver ON)
+         └─ hoc-gastos-excel.user.js          (se "Gastos para Excel" estiver ON)
 
 ```
 
@@ -40,7 +41,9 @@ Na cascata, a Suite roda **dentro** do Core, então todas as chaves abaixo apare
 | `cached_script` / `last_fetch_time` | Core | Código da Suite e horário do download |
 | `hoc_derma_codigo` / `hoc_derma_fetch_time` / `hoc_derma_versao` | Suite | Código, horário e `@version` do Timbrador |
 | `hoc_propostas_codigo` / `hoc_propostas_fetch_time` / `hoc_propostas_versao` | Suite | Código, horário e `@version` das Propostas |
-| `dr_exames_status`, `remove_alert_warning`, `remove_pnotify`, `remove_dp_spaces`, `remove_ai_assistant`, `remove_beamer`, `remove_beamer_push`, `pdf_hoc_derma`, `propostas_hoc_derma` | Suite | Itens da engrenagem (true/false) |
+| `hoc_gastos_codigo` / `hoc_gastos_fetch_time` / `hoc_gastos_versao` | Suite | Código, horário e `@version` do Gastos para Excel |
+| `core_versao` | Core | Última versão do Core que baixou a Suite. Se o Tampermonkey atualizar o Core (versão diferente), a Suite é baixada na hora, sem esperar os 60 min (desde o Core 1.1.2.0) |
+| `dr_exames_status`, `remove_alert_warning`, `remove_pnotify`, `remove_dp_spaces`, `remove_ai_assistant`, `remove_beamer`, `remove_beamer_push`, `pdf_hoc_derma`, `propostas_hoc_derma`, `gastos_excel` | Suite | Itens da engrenagem (true/false) |
 
 As Propostas também guardam ali as próprias preferências (ver [hoc-derma-propostas.md](hoc-derma-propostas.md)).
 

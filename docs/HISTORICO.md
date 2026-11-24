@@ -6,13 +6,19 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.1.1.0 |
-| Suite principal | 4.9.5.2 |
+| Core | 1.1.2.0 |
+| Suite principal | 4.9.6.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.3.8 |
-| HOC Gastos para Excel | 1.0.0 |
+| HOC Gastos para Excel | 1.1.0 |
 
 ---
+
+### Core 1.1.2.0, Suite 4.9.6.0 e Gastos para Excel 1.1.0 (24/11/2026): Gastos para Excel vem com o Core
+
+- O **HOC Gastos para Excel** passa a ser carregado pela Suite (item **Gastos para Excel** na engrenagem, ON por padrão). Não precisa mais instalar avulso em cada PC.
+- O avulso continua funcionando, mas, se o Core também estiver ativo, só um dos dois roda (marcador `data-hoc-gastos-excel-ativo` no `<html>`), sem botões duplicados. Recomendado: usar só o Core e desinstalar o avulso.
+- Core 1.1.2.0: quando o Tampermonkey atualiza o Core, a Suite é baixada na hora, sem esperar o cache de 60 min.
 
 ### HOC Gastos para Excel 1.0.0 (24/11/2026): novo script
 

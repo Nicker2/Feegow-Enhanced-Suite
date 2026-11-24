@@ -2,11 +2,15 @@
 
 [Voltar ao README](../README.md)
 
-**Versão atual: 1.0.0** · arquivo [`hoc-gastos-excel.user.js`](../hoc-gastos-excel.user.js)
+**Versão atual: 1.1.0** · arquivo [`hoc-gastos-excel.user.js`](../hoc-gastos-excel.user.js)
 
-**[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js)**
+## Instalação
 
-Script **avulso** (não é carregado pelo Core): instale pelo link acima.
+**Recomendado: só o [Core](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js).** Desde o Core 1.1.2.0 / Suite 4.9.6.0, o Gastos para Excel vem junto, ligado por padrão (item **Gastos para Excel** na engrenagem da Suite). Não precisa instalar nada em cada PC além do Core.
+
+> Se você instalou o [avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js) antes, **desinstale-o** no Tampermonkey. Ele continua funcionando e não duplica botões (quem roda primeiro marca a página com `data-hoc-gastos-excel-ativo` e o outro não faz nada), mas fica uma cópia a mais para manter atualizada.
+
+O avulso serve só para quem não usa o Core.
 
 ## O que faz
 
@@ -38,4 +42,5 @@ Funciona também quando a linha do tempo é carregada aos poucos (AJAX), sem dup
 
 ## Histórico
 
-- **1.0.0 (24/11/2026)**: primeira versão.
+- **1.1.0 (24/11/2026)**: carregado pela Suite (Core); roda uma vez só por página, mesmo com o avulso instalado junto.
+- **1.0.0 (24/11/2026)**: primeira versão, só avulso.

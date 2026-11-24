@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.5.2
-// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra o PDF HOC Derma v3 em cascata (baixa e executa o timbrador do GitHub, com atalho vermelho à esquerda do Configs que abre a janela flutuante).
+// @version      4.9.6.0
+// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma e o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
 // @downloadURL  https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js
@@ -22,6 +22,8 @@
     const featurePdfHocAtiva = GM_getValue('pdf_hoc_derma', true);
     // Botão "Imprimir HOC Derma" nas propostas do prontuário (vem ON por padrão).
     const featurePropostasHocAtiva = GM_getValue('propostas_hoc_derma', true);
+    // Botão "Copiar para Excel" nos registros de gasto do prontuário (vem ON por padrão).
+    const featureGastosExcelAtiva = GM_getValue('gastos_excel', true);
 
     // =========================================================================
     // PDF HOC DERMA v3 — CASCATA: o VERIFICAR baixa e executa o timbrador
@@ -232,6 +234,97 @@
     function iniciarModuloPropostasHoc() {
         if (!featurePropostasHocAtiva) return;   // OFF na engrenagem: nem baixa
         carregarPropostasHoc(false);             // o módulo tem o próprio vigia (MutationObserver)
+    }
+
+    // =========================================================================
+    // HOC GASTOS PARA EXCEL — CASCATA: o VERIFICAR baixa e executa o módulo
+    // =========================================================================
+    //   core.user.js ─▶ VERIFICAR-DR-EXAMES.user.js ─▶ hoc-gastos-excel.user.js
+    // Mesmo padrão das Propostas. O módulo marca <html data-hoc-gastos-excel-ativo>;
+    // se a pessoa também tiver o script avulso instalado, quem rodar primeiro
+    // fica e o outro sai sem fazer nada (sem botões duplicados).
+    const GASTOS_URL_RAW       = 'https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js';
+    const GASTOS_CACHE_MINUTOS = 60;
+    const GASTOS_CHAVE_CODIGO  = 'hoc_gastos_codigo';
+    const GASTOS_CHAVE_TIME    = 'hoc_gastos_fetch_time';
+    const GASTOS_CHAVE_VERSAO  = 'hoc_gastos_versao';
+    let gastosCarregando = null;
+
+    function gastosDisponivel() {
+        return document.documentElement.hasAttribute('data-hoc-gastos-excel-ativo');
+    }
+
+    function executarGastos(codigo, origem) {
+        if (gastosDisponivel()) return true;
+        try {
+            // eslint-disable-next-line no-eval
+            eval(codigo);
+            const ok = gastosDisponivel();
+            if (ok) log('HOC Gastos para Excel v' + hocDermaVersaoDe(codigo) + ' executado a partir de ' + origem + '.');
+            else console.error('[Feegow Suite] HOC Gastos para Excel rodou mas não marcou a página.');
+            return ok;
+        } catch (e) {
+            console.error('[Feegow Suite] Falha ao executar o HOC Gastos para Excel:', e);
+            return false;
+        }
+    }
+
+    function carregarGastosExcel(forcarAtualizacao) {
+        if (gastosDisponivel()) return Promise.resolve(true);
+        if (gastosCarregando) return gastosCarregando;
+
+        const agora = Date.now();
+        const ultimoFetch = Number(GM_getValue(GASTOS_CHAVE_TIME, 0)) || 0;
+        const codigoCache = String(GM_getValue(GASTOS_CHAVE_CODIGO, '') || '');
+        const expirou = (agora - ultimoFetch) > (GASTOS_CACHE_MINUTOS * 60 * 1000);
+
+        if (!forcarAtualizacao && codigoCache && !expirou) {
+            if (executarGastos(codigoCache, 'memória local')) return Promise.resolve(true);
+        }
+
+        const reserva = () => (codigoCache ? executarGastos(codigoCache, 'memória local (expirada)') : false);
+        gastosCarregando = new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: GASTOS_URL_RAW + '?nocache=' + agora,
+                timeout: 30000,
+                onload: function (resposta) {
+                    const codigo = (resposta && resposta.responseText) || '';
+                    const status = resposta ? resposta.status : 0;
+                    if (status !== 200 || codigo.indexOf('// ==UserScript==') < 0) {
+                        console.error('[Feegow Suite] HOC Gastos para Excel: resposta inesperada do GitHub (HTTP ' + status + ').');
+                        resolve(reserva());
+                        return;
+                    }
+                    const ok = executarGastos(codigo, 'GitHub');
+                    if (ok) {
+                        try {
+                            GM_setValue(GASTOS_CHAVE_CODIGO, codigo);
+                            GM_setValue(GASTOS_CHAVE_TIME, agora);
+                            GM_setValue(GASTOS_CHAVE_VERSAO, hocDermaVersaoDe(codigo));
+                        } catch (e) { /* noop */ }
+                        resolve(true);
+                    } else {
+                        resolve(reserva());
+                    }
+                },
+                onerror: function () {
+                    console.error('[Feegow Suite] HOC Gastos para Excel: falha de rede ao baixar do GitHub.');
+                    resolve(reserva());
+                },
+                ontimeout: function () {
+                    console.error('[Feegow Suite] HOC Gastos para Excel: timeout ao baixar do GitHub.');
+                    resolve(reserva());
+                }
+            });
+        }).then((ok) => { gastosCarregando = null; return ok; });
+
+        return gastosCarregando;
+    }
+
+    function iniciarModuloGastosExcel() {
+        if (!featureGastosExcelAtiva) return;    // OFF na engrenagem: nem baixa
+        carregarGastosExcel(false);              // o módulo tem o próprio vigia (MutationObserver)
     }
 
     // Abre a janela flutuante. NUNCA redireciona para a instalação.
@@ -1067,6 +1160,7 @@ const protocolosDilatacao = {
         configurarObserver();
         iniciarModuloPdfHoc();
         iniciarModuloPropostasHoc();
+        iniciarModuloGastosExcel();
     };
 
     let exibirTodos = 1;
@@ -1158,6 +1252,9 @@ const protocolosDilatacao = {
                     </li>
                     <li class="toggle-remover" data-key="propostas_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePropostasHocAtiva ? 'green' : 'red'};" title="Botão 'Imprimir HOC Derma' ao lado do Imprimir das propostas">
                         Imprimir HOC Derma (Propostas): ${featurePropostasHocAtiva ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="gastos_excel" style="padding: 5px 10px; cursor: pointer; color: ${featureGastosExcelAtiva ? 'green' : 'red'};" title="Botão 'Copiar para Excel' nos registros de gasto da linha do tempo do prontuário">
+                        Gastos para Excel: ${featureGastosExcelAtiva ? 'ON' : 'OFF'}
                     </li>
                 </ul>
               </div>
