@@ -69,7 +69,7 @@ O que foi verificado no código de cada script:
 | Core | Só `GET` em `raw.githubusercontent.com` (o próprio código da Suite). Nenhum dado é enviado. | Código da Suite e horário do download, no armazenamento do Tampermonkey. |
 | Suite | `GET` em `raw.githubusercontent.com` (código do Timbrador e das Propostas). Consulta a lista de espera no **próprio Feegow** (`app.feegow.com`), com a sessão já aberta. No recurso de entrada com sessão ocupada, os dados de acesso digitados vão **só para a tela de login do próprio Feegow**. As imagens da tela de carregamento vêm dos servidores do Feegow. | Preferências da engrenagem e cache, no Tampermonkey. Os dados de acesso digitados ficam guardados temporariamente na própria aba (ver aviso abaixo). |
 | PDF HOC Derma | Nenhum no uso normal: pdf.js e pdf-lib vão embutidos e o PDF é processado no navegador. Só se o navegador não suportar `DecompressionStream` (versões anteriores a 2020) ou bloquear workers `blob:`, baixa as mesmas bibliotecas de `cdnjs.cloudflare.com` / `unpkg.com`, sem cookies. | Ajustes por arquivo no `localStorage` do Feegow (`hocderma:v3:*`). |
-| Propostas HOC Derma | Nenhum. Só lê a tela. | Preferências no Tampermonkey. |
+| Propostas HOC Derma | Nenhum. Lê a tela e só clica no SALVAR da proposta antes de imprimir (1.3.5). | Preferências no Tampermonkey. |
 
 Em resumo:
 

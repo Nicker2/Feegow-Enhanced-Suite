@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.4
-// @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Só lê a tela; nada é gravado no Feegow.
+// @version      1.3.5
+// @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão; as edições da janela não são gravadas.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
 // @match        https://feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.4
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.5
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -55,7 +55,8 @@ window.HOCDERMA_TIMBRADO = {
  *     4. imprime num iframe oculto, com o timbrado HOC Derma e um layout
  *        próprio, sem a tabela do modelo padrão do Feegow.
  *
- *   SOMENTE LEITURA: nada é gravado no Feegow, nenhuma API é chamada e
+ *   O script não grava nada por conta própria e não chama API: a única ação no
+ *   Feegow é clicar no botão SALVAR da proposta (v1.3.5), como o usuário faria.
  *   "Observações Internas" (#Internas) NUNCA é lida nem impressa.
  *
  * OPÇÕES EXTERNAS (lidas a cada varredura)
@@ -88,7 +89,7 @@ window.HOCDERMA_TIMBRADO = {
  *
  * v1.2.0 (21/11/2026)
  *   - Catálogo real: 61 descrições vindas dos modelos "Textos e Atestados" do
- *     Feegow (filtradas para a HOC Derma; 8 marcadas "a revisar" no modal).
+ *     Feegow (filtradas para a HOC Derma; v1.3.5: todas normais, nenhuma "a revisar").
  *     Lista do que entrou/saiu: modelos_feegow/classificacao_hocderma.txt.
  *   - Detecção tolerante: sem acento, sem maiúsculas, palavras de ligação
  *     ignoradas, "01SS"/"3SS" = sessões, zeros à esquerda, tabela de APELIDOS
@@ -157,6 +158,16 @@ window.HOCDERMA_TIMBRADO = {
  *     configurações do PC.
  *   - Cabeçalho do userscript com descrição mais clara; changelog em ordem.
  *   - Comportamento das propostas, do editor e da impressão sem mudança.
+ *
+ * v1.3.5 (24/11/2026)
+ *   - "Imprimir HOC Derma" agora clica primeiro no SALVAR do Feegow
+ *     (button onclick="propostaSave(false)"; reserva: texto SALVAR + ícone fa-save) e
+ *     em seguida abre a janela de impressão, sem esperar o salvamento terminar.
+ *     Sem o botão SALVAR na tela, abre a impressão como antes (registra no console com debug).
+ *   - Os 8 procedimentos que estavam "a revisar" (blefaroplastias, fotobiomodulação
+ *     pós-blefaro, laser CO2 cirurgia, lifting de supercílio, peeling superficial, ptose
+ *     palpebral) viraram procedimentos normais: sem o selo "A REVISAR" no modal. Textos e
+ *     valores sem mudança. Catálogo: 61 procedimentos, todos normais.
  *
  * ========================================================================== */
 
@@ -257,7 +268,6 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "BLEFAROPLASTIA INFERIOR",
       palavrasChave: ["blefaro inferior"],
       investimento: "",
-      revisar: "cirurgia palpebral (blefaroplastia): oculoplástica, pode ser do HOC e não da Derma",
       texto: "Cirurgia para tratar as bolsas de gordura e o excesso de pele abaixo dos olhos, suavizando o volume e melhorando o contorno das pálpebras inferiores."
     },
     {
@@ -266,7 +276,6 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "BLEFAROPLASTIA | SUPERIOR",
       palavrasChave: ["blefaro superior"],
       investimento: "",
-      revisar: "cirurgia palpebral (blefaroplastia): oculoplástica, pode ser do HOC e não da Derma",
       texto: "Cirurgia para remover o excesso de pele das pálpebras superiores, suavizando o aspecto de cansaço e deixando o olhar mais leve e descansado."
     },
     {
@@ -275,7 +284,6 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "BLEFAROPLASTIA | SUPERIOR E INFERIOR",
       palavrasChave: ["blefaro superior inferior"],
       investimento: "",
-      revisar: "cirurgia palpebral (blefaroplastia): oculoplástica, pode ser do HOC e não da Derma",
       texto: "Cirurgia para remover o excesso de pele e tratar as bolsas de gordura das pálpebras superiores e inferiores, suavizando o aspecto de cansaço e deixando o olhar mais leve e descansado."
     },
     {
@@ -364,7 +372,6 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "FOTOBIOMODULAÇÃO PÓS-BLEFAROPLASTIA | CORTESIA — 03 SESSÕES",
       palavrasChave: ["fotobiomodulacao blefaro"],
       investimento: "",
-      revisar: "fotobiomodulação pós-blefaroplastia: cortesia ligada à cirurgia palpebral",
       texto: "Tratamento com luz que auxilia na cicatrização e na redução do inchaço, contribuindo para maior conforto e recuperação no pós-operatório."
     },
     {
@@ -405,7 +412,6 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "LASER DE CO2",
       palavrasChave: ["laser co2"],
       investimento: "",
-      revisar: "laser de CO2 para incisão de pálpebras: parte da blefaroplastia",
       texto: "**CORTE CIRÚRGICO:** Utilização do laser de CO2 para realizar as incisões nas pálpebras, com precisão e controle do sangramento, podendo contribuir para maior conforto no pós-operatório.\n\n**RESURFACING | CORTESIA:** Aplicação do laser de CO2 para renovar a pele e estimular a produção de colágeno, melhorando a textura e suavizando linhas finas e rugas na região tratada."
     },
     {
@@ -510,7 +516,6 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "LIFTING DE SUPERCÍLIOS | TÉCNICA DE CASTANHARES",
       palavrasChave: ["lifting supercilio", "lifting sobrancelha"],
       investimento: "",
-      revisar: "lifting de supercílio (técnica de Castanhares): cirurgia, confirmar se é da Derma",
       texto: "Cirurgia que eleva e reposiciona as sobrancelhas, proporcionando um olhar mais aberto e uma expressão mais leve."
     },
     {
@@ -607,7 +612,6 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "PEELING SUPERFICIAL",
       palavrasChave: ["peeling superficial", "peeling quimico"],
       investimento: "",
-      revisar: "o texto é de cuidados pós-peeling, não uma descrição do procedimento para proposta",
       incluirPadrao: false,
       texto: "**Cuidados essenciais após o peeling químico**\n\n- Lavar o rosto 6 horas após a aplicação do peeling, com água fria e sabonete suave.\n- Manter uso de filtro solar pela manhã e à tarde e aplicar (Epidrat Calm, Cicalfate Avène, Nutrel Balm Suavizante) creme à noite durante uma semana (suspender a fórmula com ácido).\n- Não puxar a pele, deixar que a descamação ocorra naturalmente.\n- Não se expor ao sol.\n- Não se expor ao frio ou calor excessivos (próximo ao forno ou freezer por exemplo).\n- Não usar maquiagens ou cosméticos, além dos prescritos, durante uma semana.\n- Evitar banhos muito quentes. Sensações de ardência e secura nas áreas aplicadas são normais e costumam durar poucos dias.\n- Devido à evaporação do peeling pode ocorrer descamação em áreas não aplicadas como orelhas, pálpebras, pescoço, porém com menor intensidade.\n- Caso a irritação seja maior, entrar em contato com a clínica."
     },
@@ -657,7 +661,6 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "CORREÇÃO DE PTOSE",
       palavrasChave: ["ptose"],
       investimento: "",
-      revisar: "correção de ptose palpebral: cirurgia oculoplástica (menciona campo de visão)",
       texto: "Cirurgia que eleva a pálpebra caída, deixando o olhar mais aberto e melhorando o campo de visão quando ele está comprometido."
     },
     {
@@ -758,7 +761,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.4';
+  const VERSAO = '1.3.5';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -1657,7 +1660,7 @@ window.HOCDERMA_TIMBRADO = {
     const b = document.createElement('button');
     b.type = 'button'; // NÃO submete o form
     b.className = 'btn btn-sm btn-danger ' + CLASSE_BOTAO;
-    b.title = 'Impressão personalizada HOC Derma (edite antes de imprimir; nada é salvo no Feegow)';
+    b.title = 'Salva a proposta no Feegow (SALVAR) e abre a impressão personalizada HOC Derma (as edições da janela valem só para a impressão)';
     b.setAttribute('data-hocderma', VERSAO);
     b.style.cssText = 'margin-left:4px;margin-right:4px;background-color:' + CONFIG.cores.botao +
       ';border-color:' + CONFIG.cores.botaoBorda + ';color:#fff;';
@@ -1666,9 +1669,47 @@ window.HOCDERMA_TIMBRADO = {
       e.preventDefault();
       e.stopPropagation();
       const f = b.closest(SEL.form) || form;
+      clicarSalvarFeegow(f);
       abrirEditor(f);
     });
     return b;
+  }
+
+  // v1.3.5: antes de abrir a janela de impressão, clica no SALVAR do Feegow
+  // (button onclick="propostaSave(false)") para a proposta ficar gravada.
+  // Não espera o AJAX do salvamento nem bloqueia a impressão: o editor lê o DOM
+  // na hora, e o propostaSave já serializou o form no clique.
+  function acharBotaoSalvar(form) {
+    const raizes = [];
+    const barra = form && q(form, SEL.botoes);
+    if (barra) raizes.push(barra);
+    if (form) raizes.push(form);
+    raizes.push(document);
+    for (const r of raizes) {
+      const b = q(r, 'button[onclick^="propostaSave(false)"]');
+      if (b) return b;
+    }
+    // reservas só dentro da barra/form da proposta: outro onclick com propostaSave,
+    // ou botão com texto SALVAR e ícone fa-save
+    const locais = raizes.slice(0, raizes.length - 1);
+    for (const r of locais) {
+      const b = q(r, SEL.botaoSalvar);
+      if (b) return b;
+    }
+    for (const r of locais) {
+      const b = qa(r, 'button').find((x) => !x.classList.contains(CLASSE_BOTAO) &&
+        /^\s*salvar\s*$/i.test(x.textContent || '') && x.querySelector('.fa-save'));
+      if (b) return b;
+    }
+    return null;
+  }
+
+  function clicarSalvarFeegow(form) {
+    const b = acharBotaoSalvar(form);
+    if (!b) { log('botão SALVAR da proposta não encontrado; segue só a impressão.'); return false; }
+    try { b.click(); log('SALVAR do Feegow clicado antes de imprimir.'); return true; } catch (e) {
+      aviso('falha ao clicar no SALVAR do Feegow: ' + (e && e.message)); return false;
+    }
   }
 
   function acharGrupoImpressao(barra) {
@@ -1987,7 +2028,7 @@ window.HOCDERMA_TIMBRADO = {
             <span class="aviso">As alterações valem só para esta impressão (nada é salvo no Feegow)</span>
             <button class="x" data-acao="fechar" title="Fechar (Esc)">×</button>
           </div>
-          ${o.modoTeste ? `<div class="teste" data-modo-teste>MODO TESTE: botão liberado só para o paciente de teste${o.somentePaciente ? ' (ID ' + esc(o.somentePaciente) + ')' : ''}. Somente leitura; nada é gravado no Feegow.</div>` : ''}
+          ${o.modoTeste ? `<div class="teste" data-modo-teste>MODO TESTE: botão liberado só para o paciente de teste${o.somentePaciente ? ' (ID ' + esc(o.somentePaciente) + ')' : ''}. O clique salva a proposta no Feegow (botão SALVAR); as edições desta janela não são gravadas.</div>` : ''}
           <div class="corpo">
             <div class="form">
               <div class="grade">

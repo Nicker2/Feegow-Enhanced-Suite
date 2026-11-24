@@ -79,7 +79,7 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 | 🚀 **Core** (`core.user.js`) | Injetor: baixa a Suite do GitHub, guarda em cache e executa. É o **único** que você precisa instalar para ter a Suite, o Timbrador e as Propostas. | 1.1.1.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js) |
 | 🧩 **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Contador do DR. EXAMES, especialidade e dilatação, engrenagem, limpeza da tela, atalho para o prontuário e entrada com sessão ocupada. | 4.9.5.2 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
 | 🖨️ **PDF HOC Derma** (`hoc-derma-stamping-tool.user.js`) | Janela que aplica o timbrado HOC Derma em qualquer PDF, ajusta o encaixe e exporta ou imprime. | 3.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js)) |
-| 💼 **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário, com editor e folha A4 timbrada. | 1.3.4 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
+| 💼 **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário, com editor e folha A4 timbrada. | 1.3.5 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
 
 A versão vigente de cada script é a do `@version` no respectivo `.meta.js`.
 
@@ -104,7 +104,7 @@ flowchart TD
     S -->|Propostas ON| P[💼 Propostas HOC Derma]
 ```
 
-A Suite carrega o Timbrador e as Propostas do mesmo jeito (cópia guardada por até 60 min), mas só quando o item está **ON** na engrenagem. Nenhum dos scripts grava no Feegow: eles leem a tela e acrescentam botões e informações.
+A Suite carrega o Timbrador e as Propostas do mesmo jeito (cópia guardada por até 60 min), mas só quando o item está **ON** na engrenagem. Nenhum dos scripts grava no Feegow por conta própria: eles leem a tela e acrescentam botões e informações. A única exceção é o **Imprimir HOC Derma**, que clica no SALVAR da proposta antes de abrir o editor (desde a 1.3.5).
 
 ---
 
@@ -190,7 +190,7 @@ O Timbrador lembra o encaixe de cada PDF sozinho. Modo de impressão e diagnóst
 - **Nenhum script envia dados para servidores de terceiros.** Fora do Feegow, só baixam o próprio código do GitHub (e, raramente, uma biblioteca pública de PDF).
 - **Nenhum script grava no Feegow.** Não há cadastro, edição ou exclusão de registros.
 - **O PDF do Timbrador não sai do computador**: tudo é feito no navegador.
-- **As Propostas só leem a tela.** As "Observações Internas" nunca são lidas nem impressas, e o que você muda no editor vale só para aquela impressão.
+- **As Propostas leem a tela e só clicam no SALVAR da proposta** (ao clicar em Imprimir HOC Derma, desde a 1.3.5). As "Observações Internas" nunca são lidas nem impressas, e o que você muda no editor vale só para aquela impressão.
 - **Entrada com sessão ocupada:** para tentar entrar de novo sozinha, a Suite guarda o usuário e a senha digitados **na própria aba**, até a entrada dar certo ou a aba ser fechada. Em computador compartilhado, feche a aba depois de sair do Feegow.
 
 A análise completa, script por script, está em [docs/AVANCADO.md](docs/AVANCADO.md#privacidade-e-segurança).

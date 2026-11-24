@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.3.4** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.3.5** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -14,7 +14,7 @@ O script coloca o botão **"Imprimir HOC Derma"** na tela de proposta do prontu�
 - o **nome de quem fez a proposta** no fim da folha;
 - a **tabela de itens**, que é opcional e vem desligada por padrão.
 
-> **O script só lê a tela, nunca grava nada.** Nada é salvo no Feegow, nenhuma API é chamada, e as "Observações Internas" da proposta nunca são lidas nem impressas. Tudo o que você muda no editor vale só para aquela impressão.
+> **Ao clicar em "Imprimir HOC Derma", o script clica no botão SALVAR da proposta** (desde a 1.3.5), como você faria, e logo em seguida abre o editor. Fora isso, não grava nada: nenhuma API é chamada, e as "Observações Internas" da proposta nunca são lidas nem impressas. Tudo o que você muda no editor vale só para aquela impressão.
 
 ---
 
@@ -76,7 +76,7 @@ Para checar a versão publicada, abra o arquivo [`hoc-derma-propostas.meta.js`](
 
 1. No Feegow, abra o **prontuário do paciente** → aba **Propostas** e abra (ou crie) a proposta.
 2. Ao lado do botão de impressão padrão do Feegow aparece o botão vermelho **"Imprimir HOC Derma"**.
-3. Clique nele. Abre o **editor**: à esquerda ficam os campos e à direita a **prévia** em folhas A4, que se atualiza enquanto você edita.
+3. Clique nele. O script clica no **SALVAR** do Feegow (a proposta fica gravada como está na tela) e abre na hora o **editor**, sem esperar o salvamento terminar: à esquerda ficam os campos e à direita a **prévia** em folhas A4, que se atualiza enquanto você edita.
 4. Confira o paciente, a data, o profissional e os itens, e ajuste o que precisar (veja a [seção 4](#4-o-editor-em-detalhe)).
 5. Em **Descrições dos procedimentos**, confira os blocos encontrados. Desmarque o que não deve sair e escolha de onde vem o **Investimento** de cada um.
 6. Clique em **Imprimir** (ou tecle **Ctrl+Enter**).
@@ -105,7 +105,6 @@ Para checar a versão publicada, abra o arquivo [`hoc-derma-propostas.meta.js`](
 Para cada procedimento reconhecido aparece um cartão com:
 - a caixinha **incluir/excluir** o bloco da folha;
 - **"Na proposta: ..."**, que mostra quais itens da proposta ativaram aquela descrição;
-- o selo **A REVISAR** em alguns procedimentos (veja a [seção 7](#7-procedimentos-cobertos)). O selo aparece só no editor e não sai na folha;
 - **Investimento**, em que você escolhe de onde vem o valor impresso no fim do bloco:
 
   | Opção | O que sai |
@@ -196,7 +195,7 @@ Cada item da proposta é comparado com o **catálogo de descrições**, a consta
 
 O catálogo tem **61 procedimentos**, todos com descrição, vindos dos modelos "Textos e Atestados" do Feegow e filtrados para a HOC Derma.
 
-- **8 marcados "a revisar"**, que aparecem com o selo no editor: os blefaroplastia (inferior, superior, superior e inferior), a fotobiomodulação pós-blefaroplastia, o laser de CO2 (incisão palpebral), o lifting de supercílios (técnica de Castanhares), a correção de ptose e o peeling superficial. Os sete primeiros são cirurgias palpebrais, que podem ser do HOC e não da Derma. O texto do peeling superficial é de cuidados pós-peeling, e por isso o bloco **vem desmarcado**.
+- **Todos são procedimentos normais** (desde a 1.3.5 não há mais o selo "a revisar"; as cirurgias palpebrais, o lifting de supercílios e o peeling superficial foram confirmados como HOC Derma). O texto do peeling superficial é de cuidados pós-peeling, e por isso o bloco **vem desmarcado**.
 - **13 com texto repetido**: variações do mesmo produto têm a mesma descrição (Radiesse e Sculptra com 1 ou 2 frascos; laser para manchas com 1 ou 3 sessões; laser para qualidade da pele com 1 ou 3; MMP capilar com 1 ou 3; preenchimento com 1, 2 ou 3+).
 - **30 sem valor padrão no modelo**. Nesses, o Investimento automático usa só o valor da proposta. Se a proposta estiver sem valor, o bloco sai sem investimento.
 
@@ -210,7 +209,7 @@ O catálogo tem **61 procedimentos**, todos com descrição, vindos dos modelos 
 | **Peelings e limpeza** (4) | Limpeza de pele · Peeling retinoico + Jessner (3 sessões) · Peeling superficial · PRX |
 | **Pequenas cirurgias** (5) | Eletrocoagulação (ECG) até 5 lesões · Exérese de lesão (baixa e média complexidade) · Exérese de cisto · Exérese de lipoma |
 | **Fios e lifting** (3) | Fios Aptos rosto · Fios Aptos Hammock pescoço · Lifting cirúrgico do terço médio e pescoço |
-| **Pálpebras / cirurgias, a revisar** (7) | Blefaroplastia inferior, superior, e superior e inferior · Fotobiomodulação pós-blefaroplastia · Laser de CO2 · Lifting de supercílios · Correção de ptose |
+| **Pálpebras / cirurgias** (7) | Blefaroplastia inferior, superior, e superior e inferior · Fotobiomodulação pós-blefaroplastia · Laser de CO2 · Lifting de supercílios · Correção de ptose |
 
 A lista completa, com as palavras-chave, o valor do modelo e a situação de cada entrada, fica no arquivo de manutenção `LISTA_PROCEDIMENTOS_DERMATOLOGICOS.txt` (na pasta de trabalho do mantenedor, fora do repositório). A fonte oficial é sempre a constante `DESCRICOES_PROCEDIMENTOS` dentro do script.
 
@@ -251,7 +250,8 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
-| **1.3.4** | 21/11/2026 | **Versão de produção.** Logs de depuração desligados por padrão (só avisos de falha). A API `window.HOCDERMA_PROPOSTAS` tinha a chave `config` duplicada; agora o `CONFIG` fica em `constantes`. Descrição do userscript mais clara e changelog em ordem. Nenhuma mudança no editor nem na folha. |
+| **1.3.5** | 24/11/2026 | **"Imprimir HOC Derma" salva a proposta antes**: clica no SALVAR do Feegow (`propostaSave(false)`; reserva: botão com texto SALVAR e ícone de disquete) e abre o editor na hora, sem esperar o salvamento. Sem o botão SALVAR na tela, abre o editor como antes. Os **8 procedimentos "a revisar"** (blefaroplastias, fotobiomodulação pós-blefaro, laser de CO2, lifting de supercílios, peeling superficial, ptose) viraram normais, sem selo; textos e valores iguais. |
+| 1.3.4 | 21/11/2026 | **Versão de produção.** Logs de depuração desligados por padrão (só avisos de falha). A API `window.HOCDERMA_PROPOSTAS` tinha a chave `config` duplicada; agora o `CONFIG` fica em `constantes`. Descrição do userscript mais clara e changelog em ordem. Nenhuma mudança no editor nem na folha. |
 | 1.3.3 | 21/11/2026 | A prévia do editor fica **sem barra de rolagem interna** em qualquer zoom e tamanho de janela, com a escala recalculada ao mudar o zoom. A impressão não mudou. |
 | 1.3.2 | 21/11/2026 | **Item adicionado na proposta sem recarregar a página entra na impressão**, com descrição, valores e casamento com o catálogo. Item novo com unitário "0,00" e total preenchido: o unitário é calculado a partir do total. |
 | 1.3.1 | 21/11/2026 | Com "Mostrar validade" ligado, some a frase "PROPOSTA VÁLIDA POR X DIAS." do Feegow, que ficava repetida. |
@@ -307,10 +307,10 @@ A fonte é o **módulo** `real/hoc-derma-propostas.js`, sem cabeçalho nem timbr
    - `real/TESTE-hoc-derma-propostas.user.js`, a versão de teste com trava de paciente e faixa "MODO TESTE", que **não** vai para o repo.
 4. **Autoteste offline**: a prévia `real/previa_vXYZ.html` simula a tela de proposta do Feegow (DOM real copiado, sem dados reais) e, com `?teste=1`, roda a bateria completa: módulo, TESTE e cópia do repo. Copie a prévia mais recente, ajuste as checagens de versão e rode **um Chrome headless por vez**:
    ```powershell
-   Start-Process chrome.exe -ArgumentList '--headless=new','--disable-gpu','--window-size=1366,768','--virtual-time-budget=120000','--dump-dom','file:///C:/APACBOT/FEEGOW_ENHANCED_SUITE/real/previa_v134.html?teste=1' -RedirectStandardOutput saida.txt -Wait
+   Start-Process chrome.exe -ArgumentList '--headless=new','--disable-gpu','--window-size=1366,768','--virtual-time-budget=120000','--dump-dom','file:///C:/APACBOT/FEEGOW_ENHANCED_SUITE/real/previa_v135.html?teste=1' -RedirectStandardOutput saida.txt -Wait
    ```
-   Procure `AUTOTESTE vX.Y.Z N/N OK` em `saida.txt`; nenhuma linha pode começar com `FALHA`. O `--virtual-time-budget` é necessário porque, sem ele, o `--dump-dom` grava a página antes de os testes assíncronos terminarem. O `--window-size` evita uma falha falsa de paginação na janela padrão do headless, que é pequena. Resultado da 1.3.4: **173/173 OK**.
-5. **Regras de teste**: teste só offline. Não abra o Feegow real em automação, não leia cookies nem storage, e nunca clique em Salvar, Duplicar ou Gerar contrato.
+   Procure `AUTOTESTE vX.Y.Z N/N OK` em `saida.txt`; nenhuma linha pode começar com `FALHA`. O `--virtual-time-budget` é necessário porque, sem ele, o `--dump-dom` grava a página antes de os testes assíncronos terminarem. O `--window-size` evita uma falha falsa de paginação na janela padrão do headless, que é pequena. Resultado da 1.3.5: **183/183 OK**.
+5. **Regras de teste**: teste só offline. Não abra o Feegow real em automação, não leia cookies nem storage, e nunca clique em Salvar, Duplicar ou Gerar contrato no Feegow real (a prévia simula o `propostaSave`).
 6. **Publicar**: no repo, `git add hoc-derma-propostas.user.js hoc-derma-propostas.meta.js docs/hoc-derma-propostas.md`, commit, `git pull --rebase origin main` e `git push origin main`. Confira com:
    ```bash
    curl -s https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.meta.js | grep @version

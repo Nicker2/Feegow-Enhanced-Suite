@@ -9,7 +9,7 @@
 | Core | 1.1.1.0 |
 | Suite principal | 4.9.5.2 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.3.4 |
+| Propostas HOC Derma | 1.3.5 |
 
 ---
 
@@ -18,6 +18,11 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.3.5 (24/11/2026)
+
+- **Imprimir HOC Derma salva a proposta antes**: clica no SALVAR do Feegow e abre o editor na hora, sem esperar o salvamento. Sem o botão SALVAR na tela, abre o editor como antes.
+- Os **8 procedimentos "a revisar"** (blefaroplastias, fotobiomodulação pós-blefaro, laser de CO2, lifting de supercílios, peeling superficial, ptose) viraram procedimentos normais, sem selo. Textos e valores iguais.
 
 ### Propostas 1.3.0 a 1.3.4 (21/11/2026)
 
