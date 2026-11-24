@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.3.5** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.3.6** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -14,7 +14,10 @@ O script coloca o botão **"Imprimir HOC Derma"** na tela de proposta do prontu�
 - o **nome de quem fez a proposta** no fim da folha;
 - a **tabela de itens**, que é opcional e vem desligada por padrão.
 
-> **Ao clicar em "Imprimir HOC Derma", o script clica no botão SALVAR da proposta** (desde a 1.3.5), como você faria, e logo em seguida abre o editor. Fora isso, não grava nada: nenhuma API é chamada, e as "Observações Internas" da proposta nunca são lidas nem impressas. Tudo o que você muda no editor vale só para aquela impressão.
+> **Ao clicar em "Imprimir HOC Derma", o script clica no botão SALVAR da proposta** (desde a 1.3.5), como você faria, e logo em seguida abre o editor. As "Observações Internas" da proposta nunca são lidas nem impressas. O que você muda no editor vale só para aquela impressão, com duas exceções (desde a 1.3.6), que gravam na proposta real e clicam em SALVAR:
+>
+> - **"＋ Feegow" numa linha nova** (criada por "+ Adicionar linha"; também com Enter na descrição): o procedimento entra na proposta do Feegow. O ID vem do nome exato, procurado entre os itens que já estão na proposta e na mesma busca do campo "Procedimento" do Feegow (só leitura). Se o nome não for exato ou houver dois iguais, aparece uma lista para escolher. O script chama a função `itens('S','I', ID)` do próprio Feegow, espera a linha nova (até 10 s), preenche quantidade, valor unitário (se você digitou; senão fica o preço do Feegow), desconto e acréscimo, e clica em SALVAR. Ele nunca usa a opção de criar um procedimento novo e não clica em "Seleção Rápida". Erros aparecem na janela: paciente não selecionado, procedimento não encontrado ou tempo esgotado. Cada linha só é enviada uma vez.
+> - **Desconto total** (em % ou R$): ao mudar o campo, o valor vai para o "Desconto total" (%) do Feegow. Um desconto em R$ vira % sobre o subtotal, com 2 casas e no máximo 100%. O script confere se o total do Feegow bate com o da janela e avisa se não bater (tolerância: centavos mais o arredondamento do %). Apagar o desconto zera o campo no Feegow.
 
 ---
 
@@ -250,6 +253,7 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
+| **1.3.6** | 24/11/2026 | **"＋ Feegow" na linha nova**: inclui o procedimento na proposta real (`itens('S','I', ID)`, ID pelo nome exato nos itens da proposta ou na busca AJAX do select2 `#ProcedimentoID`; lista quando é ambíguo; nunca "criar novo"), preenche qtd/valores com `recalc()` e clica em SALVAR. Sem "Seleção Rápida". Mensagens de andamento e de erro (sem paciente, não encontrado, tempo esgotado de 10 s); não duplica. **Desconto total** da janela (agora em % ou R$) gravado no `#DescontoTotal` do Feegow (R$ → %), com conferência do total e SALVAR; apagar zera. |
 | **1.3.5** | 24/11/2026 | **"Imprimir HOC Derma" salva a proposta antes**: clica no SALVAR do Feegow (`propostaSave(false)`; reserva: botão com texto SALVAR e ícone de disquete) e abre o editor na hora, sem esperar o salvamento. Sem o botão SALVAR na tela, abre o editor como antes. Os **8 procedimentos "a revisar"** (blefaroplastias, fotobiomodulação pós-blefaro, laser de CO2, lifting de supercílios, peeling superficial, ptose) viraram normais, sem selo; textos e valores iguais. |
 | 1.3.4 | 21/11/2026 | **Versão de produção.** Logs de depuração desligados por padrão (só avisos de falha). A API `window.HOCDERMA_PROPOSTAS` tinha a chave `config` duplicada; agora o `CONFIG` fica em `constantes`. Descrição do userscript mais clara e changelog em ordem. Nenhuma mudança no editor nem na folha. |
 | 1.3.3 | 21/11/2026 | A prévia do editor fica **sem barra de rolagem interna** em qualquer zoom e tamanho de janela, com a escala recalculada ao mudar o zoom. A impressão não mudou. |
@@ -309,7 +313,7 @@ A fonte é o **módulo** `real/hoc-derma-propostas.js`, sem cabeçalho nem timbr
    ```powershell
    Start-Process chrome.exe -ArgumentList '--headless=new','--disable-gpu','--window-size=1366,768','--virtual-time-budget=120000','--dump-dom','file:///C:/APACBOT/FEEGOW_ENHANCED_SUITE/real/previa_v135.html?teste=1' -RedirectStandardOutput saida.txt -Wait
    ```
-   Procure `AUTOTESTE vX.Y.Z N/N OK` em `saida.txt`; nenhuma linha pode começar com `FALHA`. O `--virtual-time-budget` é necessário porque, sem ele, o `--dump-dom` grava a página antes de os testes assíncronos terminarem. O `--window-size` evita uma falha falsa de paginação na janela padrão do headless, que é pequena. Resultado da 1.3.5: **183/183 OK**.
+   Procure `AUTOTESTE vX.Y.Z N/N OK` em `saida.txt`; nenhuma linha pode começar com `FALHA`. O `--virtual-time-budget` é necessário porque, sem ele, o `--dump-dom` grava a página antes de os testes assíncronos terminarem. O `--window-size` evita uma falha falsa de paginação na janela padrão do headless, que é pequena. Resultado da 1.3.5: **183/183 OK**. Resultado da 1.3.6 (`previa_v136.html`, com `itens`/`propostaSave`/select2 simulados): **228/228 OK**.
 5. **Regras de teste**: teste só offline. Não abra o Feegow real em automação, não leia cookies nem storage, e nunca clique em Salvar, Duplicar ou Gerar contrato no Feegow real (a prévia simula o `propostaSave`).
 6. **Publicar**: no repo, `git add hoc-derma-propostas.user.js hoc-derma-propostas.meta.js docs/hoc-derma-propostas.md`, commit, `git pull --rebase origin main` e `git push origin main`. Confira com:
    ```bash

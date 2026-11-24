@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.5
-// @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão; as edições da janela não são gravadas.
+// @version      1.3.6
+// @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real e o desconto total vai para o Feegow (ambos com SALVAR); as demais edições valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
 // @match        https://feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.5
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.6
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -55,8 +55,11 @@ window.HOCDERMA_TIMBRADO = {
  *     4. imprime num iframe oculto, com o timbrado HOC Derma e um layout
  *        próprio, sem a tabela do modelo padrão do Feegow.
  *
- *   O script não grava nada por conta própria e não chama API: a única ação no
- *   Feegow é clicar no botão SALVAR da proposta (v1.3.5), como o usuário faria.
+ *   O script não chama API de gravação. Ações no Feegow, sempre como o usuário faria:
+ *   clicar no SALVAR da proposta (v1.3.5) e, no "＋ Feegow" de uma linha nova da
+ *   janela (v1.3.6), incluir o procedimento com a função itens() do próprio Feegow,
+ *   preencher a linha e clicar em SALVAR; e o desconto geral da janela vai para o
+ *   "Desconto total" (%) do Feegow, seguido de SALVAR. A busca do procedimento é só leitura.
  *   "Observações Internas" (#Internas) NUNCA é lida nem impressa.
  *
  * OPÇÕES EXTERNAS (lidas a cada varredura)
@@ -168,6 +171,26 @@ window.HOCDERMA_TIMBRADO = {
  *     pós-blefaro, laser CO2 cirurgia, lifting de supercílio, peeling superficial, ptose
  *     palpebral) viraram procedimentos normais: sem o selo "A REVISAR" no modal. Textos e
  *     valores sem mudança. Catálogo: 61 procedimentos, todos normais.
+ *
+ * v1.3.6 (24/11/2026)
+ *   - Linha criada por "+ Adicionar linha" ganha o botão "＋ Feegow" (ou Enter na descrição):
+ *     inclui o procedimento na PROPOSTA REAL, como o select "Procedimento" do Feegow:
+ *       1. ID do procedimento: nome exato entre os itens já na proposta ou na mesma busca AJAX
+ *          do select2 #ProcedimentoID (s2aj 'procedimentos'; config lida do próprio select2,
+ *          jQuery da página, só leitura). Nome não exato/ambíguo = lista para escolher.
+ *          Nunca usa "criar procedimento novo" (valor -1 / sii.asp).
+ *       2. itens('S','I', ID) (window da página / unsafeWindow) e espera a linha nova
+ *          (id negativo) no #order-tbody, até 10 s (MutationObserver).
+ *       3. Preenche Quantidade, ValorUnitario (se digitado; senão fica o preço do Feegow e ele
+ *          volta para a janela), Desconto/DescontoTipo e Acréscimo, com eventos + recalc().
+ *       4. Clica em SALVAR (propostaSave(false)). "Seleção Rápida" não é clicada.
+ *     Mensagens: "Adicionando no Feegow..." → "✔ Adicionado e salvo" ou o erro (paciente não
+ *     selecionado / não encontrado / tempo esgotado). Um clique por linha: não duplica.
+ *   - Desconto GERAL da janela (agora em % ou R$) vai para o "Desconto total" (#DescontoTotal, %)
+ *     do Feegow ao mudar o campo: R$ vira % sobre o subtotal (2 casas, máx. 100), eventos +
+ *     recalc(), confere o #total do Feegow com o da janela (avisa se não bater, tolerância de
+ *     centavos) e clica em SALVAR. Apagar o desconto zera o #DescontoTotal. O "＋ Feegow" também
+ *     grava o desconto geral antes do SALVAR. Desconto por item vai na linha (Desconto/DescontoTipo).
  *
  * ========================================================================== */
 
@@ -761,7 +784,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.5';
+  const VERSAO = '1.3.6';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -1607,6 +1630,8 @@ window.HOCDERMA_TIMBRADO = {
       tituloOutros: valorInput(form, SEL.tituloOutros, 'Outras Despesas'),
       itens: lerItens(form),
       descontoTotalPct: Math.min(100, Math.max(0, lerValor((q(form, SEL.descontoTotal) || {}).value))),
+      descontoTotalTipo: 'P', // v1.3.6: desconto geral da janela em % (P) ou R$ (V)
+      descontoTotalReais: 0,
       outras: lerOutras(form),
       pagamento,
       textoHtml,
@@ -1631,8 +1656,15 @@ window.HOCDERMA_TIMBRADO = {
   function calcular(d) {
     const linhas = d.itens.map(calcLinha);
     const subtotal = arred(linhas.reduce((s, l) => s + l.total, 0));
-    const pct = Math.min(100, Math.max(0, num(d.descontoTotalPct)));
-    const descTotal = arred(subtotal * pct / 100);
+    let pct;
+    let descTotal;
+    if (d.descontoTotalTipo === 'V') { // v1.3.6: desconto geral em R$ (pct equivalente com 2 casas)
+      descTotal = arred(Math.min(subtotal, Math.max(0, num(d.descontoTotalReais))));
+      pct = subtotal > 0 ? Math.min(100, Math.round(descTotal / subtotal * 10000) / 100) : 0;
+    } else {
+      pct = Math.min(100, Math.max(0, num(d.descontoTotalPct)));
+      descTotal = arred(subtotal * pct / 100);
+    }
     const outras = arred((d.outras || []).reduce((s, o) => s + num(o.valor), 0));
     const total = arred(subtotal - descTotal + (CONFIG.outrasSomamNoTotal ? outras : 0));
     return {
@@ -1789,13 +1821,23 @@ window.HOCDERMA_TIMBRADO = {
     .tot{ font-weight:600; white-space:nowrap; }
     .rm{ background:#fff; border:1px solid #e0b4b4; color:#b03a3a; border-radius:4px; cursor:pointer; width:26px; height:26px; font-size:15px; line-height:1; }
     .rm:hover{ background:#fbeaea; }
+    td.acoes{ white-space:nowrap; text-align:right; }
+    .fg{ background:#fff; border:1px solid ${CONFIG.cores.marca}; color:${CONFIG.cores.marca}; border-radius:4px; cursor:pointer; height:26px; padding:0 6px; font-size:11px; font-weight:700; margin-right:3px; }
+    .fg:hover{ background:${CONFIG.cores.marcaClara}; } .fg[disabled]{ opacity:.6; cursor:wait; } .fg.err{ border-color:#b03a3a; color:#b03a3a; }
+    .fgok{ color:#2e7d32; font-size:11px; font-weight:700; margin-right:5px; }
+    .fg-dica{ font-size:11px; color:#888; margin-left:8px; }
+    .fg-msg{ font-size:12px; margin-top:4px; min-height:0; } .fg-msg.and{ color:#555; } .fg-msg.ok{ color:#2e7d32; font-weight:600; } .fg-msg.erro{ color:#b03a3a; font-weight:600; }
+    .fg-escolha{ margin-top:6px; border:1px solid #e0d6cc; background:#fcfaf8; border-radius:5px; padding:6px 8px; display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+    .fg-escolha[hidden]{ display:none; } .fg-escolha .tt{ width:100%; font-size:12px; font-weight:600; color:${CONFIG.cores.marca}; }
+    .fg-escolha .op{ background:#fff; border:1px solid #ccc; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer; text-align:left; } .fg-escolha .op:hover{ border-color:${CONFIG.cores.marca}; }
+    .fg-escolha .op small{ color:#999; } .fg-escolha .b{ padding:4px 10px; font-size:12px; }
     .add{ margin-top:6px; background:#fff; border:1px dashed ${CONFIG.cores.marca}; color:${CONFIG.cores.marca}; border-radius:4px; padding:5px 10px; cursor:pointer; font-size:12px; font-weight:600; }
     .resumo{ margin-top:10px; display:grid; grid-template-columns:1fr auto; gap:3px 16px; font-size:13px; max-width:380px; margin-left:auto; align-items:center; }
     .resumo .v{ text-align:right; font-variant-numeric:tabular-nums; }
     .resumo .final{ font-size:16px; font-weight:700; color:${CONFIG.cores.marca}; border-top:1px solid #ddd; padding-top:4px; }
     .resumo .fg{ grid-column:1 / -1; text-align:right; font-size:11px; color:#888; }
     .resumo .fg.dif{ color:#b03a3a; font-weight:600; }
-    .pct{ display:flex; gap:6px; align-items:center; } .pct input{ width:70px; text-align:right; }
+    .pct{ display:flex; gap:6px; align-items:center; } .pct input{ width:70px; text-align:right; } .pct select{ width:auto; padding:3px 4px; }
     .chk{ flex-direction:row; align-items:center; gap:6px; font-weight:500; color:#333; }
     .chk input{ width:auto; }
     .rodape{ display:flex; gap:8px; align-items:center; padding:10px 16px; border-top:1px solid #e5e5e5; background:#fafafa; }
@@ -1842,7 +1884,7 @@ window.HOCDERMA_TIMBRADO = {
     .cfg .rodape .ok{ font-size:11px; color:#2e7d32; }
   `;
 
-  const S = { shadow: null, dados: null, form: null };
+  const S = { shadow: null, dados: null, form: null, fgOcupado: false, fgEscolha: null, fgOpcoes: null };
 
   function garantirRoot() {
     let r = document.getElementById(ID_ROOT);
@@ -1879,6 +1921,7 @@ window.HOCDERMA_TIMBRADO = {
 
   function fecharEditor() {
     pararVigiaPrevia();
+    if (S.fgEscolha) S.fgEscolha(null); // v1.3.6: lista de escolha pendente = cancelada
     if (S.shadow) S.shadow.innerHTML = '';
     document.removeEventListener('keydown', teclaEsc, true);
     S.dados = null;
@@ -1923,7 +1966,7 @@ window.HOCDERMA_TIMBRADO = {
     sh.querySelectorAll('.janela [data-k]').forEach((el) => {
       const k = el.getAttribute('data-k');
       if (el.type === 'checkbox') el.checked = !!d[k];
-      else if (k === 'descontoTotalPct') el.value = d[k] ? fmtPct(d[k]) : '';
+      else if (k === 'descontoTotalPct') el.value = valorCampoDesconto(d);
       else el.value = d[k] == null ? '' : d[k];
     });
     marcarDescsOff();
@@ -2025,10 +2068,10 @@ window.HOCDERMA_TIMBRADO = {
         <div class="janela" role="dialog" aria-modal="true" aria-label="Imprimir proposta HOC Derma">
           <div class="topo">
             <h2>Imprimir proposta: HOC Derma${dados.numero ? ' · nº ' + esc(dados.numero) : ''}</h2>
-            <span class="aviso">As alterações valem só para esta impressão (nada é salvo no Feegow)</span>
+            <span class="aviso">As alterações valem só para esta impressão; só o "＋ Feegow" de uma linha nova e o desconto total gravam na proposta real</span>
             <button class="x" data-acao="fechar" title="Fechar (Esc)">×</button>
           </div>
-          ${o.modoTeste ? `<div class="teste" data-modo-teste>MODO TESTE: botão liberado só para o paciente de teste${o.somentePaciente ? ' (ID ' + esc(o.somentePaciente) + ')' : ''}. O clique salva a proposta no Feegow (botão SALVAR); as edições desta janela não são gravadas.</div>` : ''}
+          ${o.modoTeste ? `<div class="teste" data-modo-teste>MODO TESTE: botão liberado só para o paciente de teste${o.somentePaciente ? ' (ID ' + esc(o.somentePaciente) + ')' : ''}. O clique salva a proposta no Feegow (botão SALVAR); as edições desta janela não são gravadas, exceto o "＋ Feegow" de uma linha nova (inclui o procedimento e salva).</div>` : ''}
           <div class="corpo">
             <div class="form">
               <div class="grade">
@@ -2046,6 +2089,9 @@ window.HOCDERMA_TIMBRADO = {
                 <tbody data-itens></tbody>
               </table>
               <button class="add" data-acao="add">+ Adicionar linha</button>
+              <span class="fg-dica">Linha nova: digite o procedimento e clique em <b>＋ Feegow</b> (ou Enter) para incluir na proposta real do Feegow e salvar.</span>
+              <div class="fg-escolha" data-fg-escolha hidden></div>
+              <div class="fg-msg" data-fg-msg></div>
               <div data-outras-wrap>
                 <h3><input data-k="tituloOutros" title="Título da seção de outras despesas"></h3>
                 <table><thead><tr><th style="width:70%">Descrição</th><th class="num">Valor</th><th></th></tr></thead><tbody data-outras></tbody></table>
@@ -2053,7 +2099,7 @@ window.HOCDERMA_TIMBRADO = {
               </div>
               <div class="resumo">
                 <span>Subtotal</span><span class="v" data-r="subtotal"></span>
-                <span class="pct">Desconto total <input data-k="descontoTotalPct" inputmode="decimal"> %</span><span class="v" data-r="descTotal"></span>
+                <span class="pct">Desconto total <input data-k="descontoTotalPct" inputmode="decimal"> <select data-k="descontoTotalTipo" title="Desconto geral em % ou R$ (no Feegow vai sempre em %)"><option value="P">%</option><option value="V">R$</option></select></span><span class="v" data-r="descTotal"></span>
                 <span data-r-outras-rot>Outras despesas</span><span class="v" data-r="outras"></span>
                 <span class="final">Total</span><span class="v final" data-r="total"></span>
                 <span class="fg" data-r="feegow"></span>
@@ -2098,11 +2144,20 @@ window.HOCDERMA_TIMBRADO = {
     sh.querySelectorAll('[data-k]').forEach((el) => {
       const k = el.getAttribute('data-k');
       if (el.type === 'checkbox') el.checked = !!dados[k];
-      else if (k === 'descontoTotalPct') el.value = dados[k] ? fmtPct(dados[k]) : '';
+      else if (k === 'descontoTotalPct') el.value = valorCampoDesconto(dados);
       else el.value = dados[k] == null ? '' : dados[k];
       el.addEventListener(el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input', () => {
         if (el.type === 'checkbox') dados[k] = el.checked;
-        else if (k === 'descontoTotalPct') dados[k] = Math.min(100, Math.max(0, lerValor(el.value)));
+        else if (k === 'descontoTotalPct') {
+          if (dados.descontoTotalTipo === 'V') dados.descontoTotalReais = Math.max(0, lerValor(el.value));
+          else dados[k] = Math.min(100, Math.max(0, lerValor(el.value)));
+        } else if (k === 'descontoTotalTipo') { // v1.3.6: troca % ↔ R$ mantendo o mesmo desconto
+          const c0 = calcular(dados);
+          dados.descontoTotalTipo = el.value === 'V' ? 'V' : 'P';
+          if (dados.descontoTotalTipo === 'V') dados.descontoTotalReais = c0.descTotal; else dados.descontoTotalPct = c0.pct;
+          const ip = sh.querySelector('[data-k="descontoTotalPct"]');
+          if (ip) ip.value = valorCampoDesconto(dados);
+        }
         else if (k === 'validadeDias') dados[k] = parseInt(el.value, 10) || 0;
         else if (k === 'formatoNome') {
           dados.formatoNome = el.value;
@@ -2114,6 +2169,12 @@ window.HOCDERMA_TIMBRADO = {
         if (k === 'incluirDescricoes' || k === 'ocultarTabela') marcarDescsOff();
         atualizar(false);
       });
+    });
+
+    // v1.3.6: desconto geral alterado na janela → #DescontoTotal (%) do Feegow + SALVAR
+    ['descontoTotalPct', 'descontoTotalTipo'].forEach((k) => {
+      const el = sh.querySelector('[data-k="' + k + '"]');
+      if (el) el.addEventListener('change', agendarDescontoFeegow);
     });
 
     // blocos de descrição: incluir/excluir, título e texto (só nesta impressão)
@@ -2172,8 +2233,15 @@ window.HOCDERMA_TIMBRADO = {
       const a = acao.getAttribute('data-acao');
       const i = Number(acao.getAttribute('data-i'));
       if (a === 'fechar') fecharEditor();
-      else if (a === 'add') { dados.itens.push(itemVazio()); renderItens(); atualizar(true); focarUltima('descricao'); }
-      else if (a === 'rm') { dados.itens.splice(i, 1); renderItens(); atualizar(true); }
+      else if (a === 'add') { dados.itens.push(Object.assign(itemVazio(), { novo: true })); renderItens(); atualizar(true); focarUltima('descricao'); }
+      else if (a === 'rm') {
+        const it = dados.itens[i];
+        if (it && it.fg && it.fg.estado === 'enviando') return; // v1.3.6: não remove no meio do envio
+        dados.itens.splice(i, 1); renderItens(); atualizar(true);
+      }
+      else if (a === 'feegow') adicionarNoFeegow(dados.itens[i]);
+      else if (a === 'fg-escolher') { if (S.fgEscolha) S.fgEscolha((S.fgOpcoes || [])[Number(acao.getAttribute('data-k'))]); }
+      else if (a === 'fg-cancelar') { if (S.fgEscolha) S.fgEscolha(null); }
       else if (a === 'add-outra') { dados.outras.push({ descricao: '', valor: 0 }); renderOutras(); atualizar(true); }
       else if (a === 'rm-outra') { dados.outras.splice(i, 1); renderOutras(); atualizar(true); }
       else if (a === 'restaurar-bloco') {
@@ -2197,6 +2265,388 @@ window.HOCDERMA_TIMBRADO = {
     if (prim) prim.focus();
     log('editor aberto (' + dados.itens.length + ' itens lidos).');
     return dados;
+  }
+
+  /* --------------------------------------------------------------------------
+   * 6.2 ADICIONAR NO FEEGOW (v1.3.6)
+   *     Linha nova da nossa janela ("+ Adicionar linha") → botão "＋ Feegow"/Enter:
+   *     acha o ID do procedimento (itens já na proposta / busca AJAX do próprio
+   *     select2 #ProcedimentoID, só leitura), chama itens('S','I', id) como o
+   *     select do Feegow, espera a linha nova, preenche qtd/valores e clica em
+   *     SALVAR (propostaSave(false)). Sem "Seleção Rápida" (decisão do dono, 24/11).
+   *     NUNCA usa a opção "criar procedimento novo" (valor -1 / sii.asp).
+   * ------------------------------------------------------------------------ */
+
+  const FG_TEMPO_LINHA = 10000;   // espera da linha nova no #order-tbody
+  const FG_ESPERA_VALOR = 1500;   // espera do preço padrão do Feegow na linha nova
+  const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Funções do Feegow vivem no window da PÁGINA (no Tampermonkey: unsafeWindow).
+  function janelaPagina() {
+    try { if (typeof unsafeWindow !== 'undefined' && unsafeWindow) return unsafeWindow; } catch (e) { /* sem unsafeWindow */ } // eslint-disable-line no-undef
+    return window;
+  }
+  function fnPagina(nome) {
+    try { const w = janelaPagina(); return w && typeof w[nome] === 'function' ? w[nome] : null; } catch (e) { return null; }
+  }
+  // Chama uma função global do Feegow. Reserva sem unsafeWindow: <script> na página.
+  function chamarPagina(nome, args) {
+    const f = fnPagina(nome);
+    if (f) { f.apply(janelaPagina(), args || []); return true; }
+    const de = document.documentElement;
+    const n = JSON.stringify(String(nome));
+    try {
+      de.removeAttribute('data-hocp-ok');
+      const s = document.createElement('script');
+      s.textContent = '(function(){try{if(typeof window[' + n + ']==="function"){window[' + n + '].apply(window,' +
+        JSON.stringify(args || []) + ');document.documentElement.setAttribute("data-hocp-ok","1")}}catch(e){' +
+        'document.documentElement.setAttribute("data-hocp-ok","erro: "+(e&&e.message))}})();';
+      (document.head || de).appendChild(s);
+      s.remove();
+    } catch (e) { return false; }
+    const r = de.getAttribute('data-hocp-ok');
+    de.removeAttribute('data-hocp-ok');
+    if (r && r !== '1') throw new Error(nome + '(): ' + r);
+    return r === '1';
+  }
+  function tentarPagina(nome, args) { try { return chamarPagina(nome, args); } catch (e) { log(nome + ' falhou: ' + e.message); return false; } }
+
+  // ID de procedimento válido: inteiro > 0 (exclui -1 = "criar novo", pacotes negativos e tags de texto)
+  const idProcValido = (v) => /^\d+$/.test(String(v == null ? '' : v).trim()) && Number(v) > 0;
+
+  function procsConhecidosNoDom(form) {
+    const out = [];
+    const add = (id, nome) => {
+      nome = limpa(nome);
+      if (idProcValido(id) && nome && !out.some((x) => x.id === String(id))) out.push({ id: String(Number(id)), nome });
+    };
+    qa(form, 'select[id^="ItemID"]').forEach((s) => {
+      const tr = s.closest('tr');
+      const tipo = tr && q(tr, 'input.tipoItem, input[name^="tipoItem"]');
+      if (tipo && String(tipo.value).toUpperCase() === 'P') return; // pacote
+      const o = s.options && s.options[s.selectedIndex];
+      if (o) add(o.value, o.text);
+    });
+    const ps = porId(document, 'ProcedimentoID');
+    if (ps && ps.options) Array.from(ps.options).forEach((o) => add(o.value, o.text));
+    return out;
+  }
+
+  // Mesma busca do select2 do campo Procedimento (s2aj 'procedimentos'): lê a configuração AJAX
+  // do próprio select2 (url/data/processResults) e repete a requisição com o jQuery da página
+  // (cookies da sessão). Só leitura.
+  function buscarProcsAjax(termo) {
+    return new Promise((resolve, reject) => {
+      const w = janelaPagina();
+      const $ = w && (w.jQuery || w.$);
+      if (typeof $ !== 'function') { reject(new Error('jQuery do Feegow não encontrado para a busca')); return; }
+      const el = $('#ProcedimentoID');
+      const s2 = el && typeof el.data === 'function' ? el.data('select2') : null;
+      if (!s2) { reject(new Error('a busca do campo Procedimento (select2) não foi encontrada')); return; }
+      const v4 = !!(s2.options && typeof s2.options.get === 'function');
+      const aj = v4 ? s2.options.get('ajax') : (s2.opts && s2.opts.ajax);
+      if (!aj || !aj.url) { reject(new Error('o campo Procedimento não tem busca AJAX')); return; }
+      const params = { term: termo, q: termo, page: 1, _type: 'query' };
+      let url;
+      let data;
+      try {
+        url = typeof aj.url === 'function' ? (v4 ? aj.url.call(el, params) : aj.url.call(el, termo, 1)) : aj.url;
+        data = typeof aj.data === 'function' ? (v4 ? aj.data.call(el, params) : aj.data.call(el, termo, 1)) : (aj.data || { term: termo });
+      } catch (e) { reject(new Error('falha ao montar a busca do Feegow: ' + e.message)); return; }
+      let fim = false;
+      const timer = setTimeout(() => { if (!fim) { fim = true; reject(new Error('a busca de procedimentos do Feegow não respondeu')); } }, FG_TEMPO_LINHA);
+      let pr;
+      try {
+        pr = $.ajax({ url, data, type: aj.type || aj.method || 'GET', dataType: aj.dataType || 'json', cache: false });
+      } catch (e) { clearTimeout(timer); reject(new Error('falha na busca de procedimentos do Feegow')); return; }
+      pr.then((resp) => {
+        if (fim) return;
+        fim = true;
+        clearTimeout(timer);
+        let r = resp;
+        try {
+          if (v4 && typeof aj.processResults === 'function') r = aj.processResults.call(s2, resp, params);
+          else if (!v4 && typeof aj.results === 'function') r = aj.results.call(el, resp, 1);
+        } catch (e) { r = resp; }
+        const lista = Array.isArray(r) ? r : (r && Array.isArray(r.results) ? r.results : []);
+        const out = [];
+        const plano = (x) => { if (x && Array.isArray(x.children)) x.children.forEach(plano); else if (x) out.push(x); };
+        lista.forEach(plano);
+        const vistos = new Set();
+        resolve(out.filter((x) => idProcValido(x.id))
+          .map((x) => ({ id: String(Number(x.id)), nome: limpa(x.text || x.NomeProcedimento || x.nome || '') }))
+          .filter((x) => x.nome && !vistos.has(x.id) && vistos.add(x.id)));
+      }, () => {
+        if (fim) return;
+        fim = true;
+        clearTimeout(timer);
+        reject(new Error('falha na busca de procedimentos do Feegow'));
+      });
+    });
+  }
+
+  // { escolhido } = 1 resultado com o nome exato | { opcoes:[...] } = a pessoa escolhe (vazio = não achou)
+  async function resolverProcedimento(desc, form) {
+    const alvo = normalizar(desc);
+    const doDom = procsConhecidosNoDom(form);
+    const exatosDom = doDom.filter((p) => normalizar(p.nome) === alvo);
+    if (exatosDom.length === 1) return { escolhido: exatosDom[0], opcoes: [] };
+    const pal = limpa(desc).split(' ');
+    const termos = [limpa(desc)];
+    if (pal.length > 2) termos.push(pal.slice(0, 2).join(' '));
+    if (pal.length > 1) termos.push(pal[0]);
+    let lista = [];
+    let erroBusca = null;
+    for (const t of termos) {
+      try { lista = await buscarProcsAjax(t); } catch (e) { erroBusca = e; break; }
+      if (lista.length) break;
+    }
+    const todos = [];
+    exatosDom.concat(lista).forEach((p) => { if (!todos.some((x) => x.id === p.id)) todos.push(p); });
+    const exatos = todos.filter((p) => normalizar(p.nome) === alvo);
+    if (exatos.length === 1) return { escolhido: exatos[0], opcoes: [] };
+    if (exatos.length > 1) return { opcoes: exatos };
+    if (todos.length) return { opcoes: todos.slice(0, 12) };
+    if (erroBusca) throw erroBusca;
+    return { opcoes: [] };
+  }
+
+  function formAtual() { return (S.form && S.form.isConnected ? S.form : null) || q(document, SEL.form); }
+  function linhasReais(form) { return qa(form, SEL.linhaItem).filter((tr) => tr.id !== 'footItens'); }
+  function idsLinhas(form) { return new Set(form ? linhasReais(form).map((tr) => idDaLinha(form, tr)).filter(Boolean) : []); }
+
+  function acharLinhaNova(antes, procId) {
+    const f = formAtual();
+    if (!f) return null;
+    const novas = linhasReais(f).map((tr) => ({ tr, id: idDaLinha(f, tr) })).filter((x) => x.id && !antes.has(x.id));
+    const sel = (x) => porId(f, 'ItemID' + x.id);
+    const r = novas.filter((x) => sel(x) && String(sel(x).value) === String(procId)).pop() ||
+      novas.filter((x) => !sel(x) || !String(sel(x).value || '').trim()).pop();
+    return r ? { form: f, tr: r.tr, id: r.id } : null;
+  }
+
+  function esperarLinhaNova(antes, procId, ms) {
+    return new Promise((resolve) => {
+      let fim = false;
+      let obs = null;
+      let iv = null;
+      let to = null;
+      const terminar = (r) => {
+        if (fim) return;
+        fim = true;
+        if (obs) obs.disconnect();
+        clearInterval(iv);
+        clearTimeout(to);
+        resolve(r);
+      };
+      const checar = () => { const r = acharLinhaNova(antes, procId); if (r) terminar(r); };
+      try { obs = new MutationObserver(checar); obs.observe(document.body, { childList: true, subtree: true }); } catch (e) { obs = null; }
+      iv = setInterval(checar, 250);
+      to = setTimeout(() => terminar(null), ms);
+      checar();
+    });
+  }
+
+  function dispararCampo(el) {
+    ['input', 'keyup', 'change', 'blur'].forEach((t) => { try { el.dispatchEvent(new Event(t, { bubbles: true })); } catch (e) { /* noop */ } });
+  }
+  function setCampo(form, nome, id, valor) {
+    const el = porId(form, nome + id);
+    if (!el) return null;
+    el.value = valor;
+    dispararCampo(el);
+    tentarPagina('recalc', [nome + id]); // como o onkeyup do Feegow: recalc($(this).attr('id'))
+    return el;
+  }
+
+  function preencherLinhaReal(form, id, it) {
+    setCampo(form, 'Quantidade', id, String(num(it.qtd) || 1).replace('.', ','));
+    if (num(it.unitario) > 0) setCampo(form, 'ValorUnitario', id, fmtNum(num(it.unitario)));
+    if (num(it.desconto) > 0) {
+      const tipo = porId(form, 'DescontoTipo' + id);
+      if (tipo) { tipo.value = it.descontoTipo === 'P' ? 'P' : 'V'; dispararCampo(tipo); }
+      setCampo(form, 'Desconto', id, fmtNum(num(it.desconto)));
+    }
+    if (num(it.acrescimo) > 0) setCampo(form, 'Acrescimo', id, fmtNum(num(it.acrescimo)));
+    tentarPagina('recalc', []);
+  }
+
+  // v1.3.6: valor mostrado no campo do desconto geral (% ou R$)
+  function valorCampoDesconto(d) {
+    if (d.descontoTotalTipo === 'V') return num(d.descontoTotalReais) ? fmtNum(num(d.descontoTotalReais)) : '';
+    return d.descontoTotalPct ? fmtPct(d.descontoTotalPct) : '';
+  }
+
+  // Desconto GERAL da janela → #DescontoTotal (%) do Feegow. Em R$, vira % sobre o subtotal
+  // antes do desconto (2 casas, máx. 100). Dispara os eventos + recalc() e confere o #total.
+  function gravarDescontoTotalFeegow(form, d) {
+    const el = form && porId(form, 'DescontoTotal');
+    if (!el) return { ok: false, motivo: 'campo "Desconto total" do Feegow não encontrado' };
+    const c = calcular(d);
+    const pct = Math.min(100, Math.max(0, Math.round(num(c.pct) * 100) / 100));
+    const mudou = Math.abs(lerValor(el.value) - pct) > 0.0001;
+    if (mudou) {
+      el.value = String(pct);
+      dispararCampo(el);
+      tentarPagina('recalc', []);
+    }
+    const totEl = q(form, SEL.total);
+    const totFg = totEl ? lerValor(totEl.textContent) : null;
+    if (totFg != null) d.totalFeegow = totFg;
+    // tolerância: centavos + o arredondamento do % com 2 casas (até 0,005% do subtotal)
+    const tol = Math.max(0.05, c.subtotal * 0.00005 + 0.01);
+    const bate = totFg == null || Math.abs(totFg - c.total) <= tol;
+    return { ok: true, pct, mudou, totFg, totJanela: c.total, bate };
+  }
+  const avisoTotal = (r) => (r && r.ok && !r.bate
+    ? 'atenção: total do Feegow ' + fmtBRL(r.totFg) + ' ≠ total da janela ' + fmtBRL(r.totJanela) + ' (há valores editados só na janela?)' : '');
+
+  let timerDescFg = null;
+  function agendarDescontoFeegow() {
+    clearTimeout(timerDescFg);
+    timerDescFg = setTimeout(sincronizarDescontoFeegow, 500);
+  }
+  function sincronizarDescontoFeegow() {
+    const d = S.dados;
+    if (!d) return false;
+    if (S.fgOcupado) { agendarDescontoFeegow(); return false; } // espera o "＋ Feegow" em andamento
+    const form = formAtual();
+    if (!form) { msgFeegow('Desconto total não gravado: a proposta do Feegow não está aberta na tela.', 'erro'); return false; }
+    const r = gravarDescontoTotalFeegow(form, d);
+    if (!r.ok) { msgFeegow('Desconto total não gravado: ' + r.motivo + '.', 'erro'); return false; }
+    if (!r.mudou) { atualizar(false); if (!r.bate) msgFeegow(avisoTotal(r), 'erro'); return true; }
+    const salvou = clicarSalvarFeegow(form) || tentarPagina('propostaSave', [false]);
+    const base = r.pct ? 'Desconto total de ' + fmtPct(r.pct) + '% ' : 'Desconto total zerado ';
+    const t = (salvou ? '✔ ' + base + 'gravado no Feegow e salvo' : base + 'preenchido no Feegow, mas o SALVAR não foi encontrado: clique em SALVAR no Feegow') +
+      (r.bate ? '' : ' · ' + avisoTotal(r));
+    msgFeegow(t, salvou && r.bate ? 'ok' : 'erro');
+    log(t);
+    atualizar(false);
+    return salvou;
+  }
+
+  function msgFeegow(texto, tipo) {
+    const el = S.shadow && S.shadow.querySelector('[data-fg-msg]');
+    if (!el) return;
+    el.textContent = texto || '';
+    el.className = 'fg-msg' + (tipo ? ' ' + tipo : '');
+  }
+
+  function escolherProcedimento(opcoes, desc) {
+    return new Promise((resolve) => {
+      const box = S.shadow && S.shadow.querySelector('[data-fg-escolha]');
+      if (!box) { resolve(null); return; }
+      S.fgOpcoes = opcoes;
+      S.fgEscolha = (p) => {
+        S.fgEscolha = null;
+        S.fgOpcoes = null;
+        if (box.isConnected) { box.innerHTML = ''; box.hidden = true; }
+        resolve(p || null);
+      };
+      box.hidden = false;
+      box.innerHTML = '<div class="tt">Qual procedimento do Feegow é "' + esc(desc) + '"?</div>' +
+        opcoes.map((p, k) => `<button class="op" data-acao="fg-escolher" data-k="${k}">${esc(p.nome)} <small>(ID ${esc(p.id)})</small></button>`).join('') +
+        '<button class="b" data-acao="fg-cancelar">Cancelar</button>';
+    });
+  }
+
+  function erroFg(msg, estado) { const e = new Error(msg); e.estado = estado || 'erro'; return e; }
+
+  async function adicionarNoFeegow(it) {
+    const d = S.dados;
+    if (!d || !it || d.itens.indexOf(it) < 0) return false;
+    if (it.fg && (it.fg.estado === 'enviando' || it.fg.estado === 'ok')) return false; // sem duplicar
+    if (S.fgOcupado) { msgFeegow('Aguarde: outro item ainda está sendo adicionado no Feegow.', 'erro'); return false; }
+    S.fgOcupado = true;
+    it.fg = Object.assign({}, it.fg || {}, { estado: 'enviando', msg: '' });
+    const vivo = () => S.dados === d;
+    if (vivo()) renderItens();
+    msgFeegow('Adicionando no Feegow...', 'and');
+    try {
+      const form = formAtual();
+      if (!form) throw erroFg('a proposta do Feegow não está aberta na tela.');
+      const desc = limpa(it.descricao);
+      if (!desc) throw erroFg('digite o nome do procedimento na linha antes de adicionar.');
+      const ps = porId(form, 'ProcedimentoID') || porId(document, 'ProcedimentoID');
+      const temPaciente = qa(form, '[id="PacienteID"]').some((e) => limpa(e.value) && limpa(e.value) !== '0');
+      if (!ps || ps.disabled || !temPaciente) {
+        throw erroFg('paciente não selecionado na proposta do Feegow (o campo Procedimento está desabilitado). Selecione o paciente e tente de novo.');
+      }
+      let proc = it.fg.proc && normalizar(it.fg.proc.digitado) === normalizar(desc) ? it.fg.proc : null;
+      // nova tentativa depois de "tempo esgotado": a linha pode ter chegado atrasada
+      let linha = proc && it.fg.antes ? acharLinhaNova(new Set(it.fg.antes), proc.id) : null;
+      if (!linha) {
+        if (!proc) {
+          msgFeegow('Procurando "' + desc + '" no Feegow...', 'and');
+          const r = await resolverProcedimento(desc, form);
+          let p = r.escolhido;
+          if (!p && r.opcoes.length) {
+            msgFeegow('Escolha o procedimento do Feegow na lista abaixo.', 'and');
+            p = await escolherProcedimento(r.opcoes, desc);
+            if (!p) throw erroFg('cancelado: nada foi incluído no Feegow.', 'cancelado');
+          }
+          if (!p) throw erroFg('procedimento "' + desc + '" não encontrado no Feegow. Confira o nome (como aparece no campo Procedimento do Feegow).');
+          proc = { id: p.id, nome: p.nome, digitado: desc };
+        }
+        if (!vivo()) throw erroFg('janela fechada.', 'cancelado');
+        msgFeegow('Adicionando "' + proc.nome + '" no Feegow...', 'and');
+        const f1 = formAtual() || form;
+        const antes = idsLinhas(f1);
+        it.fg.proc = proc;
+        it.fg.antes = Array.from(antes);
+        let chamou;
+        try { chamou = chamarPagina('itens', ['S', 'I', Number(proc.id)]); } catch (e) { throw erroFg('o Feegow recusou a inclusão: ' + e.message); }
+        if (!chamou) throw erroFg('função itens() do Feegow não encontrada nesta tela.');
+        linha = await esperarLinhaNova(antes, proc.id, FG_TEMPO_LINHA);
+        if (!linha) throw erroFg('tempo esgotado (10 s): o Feegow não mostrou a linha nova. Confira a lista de itens do Feegow antes de tentar de novo.', 'timeout');
+      }
+      const id = linha.id;
+      const f = linha.form;
+      preencherLinhaReal(f, id, it);
+      // preço padrão do Feegow (pode chegar depois da linha)
+      if (!(num(it.unitario) > 0)) {
+        const t0 = Date.now();
+        while (Date.now() - t0 < FG_ESPERA_VALOR) {
+          const u = porId(f, 'ValorUnitario' + id);
+          const sb = porId(f, 'sub' + id);
+          if ((u && lerValor(u.value) > 0) || (sb && lerValor(sb.textContent || sb.value) > 0)) break;
+          await espera(150);
+        }
+      }
+      const real = lerItens(f).find((x) => String(x.idFeegow) === String(id));
+      it.idFeegow = id;
+      it.codigoFeegow = proc ? proc.id : (real && real.codigoFeegow) || '';
+      const nomeReal = (real && real.descricao) || (proc && proc.nome) || it.descricao;
+      it.descricao = nomeReal;
+      it.descricaoOriginal = nomeReal;
+      if (!(num(it.unitario) > 0) && real && real.unitario > 0) it.unitario = real.unitario;
+      it.fg.linha = id;
+
+      msgFeegow('Salvando a proposta no Feegow...', 'and');
+      const f3 = formAtual() || f;
+      const rd = gravarDescontoTotalFeegow(f3, d); // desconto geral da janela (se houver) junto
+      const salvou = clicarSalvarFeegow(f3) || tentarPagina('propostaSave', [false]);
+      it.fg.estado = 'ok';
+      delete it.fg.antes;
+      const notas = [];
+      if (!salvou) notas.push('botão SALVAR não encontrado: clique em SALVAR no Feegow');
+      if (avisoTotal(rd)) notas.push(avisoTotal(rd));
+      it.fg.msg = (salvou ? '✔ Adicionado e salvo no Feegow: ' : '✔ Adicionado no Feegow (NÃO salvo): ') + nomeReal + (notas.length ? ' · ' + notas.join(' · ') : '');
+      msgFeegow(it.fg.msg, salvou && !avisoTotal(rd) ? 'ok' : 'erro');
+      log(it.fg.msg + ' (linha ' + id + ')');
+      return true;
+    } catch (e) {
+      const est = (e && e.estado) || 'erro';
+      it.fg.estado = est === 'cancelado' ? '' : est;
+      if (est !== 'timeout') delete it.fg.antes;
+      it.fg.msg = (est === 'cancelado' ? '' : 'Erro: ') + ((e && e.message) || String(e));
+      msgFeegow(it.fg.msg, est === 'cancelado' ? '' : 'erro');
+      log('adicionar no Feegow: ' + it.fg.msg);
+      return false;
+    } finally {
+      S.fgOcupado = false;
+      if (vivo()) { renderItens(); atualizar(true); }
+    }
   }
 
   function focarUltima(c) {
@@ -2235,9 +2685,28 @@ window.HOCDERMA_TIMBRADO = {
           <select data-i="${i}" data-c="descontoTipo"><option value="V"${it.descontoTipo !== 'P' ? ' selected' : ''}>R$</option><option value="P"${it.descontoTipo === 'P' ? ' selected' : ''}>%</option></select></div></td>
         <td><input data-i="${i}" data-c="acrescimo" class="n" inputmode="decimal" value="${it.acrescimo ? fmtNum(num(it.acrescimo)) : ''}"></td>
         <td class="num tot" data-tot="${i}"></td>
-        <td><button class="rm" data-acao="rm" data-i="${i}" title="Remover linha">×</button></td>
+        <td class="acoes">${botaoFeegow(it, i)}<button class="rm" data-acao="rm" data-i="${i}" title="Remover linha${it.fg && it.fg.estado === 'ok' ? ' (só desta impressão; no Feegow o item continua)' : ''}">×</button></td>
       </tr>`).join('') || '<tr><td colspan="7" class="vazio">Nenhum item: use "+ Adicionar linha".</td></tr>';
     ligarCampos(tb, d.itens, () => atualizar(false));
+    // v1.3.6: Enter na descrição de uma linha nova = "＋ Feegow"
+    tb.querySelectorAll('[data-c="descricao"]').forEach((el) => {
+      const it = d.itens[Number(el.getAttribute('data-i'))];
+      if (!it || !it.novo) return;
+      el.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.ctrlKey || e.metaKey) return;
+        e.preventDefault();
+        adicionarNoFeegow(it);
+      });
+    });
+  }
+
+  // v1.3.6: botão por linha nova (criada por "+ Adicionar linha")
+  function botaoFeegow(it, i) {
+    if (!it.novo) return '';
+    const st = (it.fg && it.fg.estado) || '';
+    if (st === 'ok') return `<span class="fgok" title="${esc(it.fg.msg || 'Já está na proposta do Feegow')}">✔ Feegow</span>`;
+    if (st === 'enviando') return '<button class="fg" disabled title="Adicionando no Feegow...">…</button>';
+    return `<button class="fg${st ? ' err' : ''}" data-acao="feegow" data-i="${i}" title="${esc(st ? (it.fg.msg || '') + ' · clique para tentar de novo' : 'Incluir na proposta real do Feegow e clicar em SALVAR')}">＋ Feegow</button>`;
   }
 
   function renderOutras() {
@@ -2947,6 +3416,8 @@ window.HOCDERMA_TIMBRADO = {
     prefs: { padrao: PREF_PADRAO, ler: lerPrefs, salvar: salvarPrefs, limpar: limparPrefs },
     // v1.3.0: configurações do PC (nome/cargo no fim) e tela de configurações
     config: { padrao: CFG_PADRAO, ler: lerConfig, salvar: salvarConfig, limpar: limparConfig, abrir: abrirConfig, fechar: fecharConfig },
+    // v1.3.6: adicionar no Feegow pela janela
+    feegow: { descontoTotal: sincronizarDescontoFeegow, adicionar: adicionarNoFeegow, resolver: resolverProcedimento, buscar: buscarProcsAjax, conhecidos: procsConhecidosNoDom },
     estado: () => ({
       editorAberto: !!S.dados,
       dados: S.dados,
