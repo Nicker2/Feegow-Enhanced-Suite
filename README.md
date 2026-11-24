@@ -63,6 +63,7 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 | ⚙️ | **Engrenagem de configurações** | Um botão na barra superior liga e desliga cada função, por computador. |
 | 🖨️ | **PDF HOC Derma (Timbrador)** | Aplica o cabeçalho e o rodapé HOC Derma em **qualquer PDF**, encaixa o conteúdo sozinho e exporta um PDF com texto selecionável. O arquivo não sai do computador. |
 | 💼 | **Propostas HOC Derma** | Botão **Imprimir HOC Derma** na proposta do prontuário: editor com prévia A4, descrição de cada procedimento, valores editáveis só para a impressão e timbrado HOC Derma. |
+| 📋 | **Gastos para Excel** | Na linha do tempo do prontuário, botão **Copiar para Excel** em cada registro de gasto: copia só os itens com quantidade (Item e Qtde), sem dados do paciente. Script avulso. |
 | 🔄 | **Atualiza sozinho** | Instalando só o Core, uma versão nova chega a todos os computadores em até cerca de 1 hora. Sem internet, roda a última cópia guardada. |
 
 <p align="center">
@@ -80,6 +81,7 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 | 🧩 **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Contador do DR. EXAMES, especialidade e dilatação, engrenagem, limpeza da tela, atalho para o prontuário e entrada com sessão ocupada. | 4.9.5.2 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
 | 🖨️ **PDF HOC Derma** (`hoc-derma-stamping-tool.user.js`) | Janela que aplica o timbrado HOC Derma em qualquer PDF, ajusta o encaixe e exporta ou imprime. | 3.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js)) |
 | 💼 **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário, com editor e folha A4 timbrada. | 1.3.8 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
+| 📋 **HOC Gastos para Excel** (`hoc-gastos-excel.user.js`) | Botão **📋 Copiar para Excel** nos registros de gasto da linha do tempo do prontuário. | 1.0.0 | **avulso, não vem com o Core** ([instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js)) |
 
 A versão vigente de cada script é a do `@version` no respectivo `.meta.js`.
 
@@ -181,6 +183,7 @@ O Timbrador lembra o encaixe de cada PDF sozinho. Modo de impressão e diagnóst
 | Feegow diz "usuário já conectado em outra máquina" | Não faça nada: a tela de espera aparece e a Suite tenta entrar sozinha. Se a senha estiver errada, ela avisa e para. |
 | Pôr o timbrado HOC Derma num PDF | Botão vermelho **PDF HOC Derma** (barra superior ou painel **Arquivos do Paciente**) ou `Ctrl + Shift + H` → escolha ou arraste o PDF → confira a prévia → **Exportar PDF nativo** ou **Imprimir**. |
 | Imprimir uma proposta da HOC Derma | Prontuário → aba **Propostas** → abra a proposta → **Imprimir HOC Derma** → ajuste no editor → **Imprimir** (ou `Ctrl + Enter`). Para PDF, escolha **Salvar como PDF**. |
+| Passar os itens de um gasto para o Excel | Prontuário → linha do tempo → no registro de gasto, **📋 Copiar para Excel** → Ctrl+V no Excel (requer o script [HOC Gastos para Excel](docs/hoc-gastos-excel.md)). |
 | Desligar uma função neste computador | Engrenagem → clique no item (vira OFF e a página recarrega). |
 
 ---
@@ -270,6 +273,7 @@ Não. Valores, textos e itens ajustados no editor valem só para aquela impress�
 | 🧩 [docs/suite-principal.md](docs/suite-principal.md) | Todas as funções da Suite e a personalização no código. |
 | 🖨️ [docs/pdf-hoc-derma-timbrador.md](docs/pdf-hoc-derma-timbrador.md) | Guia completo do Timbrador. |
 | 💼 [docs/hoc-derma-propostas.md](docs/hoc-derma-propostas.md) | Guia completo das Propostas, catálogo de procedimentos e manutenção. |
+| 📋 [docs/hoc-gastos-excel.md](docs/hoc-gastos-excel.md) | HOC Gastos para Excel: o que copia, ordem e detecção dos registros. |
 | 📜 [docs/HISTORICO.md](docs/HISTORICO.md) | Histórico de versões. |
 
 Atalhos:

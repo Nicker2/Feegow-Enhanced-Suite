@@ -10,8 +10,13 @@
 | Suite principal | 4.9.5.2 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.3.8 |
+| HOC Gastos para Excel | 1.0.0 |
 
 ---
+
+### HOC Gastos para Excel 1.0.0 (24/11/2026): novo script
+
+- Botão **📋 Copiar para Excel** em cada registro de gasto da linha do tempo do prontuário. Copia só os itens com quantidade (Item e Qtde; materiais e depois medicamentos), sem dados do paciente. Detalhes em [hoc-gastos-excel.md](hoc-gastos-excel.md).
 
 ### Suite 4.9.5.2 (23/11/2026): entrada com sessão ocupada volta a funcionar
 
