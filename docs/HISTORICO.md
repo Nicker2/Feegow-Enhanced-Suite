@@ -11,9 +11,14 @@
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.3.9 |
 | HOC Gastos para Excel | 1.1.0 |
-| HOC Reaplicar Permissões | 1.0.0 |
+| HOC Reaplicar Permissões | 1.0.1 |
 
 ---
+
+### Reaplicar Permissões 1.0.1 (25/11/2026): texto no botão
+
+- O botão passa a mostrar **Reaplicar regra atual** ao lado do ícone (mesmas classes do histórico, numa linha só). A dica com o nome da regra continua. Desabilitado, o texto aparece esmaecido.
+- Chega pela Suite em até ~60 min (cache do módulo); não precisa atualizar o Core.
 
 ### Core 1.1.3.0, Suite 4.9.7.0 e Reaplicar Permissões 1.0.0 (25/11/2026): novo módulo
 

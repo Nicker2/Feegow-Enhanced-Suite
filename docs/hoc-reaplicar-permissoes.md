@@ -2,7 +2,7 @@
 
 [Voltar ao README](../README.md)
 
-**Versão atual: 1.0.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
+**Versão atual: 1.0.1** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
 
 ## Instalação
 
@@ -12,13 +12,13 @@ O [avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/
 
 ## O que faz
 
-No cadastro de funcionário (`?P=Funcionarios&Pers=1&I=<número>`, com `P` em qualquer maiúscula), aba **Permissões**, aparece um botão 🔁 logo à esquerda do botão de histórico de permissões, com as mesmas classes dele (`btn btn-sm btn-default fright mt10`).
+No cadastro de funcionário (`?P=Funcionarios&Pers=1&I=<número>`, com `P` em qualquer maiúscula), aba **Permissões**, aparece o botão **🔁 Reaplicar regra atual** logo à esquerda do botão de histórico de permissões, com as mesmas classes dele (`btn btn-sm btn-default fright mt10`).
 
 - **Passe o mouse**: a dica mostra `Reaplicar a regra atual: <nome da regra>`.
 - **Clique**: abre uma janelinha *"Reaplicar a regra '<regra>' para <funcionário>?"* com **Reaplicar** e **Cancelar** (Enter confirma, Esc cancela).
 - **Reaplicar**: o script clica no próprio botão **Aplicar** da regra na tabela *"Você também pode aplicar uma das regras predefinidas abaixo"*. É o mesmo caminho do clique manual (`permissoesAcao` e o token da própria página); o script não monta pedido nem copia token.
 - **Aviso**: mostra "Reaplicando..." e, quando o Feegow recarrega as permissões, "✔ Regra '<regra>' reaplicada." (a Suite costuma esconder o aviso flutuante "Regra aplicada." do Feegow, por isso há um aviso próprio).
-- **Sem regra marcada** (nenhuma linha com o check verde): o botão fica desabilitado, com a dica "Nenhuma regra aplicada a este funcionário".
+- **Sem regra marcada** (nenhuma linha com o check verde): o botão fica desabilitado (mesmo texto, esmaecido), com a dica "Nenhuma regra aplicada a este funcionário".
 
 ## Como acha a regra atual
 
@@ -31,4 +31,5 @@ A linha da tabela de regras cuja primeira célula tem `<i class="far fa-check gr
 
 ## Histórico
 
+- **1.0.1 (25/11/2026)**: o botão mostra o texto "Reaplicar regra atual" ao lado do ícone.
 - **1.0.0 (25/11/2026)**: primeira versão, já carregada pela Suite (Core).

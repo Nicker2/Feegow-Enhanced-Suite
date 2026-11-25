@@ -83,7 +83,7 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 | 🖨️ **PDF HOC Derma** (`hoc-derma-stamping-tool.user.js`) | Janela que aplica o timbrado HOC Derma em qualquer PDF, ajusta o encaixe e exporta ou imprime. | 3.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js)) |
 | 💼 **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário, com editor e folha A4 timbrada. | 1.3.9 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
 | 📋 **HOC Gastos para Excel** (`hoc-gastos-excel.user.js`) | Botão **📋 Copiar para Excel** nos registros de gasto da linha do tempo do prontuário. | 1.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js)) |
-| 🔁 **HOC Reaplicar Permissões** (`hoc-reaplicar-permissoes.user.js`) | Botão que reaplica a regra de permissões atual no cadastro de funcionário. | 1.0.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-reaplicar-permissoes.user.js)) |
+| 🔁 **HOC Reaplicar Permissões** (`hoc-reaplicar-permissoes.user.js`) | Botão que reaplica a regra de permissões atual no cadastro de funcionário. | 1.0.1 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-reaplicar-permissoes.user.js)) |
 
 A versão vigente de cada script é a do `@version` no respectivo `.meta.js`.
 
@@ -190,7 +190,7 @@ O Timbrador lembra o encaixe de cada PDF sozinho. Modo de impressão e diagnóst
 | Pôr o timbrado HOC Derma num PDF | Botão vermelho **PDF HOC Derma** (barra superior ou painel **Arquivos do Paciente**) ou `Ctrl + Shift + H` → escolha ou arraste o PDF → confira a prévia → **Exportar PDF nativo** ou **Imprimir**. |
 | Imprimir uma proposta da HOC Derma | Prontuário → aba **Propostas** → abra a proposta → **Imprimir HOC Derma** → ajuste no editor → **Imprimir** (ou `Ctrl + Enter`). Para PDF, escolha **Salvar como PDF**. |
 | Passar os itens de um gasto para o Excel | Prontuário → linha do tempo → no registro de gasto, **📋 Copiar para Excel** → Ctrl+V no Excel (item **Gastos para Excel** ON na engrenagem; detalhes em [docs/hoc-gastos-excel.md](docs/hoc-gastos-excel.md)). |
-| Reaplicar a regra de permissões de um funcionário | Cadastro do funcionário → aba **Permissões** → botão 🔁 ao lado do histórico (a dica mostra a regra atual) → **Reaplicar** (item **Reaplicar Permissões** ON na engrenagem; detalhes em [docs/hoc-reaplicar-permissoes.md](docs/hoc-reaplicar-permissoes.md)). |
+| Reaplicar a regra de permissões de um funcionário | Cadastro do funcionário → aba **Permissões** → botão **🔁 Reaplicar regra atual** ao lado do histórico (a dica mostra a regra atual) → **Reaplicar** (item **Reaplicar Permissões** ON na engrenagem; detalhes em [docs/hoc-reaplicar-permissoes.md](docs/hoc-reaplicar-permissoes.md)). |
 | Desligar uma função neste computador | Engrenagem → clique no item (vira OFF e a página recarrega). |
 
 ---

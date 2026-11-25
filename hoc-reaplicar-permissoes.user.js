@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HOC Reaplicar Permissões (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.0.0
-// @description  No cadastro de funcionário do Feegow (aba Permissões), coloca um botão ao lado do histórico de permissões que REAPLICA a regra predefinida que a pessoa já tem (a linha com o check verde na tabela de regras). Pede confirmação numa janelinha própria e clica no próprio botão "Aplicar" da regra, usando o caminho normal do Feegow. Não guarda nem envia dados. Já vem com o Core da Feegow Enhanced Suite (item "Reaplicar Permissões" na engrenagem); com o Core instalado, este avulso não é necessário.
+// @version      1.0.1
+// @description  No cadastro de funcionário do Feegow (aba Permissões), coloca um botão "Reaplicar regra atual" ao lado do histórico de permissões que REAPLICA a regra predefinida que a pessoa já tem (a linha com o check verde na tabela de regras). Pede confirmação numa janelinha própria e clica no próprio botão "Aplicar" da regra, usando o caminho normal do Feegow. Não guarda nem envia dados. Já vem com o Core da Feegow Enhanced Suite (item "Reaplicar Permissões" na engrenagem); com o Core instalado, este avulso não é necessário.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
 // @match        https://feegow.com/*
@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    var VERSAO = '1.0.0';
+    var VERSAO = '1.0.1';
     var PREFIXO = '[HOC Reaplicar Permissões]';
 
     // Só na tela de cadastro de funcionário (?P=Funcionarios, com ou sem maiúscula).
@@ -39,6 +39,7 @@
 
     var CLASSE_BTN = 'hoc-reaplicar-regra-btn';
     var ICONE = 'far fa-redo';
+    var TEXTO = 'Reaplicar regra atual';
 
     // ---------- leitura da tela ----------
 
@@ -245,9 +246,11 @@
             btn.className = 'btn btn-sm btn-default fright mt10 ' + CLASSE_BTN;
             btn.style.cssFloat = 'right';
             btn.style.marginRight = '6px';
+            btn.style.whiteSpace = 'nowrap';   // texto numa linha só, sem quebrar o cabeçalho
             var ic = document.createElement('i');
             ic.className = ICONE;
             btn.appendChild(ic);
+            btn.appendChild(document.createTextNode(' ' + TEXTO));
             btn.addEventListener('click', aoClicar);
             var hist = heading.querySelector('[onclick*="MostraLogsPermissoes"]');
             // Os dois flutuam à direita: vindo depois do histórico no DOM, fica à esquerda dele.
