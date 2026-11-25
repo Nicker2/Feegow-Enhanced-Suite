@@ -9,7 +9,7 @@
 | Core | 1.1.2.0 |
 | Suite principal | 4.9.6.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.3.8 |
+| Propostas HOC Derma | 1.3.9 |
 | HOC Gastos para Excel | 1.1.0 |
 
 ---
@@ -29,6 +29,10 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.3.9 (24/11/2026)
+
+- No "Padrão Poppins" (o padrão inicial), os **títulos dos procedimentos** voltam à fonte de antes; o resto continua em Poppins. Quem já tinha mudado a fonte ou o tamanho do título mantém a escolha.
 
 ### Propostas 1.3.8 (24/11/2026)
 

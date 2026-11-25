@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.8
+// @version      1.3.9
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.8
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.9
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -206,12 +206,18 @@ window.HOCDERMA_TIMBRADO = {
  *     pagamento/textos, assinatura, rodapé legal), um seletor de FONTE (Poppins, Montserrat, Open Sans,
  *     Roboto, Lato, Arial, Times New Roman, Original) e [−] N pt [+] (passo 0,5; 6 a 28 pt; "padrão").
  *     Muda na hora na prévia e na impressão/PDF e é salvo na hora (GM do script, hoc_propostas_fontes).
- *   - POPPINS é a fonte padrão da janela e da folha (tamanhos levemente menores: é mais larga).
+ *   - POPPINS é a fonte padrão da janela e da folha (tamanhos levemente menores: é mais larga),
+ *     menos os TÍTULOS DOS PROCEDIMENTOS, que no "Padrão Poppins" ficam na fonte original (v1.3.9).
  *     Botões "Padrão Poppins" e "Padrão original" (= 1.3.6, CSS intacto), com confirmação
  *     "Substituir os ajustes atuais?". Fontes do Google Fonts oficial (SIL OFL; licenças em
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
  *
+ *
+ * v1.3.9 (24/11/2026)
+ *   - "Padrão Poppins" (e padrão inicial): títulos dos procedimentos na fonte ORIGINAL da 1.3.6
+ *     (Palatino 13,5 pt, peso e altura de linha originais); o resto continua em Poppins. Ajustes
+ *     salvos: só muda quem estava com o título no padrão Poppins (escolha manual é mantida).
  *
  * v1.3.8 (24/11/2026)
  *   - Aviso do topo da janela curto ("Itens, valores e descontos são salvos no Feegow · Descrições e
@@ -810,7 +816,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.8';
+  const VERSAO = '1.3.9';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -1068,9 +1074,10 @@ window.HOCDERMA_TIMBRADO = {
   const FONTE_UI_ORIGINAL = 'system-ui,"Segoe UI",Roboto,Arial,sans-serif';
   const FONTE_FOLHA_ORIGINAL = '"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
   // base = tamanho original (1.3.6); poppins = tamanho do "Padrão Poppins" (Poppins é mais larga)
+  // famPoppins = família da parte no "Padrão Poppins" (sem ela: Poppins)
   const FONTE_BLOCOS = [
     { id: 'cabecalho', rotulo: 'Título e dados do paciente', sel: 'h1, .dados', base: 10, poppins: 9.5 },
-    { id: 'procTitulo', rotulo: 'Títulos dos procedimentos', sel: '.proc h3.tit, .desc-tit', base: 13.5, poppins: 12.5 },
+    { id: 'procTitulo', rotulo: 'Títulos dos procedimentos', sel: '.proc h3.tit, .desc-tit', base: 13.5, poppins: 13.5, famPoppins: 'original' },
     { id: 'descricao', rotulo: 'Descrições dos procedimentos', sel: '.proc .txt, .lista-outros', base: 9.8, poppins: 9.3 },
     { id: 'investimento', rotulo: 'Investimento (valor de cada descrição)', sel: '.proc .val', base: 12, poppins: 11 },
     { id: 'tabela', rotulo: 'Tabela de valores', sel: 'table.itens', base: 10.5, poppins: 9.5, herda: true },
@@ -1096,6 +1103,22 @@ window.HOCDERMA_TIMBRADO = {
   const fonteBloco = (id) => FONTE_BLOCOS.find((b) => b.id === id);
   const limitarFonte = (v) => Math.min(FONTE_MAX, Math.max(FONTE_MIN, Math.round(num(v) * 10) / 10));
   const padraoPt = (base, b) => (base === 'original' ? b.base : b.poppins);
+  const padraoFam = (base, b) => (base === 'original' ? 'original' : (b.famPoppins || 'poppins'));
+  // v1.3.9: formato salvo (_v). Antes (sem _v), o título dos procedimentos no Padrão Poppins era
+  // Poppins 12,5 pt: quem tinha mudado só a fonte ou só o tamanho dele mantém a outra metade
+  const FONTES_VERSAO = 2;
+  const FONTES_PADRAO_V1 = { procTitulo: { tam: 12.5, fam: 'poppins' } };
+  function migrarFontes(salvo) {
+    if (!salvo || typeof salvo !== 'object' || salvo._v >= FONTES_VERSAO || salvo.base === 'original') return salvo;
+    const tam = Object.assign({}, salvo.tam && typeof salvo.tam === 'object' ? salvo.tam : {});
+    const fam = Object.assign({}, salvo.fam && typeof salvo.fam === 'object' ? salvo.fam : {});
+    Object.keys(FONTES_PADRAO_V1).forEach((id) => {
+      if (tam[id] == null && fam[id] == null) return; // estava no padrão: segue o padrão novo
+      if (tam[id] == null) tam[id] = FONTES_PADRAO_V1[id].tam;
+      if (fam[id] == null) fam[id] = FONTES_PADRAO_V1[id].fam;
+    });
+    return Object.assign({}, salvo, { tam, fam, _v: FONTES_VERSAO });
+  }
 
   // { base:'poppins'|'original', tam:{id:pt}, fam:{id:familia} } (só o que difere da predefinição)
   function normalizarFontes(salvo) {
@@ -1108,8 +1131,7 @@ window.HOCDERMA_TIMBRADO = {
       const v = Number(tam[b.id]);
       if (Number.isFinite(v) && v > 0 && limitarFonte(v) !== padraoPt(out.base, b)) out.tam[b.id] = limitarFonte(v);
       const fa = String(fam[b.id] || '');
-      const padraoFam = out.base === 'original' ? 'original' : 'poppins';
-      if (familia(fa) && fa !== padraoFam) out.fam[b.id] = fa;
+      if (familia(fa) && fa !== padraoFam(out.base, b)) out.fam[b.id] = fa;
     });
     return out;
   }
@@ -1120,13 +1142,13 @@ window.HOCDERMA_TIMBRADO = {
     } catch (e) { salvo = null; }
     if (salvo == null || salvo === '') salvo = fontesMemoria;
     if (typeof salvo === 'string') { try { salvo = JSON.parse(salvo); } catch (e) { salvo = null; } }
-    return normalizarFontes(salvo);
+    return normalizarFontes(migrarFontes(salvo));
   }
   function salvarFontes(f) {
     const p = normalizarFontes(f);
-    fontesMemoria = p;
+    fontesMemoria = Object.assign({ _v: FONTES_VERSAO }, p);
     try {
-      if (typeof GM_setValue === 'function') GM_setValue(FONTES_CHAVE, JSON.stringify(p)); // eslint-disable-line no-undef
+      if (typeof GM_setValue === 'function') GM_setValue(FONTES_CHAVE, JSON.stringify(fontesMemoria)); // eslint-disable-line no-undef
     } catch (e) { /* sem GM: fica só na memória */ }
     return p;
   }
@@ -1134,7 +1156,7 @@ window.HOCDERMA_TIMBRADO = {
   const aplicarPredefinicaoFontes = (base) => salvarFontes({ base: base === 'original' ? 'original' : 'poppins', tam: {}, fam: {} });
   const limparFontes = () => aplicarPredefinicaoFontes('poppins');
   const tamanhoFonte = (f, id) => { const b = fonteBloco(id); return f.tam[id] != null ? f.tam[id] : padraoPt(f.base, b); };
-  const familiaFonte = (f, id) => f.fam[id] || (f.base === 'original' ? 'original' : 'poppins');
+  const familiaFonte = (f, id) => f.fam[id] || padraoFam(f.base, fonteBloco(id));
   const fontesOriginaisPuras = (f) => f.base === 'original' && !Object.keys(f.tam).length && !Object.keys(f.fam).length;
   const familiasUsadas = (f) => {
     const s = new Set();
@@ -2943,7 +2965,7 @@ window.HOCDERMA_TIMBRADO = {
     const f = lerFontes();
     const nomeBase = f.base === 'original' ? 'Padrão original (1.3.6)' : 'Padrão Poppins';
     box.innerHTML = `<div class="fontes-top"><b>Fontes da folha</b><span>Cada mudança aparece na prévia e é salva neste PC na hora; vale na impressão/PDF e nas próximas propostas. Base atual: <b data-fontes-base>${nomeBase}</b>.</span></div>
-      <div class="fontes-pre"><button class="b" data-acao="fontes-poppins" title="Tudo em Poppins, tamanhos padrão">Padrão Poppins</button><button class="b" data-acao="fontes-original" title="Exatamente as fontes e tamanhos da versão 1.3.6">Padrão original</button></div>
+      <div class="fontes-pre"><button class="b" data-acao="fontes-poppins" title="Títulos dos procedimentos na fonte original; o resto em Poppins, tamanhos padrão">Padrão Poppins</button><button class="b" data-acao="fontes-original" title="Exatamente as fontes e tamanhos da versão 1.3.6">Padrão original</button></div>
       ${FONTE_BLOCOS.map((b) => {
         const v = tamanhoFonte(f, b.id);
         const fa = familiaFonte(f, b.id);
