@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.6.0
-// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma e o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto).
+// @version      4.9.7.0
+// @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
 // @downloadURL  https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js
@@ -24,6 +24,8 @@
     const featurePropostasHocAtiva = GM_getValue('propostas_hoc_derma', true);
     // Botão "Copiar para Excel" nos registros de gasto do prontuário (vem ON por padrão).
     const featureGastosExcelAtiva = GM_getValue('gastos_excel', true);
+    // Botão que reaplica a regra de permissões atual no cadastro de funcionário (vem ON por padrão).
+    const featureReaplicarPermissoesAtiva = GM_getValue('reaplicar_permissoes', true);
 
     // =========================================================================
     // PDF HOC DERMA v3 — CASCATA: o VERIFICAR baixa e executa o timbrador
@@ -325,6 +327,99 @@
     function iniciarModuloGastosExcel() {
         if (!featureGastosExcelAtiva) return;    // OFF na engrenagem: nem baixa
         carregarGastosExcel(false);              // o módulo tem o próprio vigia (MutationObserver)
+    }
+
+    // =========================================================================
+    // HOC REAPLICAR PERMISSÕES — CASCATA: o VERIFICAR baixa e executa o módulo
+    // =========================================================================
+    //   core.user.js ─▶ VERIFICAR-DR-EXAMES.user.js ─▶ hoc-reaplicar-permissoes.user.js
+    // Mesmo padrão do Gastos para Excel, mas só baixa/roda no cadastro de funcionário
+    // (?P=Funcionarios, qualquer maiúscula). O módulo marca <html data-hoc-reaplicar-permissoes-ativo>;
+    // se a pessoa também tiver o script avulso instalado, quem rodar primeiro
+    // fica e o outro sai sem fazer nada (sem botão duplicado).
+    const PERMREG_URL_RAW       = 'https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-reaplicar-permissoes.user.js';
+    const PERMREG_CACHE_MINUTOS = 60;
+    const PERMREG_CHAVE_CODIGO  = 'hoc_permregra_codigo';
+    const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
+    const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
+    let permRegraCarregando = null;
+
+    function permRegraDisponivel() {
+        return document.documentElement.hasAttribute('data-hoc-reaplicar-permissoes-ativo');
+    }
+
+    function executarPermRegra(codigo, origem) {
+        if (permRegraDisponivel()) return true;
+        try {
+            // eslint-disable-next-line no-eval
+            eval(codigo);
+            const ok = permRegraDisponivel();
+            if (ok) log('HOC Reaplicar Permissões v' + hocDermaVersaoDe(codigo) + ' executado a partir de ' + origem + '.');
+            else console.error('[Feegow Suite] HOC Reaplicar Permissões rodou mas não marcou a página.');
+            return ok;
+        } catch (e) {
+            console.error('[Feegow Suite] Falha ao executar o HOC Reaplicar Permissões:', e);
+            return false;
+        }
+    }
+
+    function carregarReaplicarPermissoes(forcarAtualizacao) {
+        if (permRegraDisponivel()) return Promise.resolve(true);
+        if (permRegraCarregando) return permRegraCarregando;
+
+        const agora = Date.now();
+        const ultimoFetch = Number(GM_getValue(PERMREG_CHAVE_TIME, 0)) || 0;
+        const codigoCache = String(GM_getValue(PERMREG_CHAVE_CODIGO, '') || '');
+        const expirou = (agora - ultimoFetch) > (PERMREG_CACHE_MINUTOS * 60 * 1000);
+
+        if (!forcarAtualizacao && codigoCache && !expirou) {
+            if (executarPermRegra(codigoCache, 'memória local')) return Promise.resolve(true);
+        }
+
+        const reserva = () => (codigoCache ? executarPermRegra(codigoCache, 'memória local (expirada)') : false);
+        permRegraCarregando = new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: PERMREG_URL_RAW + '?nocache=' + agora,
+                timeout: 30000,
+                onload: function (resposta) {
+                    const codigo = (resposta && resposta.responseText) || '';
+                    const status = resposta ? resposta.status : 0;
+                    if (status !== 200 || codigo.indexOf('// ==UserScript==') < 0) {
+                        console.error('[Feegow Suite] HOC Reaplicar Permissões: resposta inesperada do GitHub (HTTP ' + status + ').');
+                        resolve(reserva());
+                        return;
+                    }
+                    const ok = executarPermRegra(codigo, 'GitHub');
+                    if (ok) {
+                        try {
+                            GM_setValue(PERMREG_CHAVE_CODIGO, codigo);
+                            GM_setValue(PERMREG_CHAVE_TIME, agora);
+                            GM_setValue(PERMREG_CHAVE_VERSAO, hocDermaVersaoDe(codigo));
+                        } catch (e) { /* noop */ }
+                        resolve(true);
+                    } else {
+                        resolve(reserva());
+                    }
+                },
+                onerror: function () {
+                    console.error('[Feegow Suite] HOC Reaplicar Permissões: falha de rede ao baixar do GitHub.');
+                    resolve(reserva());
+                },
+                ontimeout: function () {
+                    console.error('[Feegow Suite] HOC Reaplicar Permissões: timeout ao baixar do GitHub.');
+                    resolve(reserva());
+                }
+            });
+        }).then((ok) => { permRegraCarregando = null; return ok; });
+
+        return permRegraCarregando;
+    }
+
+    function iniciarModuloReaplicarPermissoes() {
+        if (!featureReaplicarPermissoesAtiva) return;    // OFF na engrenagem: nem baixa
+        if (!/[?&]P=funcionarios(?:&|#|$)/i.test(location.search + location.hash)) return;   // só no cadastro de funcionário
+        carregarReaplicarPermissoes(false);              // o módulo tem o próprio vigia (MutationObserver)
     }
 
     // Abre a janela flutuante. NUNCA redireciona para a instalação.
@@ -1161,6 +1256,7 @@ const protocolosDilatacao = {
         iniciarModuloPdfHoc();
         iniciarModuloPropostasHoc();
         iniciarModuloGastosExcel();
+        iniciarModuloReaplicarPermissoes();
     };
 
     let exibirTodos = 1;
@@ -1255,6 +1351,9 @@ const protocolosDilatacao = {
                     </li>
                     <li class="toggle-remover" data-key="gastos_excel" style="padding: 5px 10px; cursor: pointer; color: ${featureGastosExcelAtiva ? 'green' : 'red'};" title="Botão 'Copiar para Excel' nos registros de gasto da linha do tempo do prontuário">
                         Gastos para Excel: ${featureGastosExcelAtiva ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="reaplicar_permissoes" style="padding: 5px 10px; cursor: pointer; color: ${featureReaplicarPermissoesAtiva ? 'green' : 'red'};" title="Botão que reaplica a regra de permissões atual no cadastro de funcionário (aba Permissões)">
+                        Reaplicar Permissões: ${featureReaplicarPermissoesAtiva ? 'ON' : 'OFF'}
                     </li>
                 </ul>
               </div>

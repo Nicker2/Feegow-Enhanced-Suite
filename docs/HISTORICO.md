@@ -6,13 +6,20 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.1.2.0 |
-| Suite principal | 4.9.6.0 |
+| Core | 1.1.3.0 |
+| Suite principal | 4.9.7.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.3.9 |
 | HOC Gastos para Excel | 1.1.0 |
+| HOC Reaplicar Permissões | 1.0.0 |
 
 ---
+
+### Core 1.1.3.0, Suite 4.9.7.0 e Reaplicar Permissões 1.0.0 (25/11/2026): novo módulo
+
+- Novo **HOC Reaplicar Permissões**: no cadastro de funcionário (`?P=Funcionarios`, aba **Permissões**), botão 🔁 ao lado do histórico de permissões, no mesmo estilo dele. Reaplica a regra predefinida que a pessoa já tem (a linha com o check verde), depois de uma confirmação própria, clicando no próprio botão **Aplicar** da regra. Sem regra marcada, o botão fica desabilitado. Detalhes em [hoc-reaplicar-permissoes.md](hoc-reaplicar-permissoes.md).
+- Carregado pela Suite (item **Reaplicar Permissões** na engrenagem, ON por padrão), só nessa tela.
+- Core 1.1.3.0: só a versão muda, para o Tampermonkey atualizar e a Suite nova ser baixada na hora.
 
 ### Core 1.1.2.0, Suite 4.9.6.0 e Gastos para Excel 1.1.0 (24/11/2026): Gastos para Excel vem com o Core
 

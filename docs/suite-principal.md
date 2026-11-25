@@ -22,6 +22,7 @@ Um botão de engrenagem (`#btn-controle-feegow`) é inserido na barra superior, 
 | PDF HOC Derma (v3) | Carrega o Timbrador e mostra o botão vermelho **PDF HOC Derma** | `pdf_hoc_derma` |
 | Imprimir HOC Derma (Propostas) | Carrega o módulo de Propostas | `propostas_hoc_derma` |
 | Gastos para Excel | Carrega o módulo HOC Gastos para Excel | `gastos_excel` |
+| Reaplicar Permissões | Carrega o módulo HOC Reaplicar Permissões (só no cadastro de funcionário) | `reaplicar_permissoes` |
 
 ## 2. Lista de Espera e DR. EXAMES
 
@@ -67,6 +68,8 @@ Com o item **PDF HOC Derma** ON, a Suite:
 Com o item **Imprimir HOC Derma (Propostas)** ON, baixa e executa o módulo de Propostas, que cuida do próprio botão.
 
 Com o item **Gastos para Excel** ON, baixa e executa o [HOC Gastos para Excel](hoc-gastos-excel.md) (cache de 60 min), que põe o botão **📋 Copiar para Excel** nos registros de gasto da linha do tempo. Se o script avulso também estiver instalado, só um dos dois roda.
+
+Com o item **Reaplicar Permissões** ON, e só no cadastro de funcionário (`?P=Funcionarios`), baixa e executa o [HOC Reaplicar Permissões](hoc-reaplicar-permissoes.md) (cache de 60 min), que põe o botão 🔁 ao lado do histórico de permissões.
 
 ## 6. Personalização (no código)
 

@@ -89,6 +89,7 @@ VERIFICAR-DR-EXAMES.user.js / .meta.js               Suite principal
 hoc-derma-stamping-tool.user.js / .meta.js           PDF HOC Derma (Timbrador)
 hoc-derma-propostas.user.js / .meta.js               Propostas HOC Derma
 hoc-gastos-excel.user.js / .meta.js                  HOC Gastos para Excel (carregado pela Suite)
+hoc-reaplicar-permissoes.user.js / .meta.js          HOC Reaplicar Permissões (carregado pela Suite)
 assets/                                              Imagens do README (desenhos SVG)
 docs/                                                Guias por script, detalhes técnicos e histórico
 LICENSE                                              MIT
