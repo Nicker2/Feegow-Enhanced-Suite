@@ -9,7 +9,7 @@
 | Core | 1.2.0.0 |
 | Suite principal | 4.9.14.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.4.5 |
+| Propostas HOC Derma | 1.4.6 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.6.0 |
 
@@ -105,6 +105,11 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.4.6 (26/11/2026)
+
+- Título corrigido para **"BACCIO LIP | REVITALIZAÇÃO LABIAL"** (dois C); também reconhece "BACCIO LÁBIOS".
+- Depois dos renomes dos procedimentos de dermatologia no Feegow (padrão " | " e zero à esquerda), conferi um a um com a lista atual da API: todos os que tinham descrição continuam com a mesma descrição, sem ajustes.
 
 ### Propostas 1.4.5 (26/11/2026): falsos positivos
 

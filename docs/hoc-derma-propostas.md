@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.4.5** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.4.6** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -268,6 +268,7 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
+| **1.4.6** | 26/11/2026 | Título "BACCIO LIP \| REVITALIZAÇÃO LABIAL" (dois C), também casa "BACCIO LÁBIOS". Conferência com os nomes renomeados no Feegow: nada se perdeu. |
 | **1.4.5** | 26/11/2026 | Falsos positivos: a sigla ECG não reconhece mais eletrocoagulação (só por extenso; fora eletrocardiograma, ergométrico, consulta); linhas de anestesista/auxiliar nunca recebem descrição; blefaroplastia sem tumor/biópsia/Plasma IQ; LIP sem oftalmo/glow; ácido hialurônico sem quadril; exérese de cisto não cai na de lesão baixa. |
 | **1.4.4** | 26/11/2026 | "FIOS APTOS \| ROSTO" renomeada para "APTOS ROSTO" (mesmo texto) e reconhece "aptos rosto" (ex.: "LIFTING APTOS \| FIO ROSTO"); não pega "fios lisos". |
 | **1.4.3** | 26/11/2026 | 7 descrições novas: crioterapia, curetagem (genérica e de molusco), ectrópio/entrópio, fios lisos (glabela, pálpebras inferiores) e Harmonyca; Harmonyca excluída do preenchimento genérico. |

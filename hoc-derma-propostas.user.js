@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.5
+// @version      1.4.6
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.5
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.6
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -213,6 +213,10 @@ window.HOCDERMA_TIMBRADO = {
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
  *
+ * v1.4.6 (26/11/2026)
+ *   - Grafia da marca: título "BACCIO LIP | REVITALIZAÇÃO LABIAL" (dois C); casa também com "BACCIO LÁBIOS".
+ *     Conferido contra a lista atual da API depois dos renomes do Feegow: nenhuma descrição se perdeu.
+ *
  * v1.4.5 (26/11/2026)
  *   - Falsos positivos corrigidos: a sigla "ECG" deixou de reconhecer eletrocoagulação (só a palavra
  *     "eletrocoagulação" por extenso; o Feegow já renomeou), então eletrocardiograma/ergométrico não pegam mais; linhas de
@@ -329,7 +333,7 @@ window.HOCDERMA_TIMBRADO = {
     {
       id: "baccio-lip",
       modeloFeegow: 85,
-      titulo: "BACIO LIP | REVITALIZAÇÃO LABIAL",
+      titulo: "BACCIO LIP | REVITALIZAÇÃO LABIAL",
       palavrasChave: ["baccio lip", "revitalizacao labial"],
       investimento: "R$ 1.700,00",
       texto: "Tratamento com ácido hialurônico e vitamina B12 que hidrata e revitaliza os lábios, melhorando a textura e a definição, para uma aparência mais macia, lisa e bem cuidada."
@@ -1012,6 +1016,7 @@ window.HOCDERMA_TIMBRADO = {
   const APELIDOS = [
     ['bacio', 'baccio'],
     ['baccio labial', 'baccio lip'],
+    ['baccio labios', 'baccio lip'],
     ['botox', 'toxina'],
     ['toxina botulinica', 'toxina'],
     ['botulinica', 'toxina'],
@@ -1044,7 +1049,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.4.5';
+  const VERSAO = '1.4.6';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
