@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.8
+// @version      1.4.9
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.8
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.9
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -212,6 +212,17 @@ window.HOCDERMA_TIMBRADO = {
  *     "Substituir os ajustes atuais?". Fontes do Google Fonts oficial (SIL OFL; licenças em
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
+ *
+ * v1.4.9 (26/11/2026)
+ *   - Desconto total do editor → campo "Desconto total (%)" do Feegow (em R$, vira % sobre o subtotal), com os
+ *     eventos e o recalc do Feegow; espera o recálculo terminar e SÓ SALVA a proposta (propostaSave, o mesmo do
+ *     botão SALVAR) se o total do Feegow ficou igual ao do documento; confere a resposta do Feegow e mostra toast
+ *     verde "Desconto salvo na proposta do Feegow" (ou vermelho com o erro). Se o total divergir, NÃO salva e avisa
+ *     em vermelho com os dois valores. Opção "Salvar a proposta no Feegow ao aplicar o desconto" (engrenagem),
+ *     ligada por padrão. Ao abrir, já lê o desconto atual do Feegow.
+ *   - "Profissional" da folha: tratamento + nome completo + CRM/UF + RQE ("DRA. NOME · CRM 123/SP · RQE 456"),
+ *     lidos na hora do cadastro do profissional no Feegow (sem gravar no script); sem profissional na proposta,
+ *     usa a Dra. Linda; o que faltar no cadastro não é inventado (a janela avisa).
  *
  * v1.4.8 (26/11/2026)
  *   - Valor atual: item da proposta sem valor (e sem valor no script) busca o valor do procedimento NA HORA no Feegow (campo
@@ -1603,7 +1614,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.4.8';
+  const VERSAO = '1.4.9';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -1786,7 +1797,8 @@ window.HOCDERMA_TIMBRADO = {
     mostrarTotal: true,
     incluirDescricoes: true,
     posicaoDescricoes: 'depois', // v1.2.2: sem efeito (ordem fixa: descrições antes da tabela e do total)
-    valorNasDescricoes: true     // tabela oculta: valor do procedimento abaixo de cada descrição
+    valorNasDescricoes: true,    // tabela oculta: valor do procedimento abaixo de cada descrição
+    salvarAoDesconto: true       // v1.4.9: ao aplicar o desconto total no Feegow, salva a proposta (se o total conferir)
   };
   const PREF_VERSAO = 130;
   let prefsMemoria = null;
@@ -2341,6 +2353,83 @@ window.HOCDERMA_TIMBRADO = {
   }
 
   /* --------------------------------------------------------------------------
+   * 2.3 PROFISSIONAL COM TRATAMENTO, CRM E RQE (v1.4.8)
+   *     "Profissional" da folha: "DRA. NOME COMPLETO · CRM nº/UF · RQE nº", lido em tempo de execução do
+   *     cadastro do profissional no próprio Feegow (/main/?P=Profissionais&I=<id>&Pers=1, mesma origem,
+   *     sessão logada, sem token). Nada disso fica gravado no script. Sem profissional na proposta, usa
+   *     o cadastro da profissional "LINDA" (Dermatologia) entre as opções do campo Profissional.
+   *     Dado que não existir no cadastro não é inventado: sai só o que houver (e a janela avisa o que falta).
+   * ------------------------------------------------------------------------ */
+
+  const PROF_PADRAO_PALAVRA = 'linda';
+  const PROF_CACHE = new Map(); // id → dados do cadastro (null = leitura falhou)
+  const PROF_PEND = new Map();
+  const idProfissionalDoForm = (form) => {
+    const sel = form && q(form, SEL.profissional);
+    const v = sel ? String(sel.value || '').trim() : '';
+    return /^\d+$/.test(v) && Number(v) > 0 ? String(Number(v)) : '';
+  };
+  function idProfissionalPadrao() {
+    const sel = q(document, SEL.profissional);
+    const o = sel && Array.from(sel.options || []).find((x) => /^\d+$/.test(String(x.value)) && normalizar(x.text).split(' ').indexOf(PROF_PADRAO_PALAVRA) >= 0);
+    return o ? String(Number(o.value)) : '';
+  }
+  async function lerProfissionalFeegow(id) {
+    const x = await fetch(baseFeegow() + '?P=Profissionais&I=' + encodeURIComponent(id) + '&Pers=1', { credentials: 'same-origin' });
+    if (!x.ok) throw new Error('profissional ' + id + ': HTTP ' + x.status);
+    const doc = new DOMParser().parseFromString(await textoDaResposta(x), 'text/html'); // documento inerte
+    const val = (n) => { const e = doc.querySelector('[name="' + n + '"]'); return e ? limpa(e.value) : ''; };
+    const opt = (n) => {
+      const e = doc.querySelector('select[name="' + n + '"]');
+      const o = e && e.options && e.options[e.selectedIndex];
+      return o && String(o.value) !== '' && String(o.value) !== '0' && !/^selecione/i.test(o.text) ? limpa(o.text) : '';
+    };
+    const nome = val('NomeProfissional');
+    if (!nome) throw new Error('cadastro do profissional ' + id + ' sem nome (página inesperada)');
+    return { nome, tratamento: opt('TratamentoID'), sexo: opt('Sexo'), conselho: opt('Conselho'), documento: val('DocumentoConselho'), uf: val('UFConselho'), rqe: val('RQE') };
+  }
+  function profissionalPorId(id) {
+    if (PROF_CACHE.has(id)) return Promise.resolve(PROF_CACHE.get(id));
+    if (!PROF_PEND.has(id)) {
+      PROF_PEND.set(id, lerProfissionalFeegow(id).then((r) => { PROF_CACHE.set(id, r); return r; })
+        .catch((e) => { aviso('cadastro do profissional indisponível: ' + (e && e.message)); PROF_CACHE.set(id, null); return null; }));
+    }
+    return PROF_PEND.get(id);
+  }
+  // { texto, falta:[...] }: "DRA. NOME · CRM 123/SP · RQE 456" (só o que existir no cadastro)
+  function formatarProfissional(info, nomeReserva) {
+    let trat = limpa(info && info.tratamento);
+    if (!trat) trat = /^fem/i.test(info && info.sexo) ? 'Dra.' : /^masc/i.test(info && info.sexo) ? 'Dr.' : '';
+    const nome = limpa((info && info.nome) || nomeReserva).toUpperCase();
+    const partes = [(trat ? trat.toUpperCase() + ' ' : '') + nome];
+    const falta = [];
+    if (info && info.documento) partes.push((info.conselho || 'CRM') + ' ' + info.documento + (info.uf ? '/' + info.uf : '')); else falta.push('CRM');
+    if (info && info.rqe) partes.push('RQE ' + info.rqe); else falta.push('RQE');
+    if (!trat) falta.push('tratamento (Dr./Dra.)');
+    return { texto: partes.join(' · '), falta };
+  }
+  function mostrarInfoProfissional() {
+    const el = S.shadow && S.shadow.querySelector('[data-prof-info]');
+    const d = S.dados;
+    if (el && d) el.textContent = d.profissionalFalta && d.profissionalFalta.length ? 'Faltam no cadastro do Feegow: ' + d.profissionalFalta.join(', ') + '.' : '';
+  }
+  // Ao abrir o editor: troca o nome simples pelo texto completo, se a pessoa ainda não mexeu no campo.
+  async function carregarProfissionalDoEditor(d) {
+    const original = limpa(d.profissional);
+    const id = d.profissionalId || idProfissionalPadrao();
+    if (!id) return;
+    const info = await profissionalPorId(id);
+    if (!info || S.dados !== d || limpa(d.profissional) !== original) return;
+    const f = formatarProfissional(info, original);
+    d.profissionalId = id;
+    d.profissional = f.texto;
+    d.profissionalFalta = f.falta;
+    preencherCamposEditor();
+    mostrarInfoProfissional();
+    atualizar(true);
+  }
+
+  /* --------------------------------------------------------------------------
    * 2.2 DETECÇÃO DAS DESCRIÇÕES (catálogo × itens da proposta)
    * ------------------------------------------------------------------------ */
 
@@ -2641,7 +2730,7 @@ window.HOCDERMA_TIMBRADO = {
   }
   // espera (no máx. ms) as leituras de valor em andamento, para a impressão já sair com o valor atual
   function aguardarValoresAtuais(ms) {
-    const ps = Array.from(VALOR_PEND.values());
+    const ps = Array.from(VALOR_PEND.values()).concat(Array.from(PROF_PEND.values()));
     return ps.length ? Promise.race([Promise.all(ps), espera(ms)]) : Promise.resolve();
   }
 
@@ -3027,6 +3116,7 @@ window.HOCDERMA_TIMBRADO = {
       paciente: formatarNome(pac.nome, CONFIG.formatoNomePadrao),
       data,
       profissional: profissionalDoForm(form),
+      profissionalId: idProfissionalDoForm(form),
       status: textoOpcao(q(form, SEL.status)),
       titulo: CONFIG.textos.titulo,
       tituloItens: valorInput(form, SEL.tituloItens, 'Procedimento'),
@@ -3303,6 +3393,8 @@ window.HOCDERMA_TIMBRADO = {
     .cfg .cfg-corpo .dica{ font-size:11px; color:#888; font-weight:400; }
     .cfg .cfg-ops{ display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }
     .cfg .rodape .ok{ font-size:11px; color:#2e7d32; }
+    .toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:2147483600; padding:10px 18px; border-radius:8px; font-size:13px; font-weight:600; color:#fff; box-shadow:0 8px 24px rgba(0,0,0,.35); max-width:80vw; }
+    .toast.ok{ background:#2e7d32; } .toast.erro{ background:#b03a3a; }
     .cfg.ger{ width:min(1080px,100%); height:min(800px,100%); display:flex; flex-direction:column; overflow:hidden; }
     .cfg.ger .ger-corpo{ flex:1; overflow:auto; padding:12px 16px; min-height:0; }
     .cfg.ger .rodape .dica{ flex:1; font-size:11px; color:#888; }
@@ -3387,7 +3479,8 @@ window.HOCDERMA_TIMBRADO = {
     ['valorNasDescricoes', '"Investimento" em cada descrição'],
     ['incluirDescricoes', 'Descrições dos procedimentos'],
     ['mostrarValidade', 'Mostrar validade'],
-    ['mostrarAssinatura', 'Linha de assinatura']
+    ['mostrarAssinatura', 'Linha de assinatura'],
+    ['salvarAoDesconto', 'Salvar a proposta no Feegow ao aplicar o desconto']
   ];
   const valorOpConfig = (p, k) => (k === 'mostrarTabela' ? !p.ocultarTabela : !!p[k]);
 
@@ -3987,7 +4080,7 @@ window.HOCDERMA_TIMBRADO = {
                 <label class="l2">Paciente<input data-k="paciente"></label>
                 <label>Formato do nome<select data-k="formatoNome"><option value="nome_sobrenome">NOME SOBRENOME</option><option value="feegow">Como no Feegow</option></select></label>
                 <label>Data<input data-k="data"></label>
-                <label class="l2">Profissional<input data-k="profissional"></label>
+                <label class="l2">Profissional<input data-k="profissional"><span class="dica" data-prof-info></span></label>
                 <label class="l2">Título da folha<input data-k="titulo"></label>
                 <label class="l2">Nome no final da folha (quem fez a proposta)<input data-k="criadoPor" placeholder="${esc(dados.criadoPorAuto || dados.profissional || 'automático')}"></label>
                 <label class="l2">Cargo / registro (opcional)<input data-k="cargoFinal" placeholder="ex.: Consultora de estética"></label>
@@ -4184,6 +4277,7 @@ window.HOCDERMA_TIMBRADO = {
     renderDescricoes();
     marcarDescsOff();
     atualizar(true);
+    carregarProfissionalDoEditor(dados).catch(() => { /* fica o nome simples */ });
     const prim = sh.querySelector('tbody [data-c="unitario"]');
     if (prim) prim.focus();
     log('editor aberto (' + dados.itens.length + ' itens lidos).');
@@ -4491,6 +4585,9 @@ window.HOCDERMA_TIMBRADO = {
       else if (!r.bate) msgFeegow(avisoTotal(r), 'erro');
       return !erros.length;
     }
+    // v1.4.9: só o desconto total mudou → espera o recálculo do Feegow, confere o total e (opção ligada por padrão)
+    // SALVA a proposta, mas só se o total do Feegow ficou igual ao do documento.
+    if (!nItens) { concluirDescontoFeegow(form, d); return true; }
     const salvou = clicarSalvarFeegow(form) || tentarPagina('propostaSave', [false]);
     let t;
     if (!nItens) {
@@ -4510,6 +4607,75 @@ window.HOCDERMA_TIMBRADO = {
     return salvou;
   }
   const sincronizarDescontoFeegow = sincronizarFeegow;
+
+  // Espera o recálculo do Feegow (recalcProposta.asp, assíncrono) terminar: até o #total bater com o esperado
+  // ou o tempo acabar. Retorna o último total lido (null = não leu).
+  async function esperarTotalFeegow(form, esperado, tol, ms) {
+    const t0 = Date.now();
+    let ult = null;
+    for (;;) {
+      const el = q(form, SEL.total);
+      ult = el ? lerValor(el.textContent) : null;
+      if (ult != null && Math.abs(ult - esperado) <= tol) return ult;
+      if (Date.now() - t0 >= ms) return ult;
+      await espera(150);
+    }
+  }
+  // chama o propostaSave(false, callback) do próprio Feegow (o mesmo do botão SALVAR) e espera a resposta
+  function salvarPropostaComResposta(form, ms) {
+    const fn = fnPagina('propostaSave');
+    if (!fn) return Promise.resolve({ semConferencia: !!clicarSalvarFeegow(form) });
+    return new Promise((resolve) => {
+      let fim = false;
+      const acabar = (r) => { if (!fim) { fim = true; clearTimeout(to); resolve(r); } };
+      const to = setTimeout(() => acabar({ timeout: true }), ms);
+      try {
+        const pr = fn.call(janelaPagina(), false, (data) => acabar({ data: String(data == null ? '' : data) }));
+        if (pr && typeof pr.catch === 'function') pr.catch((e) => acabar({ erro: (e && e.message) || String(e) }));
+      } catch (e) { acabar({ erro: (e && e.message) || String(e) }); }
+    });
+  }
+  function toastFeegow(texto, tipo) {
+    const sh = S.shadow;
+    if (!sh) return;
+    let t = sh.querySelector('[data-toast]');
+    if (t) t.remove();
+    t = document.createElement('div');
+    t.className = 'toast ' + (tipo === 'erro' ? 'erro' : 'ok');
+    t.setAttribute('data-toast', '');
+    t.textContent = texto;
+    sh.appendChild(t);
+    setTimeout(() => { if (t.isConnected) t.remove(); }, tipo === 'erro' ? 9000 : 5000);
+  }
+  async function concluirDescontoFeegow(form, d) {
+    if (S.fgSalvando) return;
+    S.fgSalvando = true;
+    const fim = (texto, tipo) => { msgFeegow(texto, tipo === 'erro' ? 'erro' : 'ok'); toastFeegow(texto, tipo); log(texto); if (S.dados === d) atualizar(false); };
+    try {
+      const c = calcular(d);
+      const tol = Math.max(0.05, c.subtotal * 0.00005 + 0.01);
+      const base = num(c.pct) ? 'Desconto total de ' + fmtPct(c.pct) + '%' : 'Desconto total zerado';
+      msgFeegow('Aplicando o desconto no Feegow...', 'and');
+      const tot = await esperarTotalFeegow(form, c.total, tol, 4000);
+      if (tot != null) d.totalFeegow = tot;
+      if (tot == null) { fim(base + ' aplicado, mas não consegui ler o total do Feegow para conferir: nada foi salvo. Confira e clique em SALVAR.', 'erro'); return; }
+      if (Math.abs(tot - c.total) > tol) {
+        fim('ATENÇÃO: total do Feegow ' + fmtBRL(tot) + ' ≠ total do documento ' + fmtBRL(c.total) + '. A proposta NÃO foi salva: confira os valores e clique em SALVAR no Feegow.', 'erro');
+        return;
+      }
+      const opt = typeof d.salvarAoDesconto === 'boolean' ? d.salvarAoDesconto : lerPrefs().salvarAoDesconto !== false;
+      if (!opt) { fim('✔ ' + base + ' aplicado na proposta do Feegow (total ' + fmtBRL(tot) + ' confere) — confira e clique em SALVAR.', 'ok'); return; }
+      msgFeegow('Salvando a proposta no Feegow...', 'and');
+      const r = await salvarPropostaComResposta(form, 10000);
+      if (r.erro) fim('Erro ao salvar a proposta no Feegow: ' + r.erro, 'erro');
+      else if (r.timeout) fim('O Feegow não confirmou o salvamento (tempo esgotado). Confira a proposta e clique em SALVAR se precisar.', 'erro');
+      else if (r.semConferencia) fim('Desconto aplicado e SALVAR clicado, mas não consegui conferir a resposta do Feegow. Confira a proposta.', 'erro');
+      else if (/erro|error|falha|n[aã]o foi poss/i.test(r.data) && !/sucesso|success/i.test(r.data)) fim('O Feegow respondeu com erro ao salvar: ' + limpa(r.data.replace(/<[^>]+>/g, ' ')).slice(0, 160), 'erro');
+      else fim('✔ Desconto salvo na proposta do Feegow (total ' + fmtBRL(tot) + ').', 'ok');
+    } catch (e) {
+      fim('Erro ao aplicar o desconto no Feegow: ' + ((e && e.message) || e), 'erro');
+    } finally { S.fgSalvando = false; }
+  }
 
   function msgFeegow(texto, tipo) {
     const el = S.shadow && S.shadow.querySelector('[data-fg-msg]');
@@ -5507,6 +5673,7 @@ window.HOCDERMA_TIMBRADO = {
     apelidos: APELIDOS,
     normalizarBusca,
     valorTabelaFeegow,
+    profissional: { ler: lerProfissionalFeegow, formatar: formatarProfissional, porId: profissionalPorId, padrao: idProfissionalPadrao, cache: PROF_CACHE },
     valorAtual: { cache: VALOR_ATUAL, ler: lerValorAtual, buscar: buscarProcsSir, aguardar: aguardarValoresAtuais, inserir: inserirNaProposta, contexto: contextoProposta },
     investimentoDoBloco,
     distribuirItens,

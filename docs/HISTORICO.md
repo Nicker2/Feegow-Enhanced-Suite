@@ -9,7 +9,7 @@
 | Core | 1.2.0.0 |
 | Suite principal | 4.9.14.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.4.8 |
+| Propostas HOC Derma | 1.4.9 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.6.0 |
 
@@ -105,6 +105,13 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.4.9 (26/11/2026): profissional com CRM e RQE
+
+- No campo **Profissional** da folha sai o tratamento, o nome completo, o CRM e o RQE, por exemplo "DRA. NOME COMPLETO · CRM 123456/SP · RQE 654321". Os dados são lidos na hora do cadastro do profissional no próprio Feegow (mesma sessão, sem token) e **não ficam gravados no script**.
+- "Dr." ou "Dra." vem do tratamento cadastrado (ou do sexo, se o tratamento estiver vazio). Se a proposta não tiver profissional, usa a Dra. Linda.
+- **Desconto total:** o desconto informado no editor é aplicado no campo "Desconto total (%)" da proposta do Feegow aberta (em R$, vira % sobre o subtotal), com o recálculo do Feegow, e o script confere o total. **Depois de o Feegow recalcular, se o total do Feegow ficou igual ao do documento o script **salva a proposta** (mesmo salvar do botão SALVAR), confere a resposta e mostra um aviso verde "Desconto salvo na proposta do Feegow" (ou vermelho com o erro); se o total for diferente, **não salva** e avisa em vermelho com os dois valores. A opção "Salvar a proposta no Feegow ao aplicar o desconto" (engrenagem) vem ligada. Atenção: o Feegow aplica o desconto total item a item (sobre o valor unitário, sem o acréscimo), por isso em propostas com acréscimo ou descontos por item o total pode divergir e então nada é salvo. Ao abrir o editor, o desconto atual do Feegow já aparece no campo. (Quando itens também são editados, vale o salvamento automático dos itens, como na 1.3.7.)
+- Se faltar CRM, RQE ou tratamento no cadastro, o script mostra só o que existe e a janela avisa o que falta abaixo do campo. O campo continua editável; o que for digitado à mão não é sobrescrito.
 
 ### Propostas 1.4.8 (26/11/2026): valor atual, busca e inserir na proposta
 
