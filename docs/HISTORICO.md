@@ -6,14 +6,25 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.2.1.0 |
-| Suite principal | 4.9.15.0 |
+| Core | 1.2.2.0 |
+| Suite principal | 4.9.16.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.4.9 |
 | HOC Gastos para Excel | 1.1.0 |
-| HOC Reaplicar Permissões | 1.7.0 |
+| HOC Reaplicar Permissões | 1.8.0 |
 
 ---
+
+### Core 1.2.2.0, Suite 4.9.16.0 e Reaplicar Permissões 1.8.0 (26/11/2026): profissionais recebem a regra MÉDICOS ao reaplicar
+
+Vale **só para profissionais** (página, ♻️ por linha e "♻️ Reaplicar em todos"):
+
+- **Troca de regra:** se a regra marcada (✓) for "Permissão Médicos Padrão" ou "Perfil Padrão", o Reaplicar aplica a regra **MÉDICOS** no lugar (id lido da tabela de regras do próprio cadastro; nome comparado sem acento, caixa e espaços extras). Se a regra MÉDICOS não existir no cadastro, nada é aplicado e aparece o aviso.
+- **Sem regra marcada:** profissional sem ✓ também recebe MÉDICOS.
+- Funcionários não mudam: reaplicam sempre a própria regra marcada (mesmo "Perfil Padrão") e, sem ✓, nada é aplicado.
+- Toast, confirmação e relatório mostram o que foi feito: "Permissão Médicos Padrão → MÉDICOS" ou "sem regra → MÉDICOS".
+- Engrenagem: **Trocar regras ao reaplicar (só profissionais)** (ON), **Editar lista de trocas (só profissionais)** (formato `origem => destino ; origem => destino`; padrão `Permissão Médicos Padrão => MÉDICOS ; Perfil Padrão => MÉDICOS`) e **Profissional sem regra recebe MÉDICOS (só profissionais)** (ON). Atributos `data-hoc-cfg-trocas` e `data-hoc-cfg-prof-sem-regra`.
+- Detalhe do Feegow: "Perfil Padrão" é uma **etiqueta** ao lado do nome do modelo padrão do tipo (em profissionais, "Permissão Médicos Padrão"; em funcionários, "Permissão Funcionários Padrão"). O módulo ignora as etiquetas ao comparar nomes.
 
 ### Core 1.2.1.0, Suite 4.9.15.0 e Reaplicar Permissões 1.7.0 (26/11/2026): permissões também em PROFISSIONAIS
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HOC Reaplicar Permissões (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.7.0
+// @version      1.8.0
 // @description  No cadastro de funcionário e de profissional do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Nas listas de funcionários e profissionais, mostra ao lado de cada cadastro ATIVO os botões "🔐 Permissões" (abre a aba Permissões em nova aba) e "♻️ Reaplicar" (abre e reaplica a regra marcada, uma vez só) e o botão "♻️ Reaplicar em todos (N)" à direita do filtro de status (reaplica a regra marcada em todos os cadastros ativos da tela (funcionários ou profissionais), um por vez, com confirmação, progresso, Parar e relatório). Nas duas listas, mostra TODOS os cadastros de uma vez, sem páginas ("Mostrando todos: N cadastros"; funciona com filtro, busca e letra). Também abre a aba pelo link (&Aba=Permissoes, desligado por padrão) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    var VERSAO = '1.7.0';
+    var VERSAO = '1.8.0';
     var PREFIXO = '[HOC Reaplicar Permissões]';
 
     // Telas tratadas: cadastro de funcionário e de profissional (os dois têm regras predefinidas de permissões;
@@ -62,6 +62,23 @@
     // Mostrar todos os cadastros na lista, sem páginas (ligado por padrão).
     var ligadoTodos = raizDoc.getAttribute('data-hoc-cfg-todos') !== '0';
     var massaRodando = false;
+    // (SÓ PROFISSIONAIS) Troca de regra ao reaplicar (origem -> destino, comparando o nome da regra sem acento/caixa/espaços extras) e
+    // "profissional sem regra recebe MÉDICOS". A Suite grava as duas opções no <html>; sem a Suite valem os padrões.
+    var TROCAS_PADRAO = [['Permissão Médicos Padrão', 'MÉDICOS'], ['Perfil Padrão', 'MÉDICOS']];
+    var REGRA_MEDICOS = 'MÉDICOS';
+    var ligadoProfSemRegra = raizDoc.getAttribute('data-hoc-cfg-prof-sem-regra') !== '0';
+    var TROCAS = (function () {
+        var v = raizDoc.getAttribute('data-hoc-cfg-trocas');
+        if (v === '0') return [];
+        if (v) {
+            try {
+                var arr = JSON.parse(v), ok = [];
+                for (var i = 0; i < arr.length; i++) if (arr[i] && arr[i][0] && arr[i][1]) ok.push([String(arr[i][0]), String(arr[i][1])]);
+                return ok;
+            } catch (e) { /* configuração inválida: usa o padrão */ }
+        }
+        return TROCAS_PADRAO;
+    })();
 
     // ---------- LINK DIRETO PARA ABA (&Aba=Permissoes ou #divPermissoes) ----------
 
@@ -703,11 +720,13 @@
             var csrf = campo && campo.value;
             if (!csrf) { var m = /permissionProfileCsrf\s*=\s*["']([^"']+)["']/.exec(res.html); csrf = m ? m[1] : ''; }
             if (!csrf) return { ok: false, motivo: 'sem token de segurança na aba (sessão expirada?)' };
-            var regra = regraAtual(doc);
-            if (!regra) return { ok: true, semRegra: true, doc: doc };
+            var plano = planoDe(doc, tipo === 'Profissionais' ? 'Profissionais' : 'Funcionarios');
+            if (plano.acao === 'erro') return { ok: false, motivo: plano.motivo };
+            if (plano.acao === 'sem') return { ok: true, semRegra: true, doc: doc };
+            var regra = plano.regra;
             var e = form.querySelector('input[name="e"]');
             if (e && e.value && e.value !== regra.usId) return { ok: false, motivo: 'UsId da regra não confere com o do formulário; nada enviado' };
-            return { ok: true, regra: regra, csrf: csrf, doc: doc };
+            return { ok: true, regra: regra, troca: plano.troca, csrf: csrf, doc: doc };
         });
     }
 
@@ -839,7 +858,7 @@
                 if (leitura.semRegra) { it.estado = 'sem'; it.txt = 'sem regra marcada (pulado)'; return; }
                 if (parar) return;   // parou durante a leitura: nada enviado para este
                 return aplicarRegraDe(it.id, leitura, it.tipo).then(function (r) {
-                    if (r.ok) { it.estado = 'ok'; it.txt = 'regra \'' + leitura.regra.nome + '\' reaplicada'; }
+                    if (r.ok) { it.estado = 'ok'; it.txt = leitura.troca ? leitura.troca + ' (aplicada)' : 'regra \'' + leitura.regra.nome + '\' reaplicada'; }
                     else { it.estado = 'erro'; it.txt = 'erro: ' + r.motivo; }
                 });
             }).catch(function (e) {
@@ -939,15 +958,18 @@
                 aviso('A aba Permissões demorou para carregar; tente de novo. Nada foi aplicado.', 'erro', 9000);
                 return;
             }
-            var regra = regraAtual();
-            if (!regra) { aviso('Este cadastro não tem regra marcada. Nada foi aplicado.', 'erro', 9000); return; }
+            var plano = planoDe(document, tipoDaTela());
+            if (plano.acao === 'erro') { aviso('Nada foi aplicado: ' + plano.motivo + '.', 'erro', 10000); return; }
+            if (plano.acao === 'sem') { aviso('Este cadastro não tem regra marcada. Nada foi aplicado.', 'erro', 9000); return; }
+            var regra = plano.regra;
             var nome = nomeDoCadastroAberto();
             var etapa = ligadoConfirmaLista
-                ? perguntar('Reaplicar regra de permissões', 'Reaplicar a regra \'' + regra.nome + '\' em ' + nome + '?', 'Reaplicar')
+                ? perguntar('Reaplicar regra de permissões', (plano.troca ? 'Trocar a regra (' + plano.troca + ')' : 'Reaplicar a regra \'' + regra.nome + '\'') + ' em ' + nome + '?', 'Reaplicar')
                 : Promise.resolve(true);
             etapa.then(function (sim) {
                 if (!sim) { aviso('Cancelado. Nada foi alterado.', '', 4000); return; }
-                var agora = regraAtual();
+                var agoraPlano = planoDe(document, tipoDaTela());
+                var agora = agoraPlano.acao === 'aplicar' ? agoraPlano.regra : null;
                 if (!agora || agora.aplicaRegra !== regra.aplicaRegra || agora.usId !== regra.usId) {
                     aviso('A regra marcada mudou na tela. Nada foi feito.', 'erro', 8000);
                     return;
@@ -955,7 +977,7 @@
                 var formAntigo = document.getElementById('frmPermissoes');
                 var antes = contarMarcadas();
                 agora.botao.click();   // mesmo caminho do "Aplicar" original (permissoesAcao + token da página)
-                aviso('Reaplicando a regra \'' + regra.nome + '\'...', '', 20000);
+                aviso((plano.troca ? 'Aplicando ' + plano.troca : 'Reaplicando a regra \'' + regra.nome + '\'') + '...', '', 20000);
                 esperarAte(function () {
                     var f = document.getElementById('frmPermissoes');
                     return (f && f !== formAntigo && regraAtual()) ? true : null;   // #divPermissoes foi recarregado
@@ -970,7 +992,7 @@
                         aviso('Recarregou, mas a regra \'' + regra.nome + '\' não aparece marcada. Confira o cadastro.', 'erro', 10000);
                         return;
                     }
-                    aviso('✔ Regra \'' + regra.nome + '\' reaplicada em ' + nome + ' (' + (antes === depois ? depois + ' permissões marcadas, sem mudança' : antes + ' → ' + depois + ' permissões marcadas') + ').', 'ok', 9000);
+                    aviso('✔ ' + (plano.troca ? plano.troca + ': regra \'' + regra.nome + '\' aplicada' : 'Regra \'' + regra.nome + '\' reaplicada') + ' em ' + nome + ' (' + (antes === depois ? depois + ' permissões marcadas, sem mudança' : antes + ' → ' + depois + ' permissões marcadas') + ').', 'ok', 9000);
                 });
             });
         });
@@ -1009,6 +1031,31 @@
     // Regra atual: a linha da tabela de regras predefinidas com <i class="fa-check green">
     // e um botão "Aplicar" (onclick com AplicaRegra). Devolve null se não houver.
     // raiz (opcional): um Document já interpretado (resposta do ajxContent); sem ela, lê a página aberta.
+    function nomeLimpoDaCelula(td) {
+        // O nome pode vir com etiquetas <span> (ex.: "Perfil Padrão"); elas não fazem parte do nome da regra.
+        var copia = td.cloneNode(true);
+        var tags = copia.querySelectorAll('span, button, a, i');
+        for (var i = 0; i < tags.length; i++) tags[i].remove();
+        return limpar(copia.textContent);
+    }
+
+    function regraDaLinha(tr) {
+        var botoes = tr.querySelectorAll('button[onclick*="AplicaRegra"], a[onclick*="AplicaRegra"]');
+        for (var j = 0; j < botoes.length; j++) {
+            var oc = botoes[j].getAttribute('onclick');
+            var aplicaRegra = parametroOnclick(oc, 'AplicaRegra');
+            var usId = parametroOnclick(oc, 'UsId');
+            if (!aplicaRegra || !usId) continue;
+            var celulas = tr.cells || tr.querySelectorAll('td');
+            var nome = celulas.length > 1 ? nomeLimpoDaCelula(celulas[1]) : '';
+            return { nome: nome || '(sem nome)', aplicaRegra: aplicaRegra, usId: usId, botao: botoes[j] };
+        }
+        return null;
+    }
+
+    // Regra atual: a linha da tabela de regras predefinidas com <i class="fa-check green">
+    // e um botão "Aplicar" (onclick com AplicaRegra). Devolve null se não houver.
+    // raiz (opcional): um Document já interpretado (resposta do ajxContent); sem ela, lê a página aberta.
     function regraAtual(raiz) {
         var base = raiz || document;
         var escopo = base.getElementById('divPermissoes') || base;
@@ -1016,19 +1063,51 @@
         if (!checks.length && escopo !== base) checks = base.querySelectorAll('td i.fa-check.green');
         for (var i = 0; i < checks.length; i++) {
             var tr = checks[i].closest('tr');
-            if (!tr) continue;
-            var botoes = tr.querySelectorAll('button[onclick*="AplicaRegra"], a[onclick*="AplicaRegra"]');
-            for (var j = 0; j < botoes.length; j++) {
-                var oc = botoes[j].getAttribute('onclick');
-                var aplicaRegra = parametroOnclick(oc, 'AplicaRegra');
-                var usId = parametroOnclick(oc, 'UsId');
-                if (!aplicaRegra || !usId) continue;
-                var celulas = tr.cells || tr.querySelectorAll('td');
-                var nome = celulas.length > 1 ? limpar(celulas[1].textContent) : '';
-                return { nome: nome || '(sem nome)', aplicaRegra: aplicaRegra, usId: usId, botao: botoes[j] };
-            }
+            var r = tr && regraDaLinha(tr);
+            if (r) return r;
         }
         return null;
+    }
+
+    function normNomeRegra(t) { return semAcento(limpar(t)); }
+
+    // Procura, na tabela de regras do cadastro, a regra pelo nome (normalizado). Devolve a regra ou null.
+    function acharRegraPorNome(base, nome) {
+        var alvo = normNomeRegra(nome);
+        var escopo = base.getElementById('divPermissoes') || base;
+        var trs = escopo.querySelectorAll('tr');
+        for (var i = 0; i < trs.length; i++) {
+            if (!trs[i].querySelector('[onclick*="AplicaRegra"]')) continue;
+            var r = regraDaLinha(trs[i]);
+            if (r && normNomeRegra(r.nome) === alvo) return r;
+        }
+        return null;
+    }
+
+    // Decide o que reaplicar neste cadastro. tipo: 'Funcionarios' | 'Profissionais'. base: Document (ou página).
+    // Devolve {acao:'aplicar', regra, atual, troca} | {acao:'sem'} | {acao:'erro', motivo}.
+    // TUDO de MÉDICOS vale SÓ para profissionais:
+    //  - profissional com regra marcada na tabela de trocas -> aplica o destino (ex.: Permissão Médicos Padrão -> MÉDICOS);
+    //  - profissional sem regra marcada (opção ligada) -> aplica MÉDICOS;
+    //  - funcionário: reaplica sempre a própria regra marcada (mesmo "Perfil Padrão"); sem regra marcada: nada.
+    function planoDe(base, tipo) {
+        var atual = regraAtual(base);
+        function destino(nomeDestino, rotulo) {
+            var d = acharRegraPorNome(base, nomeDestino);
+            if (!d) return { acao: 'erro', motivo: 'a regra \'' + nomeDestino + '\' não existe na tabela de regras deste cadastro; nada aplicado' };
+            if (atual && d.aplicaRegra === atual.aplicaRegra) return { acao: 'aplicar', regra: atual, atual: atual, troca: '' };
+            return { acao: 'aplicar', regra: d, atual: atual, troca: rotulo + ' → ' + d.nome };
+        }
+        if (atual) {
+            var n = normNomeRegra(atual.nome);
+            // Troca para MÉDICOS: só em profissionais. Funcionário reaplica sempre a própria regra marcada.
+            for (var i = 0; tipo === 'Profissionais' && i < TROCAS.length; i++) {
+                if (normNomeRegra(TROCAS[i][0]) === n) return destino(TROCAS[i][1], TROCAS[i][0]);
+            }
+            return { acao: 'aplicar', regra: atual, atual: atual, troca: '' };
+        }
+        if (tipo === 'Profissionais' && ligadoProfSemRegra) return destino(REGRA_MEDICOS, 'sem regra');
+        return { acao: 'sem' };
     }
 
     function nomeFuncionario(heading) {
@@ -1137,25 +1216,28 @@
         ev.stopPropagation();
         var btn = ev.currentTarget;
         var heading = btn.closest('.panel-heading');
-        var regra = regraAtual();
-        if (!regra) {
+        var plano = planoDe(document, tipoDaTela());
+        if (plano.acao === 'erro') { perguntar('Reaplicar regra', 'Nada será aplicado: ' + plano.motivo + '.', ''); return; }
+        if (plano.acao === 'sem') {
             perguntar('Reaplicar regra', 'Nenhuma regra aplicada a este cadastro.', '');
             return;
         }
+        var regra = plano.regra;
         var funcionario = heading ? nomeFuncionario(heading) : 'este cadastro';
         perguntar('Reaplicar regra de permissões',
-            'Reaplicar a regra \'' + regra.nome + '\' para ' + funcionario + '?',
-            'Reaplicar').then(function (sim) {
+            (plano.troca ? 'Trocar a regra (' + plano.troca + ')' : 'Reaplicar a regra \'' + regra.nome + '\'') + ' para ' + funcionario + '?',
+            plano.troca ? 'Trocar' : 'Reaplicar').then(function (sim) {
             if (!sim) return;
             // Relê a tela: o #divPermissoes pode ter sido recarregado enquanto o modal estava aberto.
-            var agora = regraAtual();
+            var agoraPlano = planoDe(document, tipoDaTela());
+            var agora = agoraPlano.acao === 'aplicar' ? agoraPlano.regra : null;
             if (!agora || agora.aplicaRegra !== regra.aplicaRegra || agora.usId !== regra.usId) {
                 aviso('A regra atual mudou na tela. Nada foi feito; confira e tente de novo.', 'erro', 6000);
                 return;
             }
             // Mesmo caminho do botão "Aplicar" original (permissoesAcao + token da própria página).
             agora.botao.click();
-            aviso('Reaplicando a regra \'' + regra.nome + '\'...', '', 10000);
+            aviso((plano.troca ? 'Aplicando ' + plano.troca : 'Reaplicando a regra \'' + regra.nome + '\'') + '...', '', 10000);
             clearTimeout(aguardandoRecarga && aguardandoRecarga.timer);
             aguardandoRecarga = {
                 nome: regra.nome,
@@ -1171,10 +1253,12 @@
     // ---------- injeção ----------
 
     function atualizarEstado(btn) {
-        var regra = regraAtual();
-        var titulo = regra ? 'Reaplicar a regra atual: ' + regra.nome : 'Nenhuma regra aplicada a este cadastro';
+        var plano = planoDe(document, tipoDaTela());
+        var titulo = plano.acao === 'aplicar'
+            ? (plano.troca ? 'Trocar a regra: ' + plano.troca : 'Reaplicar a regra atual: ' + plano.regra.nome)
+            : (plano.acao === 'erro' ? 'Indisponível: ' + plano.motivo : 'Nenhuma regra aplicada a este cadastro');
         if (btn.title !== titulo) btn.title = titulo;
-        var desabilitar = !regra;
+        var desabilitar = plano.acao !== 'aplicar';
         if (btn.disabled !== desabilitar) btn.disabled = desabilitar;
     }
 

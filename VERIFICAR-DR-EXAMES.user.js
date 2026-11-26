@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.15.0
+// @version      4.9.16.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -17,6 +17,8 @@
 (function() {
     'use strict';
 
+    // 4.9.16.0: Reaplicar Permissões troca regra ao reaplicar (só PROFISSIONAIS: Permissão Médicos Padrão / Perfil Padrão -> MÉDICOS, lista editável na engrenagem)
+    // e profissional sem regra marcada recebe MÉDICOS (opção). O módulo vai para a 1.8.0.
     // 4.9.15.0: Reaplicar Permissões também em PROFISSIONAIS (regra atual, backup/comparar/restaurar, ♻️ por linha e Reaplicar em todos).
     // A Suite só sobe de versão para o módulo 1.7.0 ser baixado na hora.
 
@@ -63,6 +65,21 @@
     const featureConfirmaMassaAtiva = GM_getValue('confirma_massa', true);
     // Listas de funcionários/profissionais mostram todos os cadastros de uma vez, sem páginas (vem ON por padrão).
     const featureTodosListaAtiva = GM_getValue('todos_lista', true);
+    // Trocar regras ao reaplicar (origem => destino; vem ON) e "profissional sem regra recebe MÉDICOS" (vem ON).
+    const TROCAS_TEXTO_PADRAO = 'Permissão Médicos Padrão => MÉDICOS ; Perfil Padrão => MÉDICOS';
+    const featureTrocasAtiva = GM_getValue('trocar_regras', true);
+    const featureProfSemRegraAtiva = GM_getValue('prof_sem_regra', true);
+    const trocasTexto = String(GM_getValue('trocas_regras_texto', TROCAS_TEXTO_PADRAO) || '');
+    function trocasEmJson() {
+        if (!featureTrocasAtiva) return '0';
+        const pares = [];
+        trocasTexto.split(/[;
+]/).forEach(p => {
+            const m = p.split('=>');
+            if (m.length === 2 && m[0].trim() && m[1].trim()) pares.push([m[0].trim(), m[1].trim()]);
+        });
+        return JSON.stringify(pares);
+    }
     // Pedir confirmação antes de reaplicar pela lista (vem OFF por padrão).
     const featureConfirmaListaAtiva = GM_getValue('confirma_reaplicar_lista', false);
     // Padrão de cada opção da engrenagem (a maioria vem ON; estas vêm OFF).
@@ -558,7 +575,7 @@
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
     const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
-    const PERMREG_SUITE_VERSAO  = '4.9.15.0';
+    const PERMREG_SUITE_VERSAO  = '4.9.16.0';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
@@ -647,6 +664,8 @@
         document.documentElement.setAttribute('data-hoc-cfg-btn-massa', featureBtnMassaAtiva ? '1' : '0');
         document.documentElement.setAttribute('data-hoc-cfg-confirma-massa', featureConfirmaMassaAtiva ? '1' : '0');
         document.documentElement.setAttribute('data-hoc-cfg-todos', featureTodosListaAtiva ? '1' : '0');
+        document.documentElement.setAttribute('data-hoc-cfg-trocas', trocasEmJson());
+        document.documentElement.setAttribute('data-hoc-cfg-prof-sem-regra', featureProfSemRegraAtiva ? '1' : '0');
         document.documentElement.setAttribute('data-hoc-cfg-confirma-lista', featureConfirmaListaAtiva ? '1' : '0');
         carregarReaplicarPermissoes(false);              // o módulo tem o próprio vigia (MutationObserver)
     }
@@ -1609,6 +1628,15 @@ const protocolosDilatacao = {
                     <li class="toggle-remover" data-key="confirma_reaplicar_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureConfirmaListaAtiva ? 'green' : 'red'};" title="Mostra uma janela da Suite pedindo confirmação antes de o botão ♻️ da lista reaplicar a regra. Vem desligada: aplica direto.">
                         Pedir confirmação antes de reaplicar pela lista: ${featureConfirmaListaAtiva ? 'ON' : 'OFF'}
                     </li>
+                    <li class="toggle-remover" data-key="trocar_regras" style="padding: 5px 10px; cursor: pointer; color: ${featureTrocasAtiva ? 'green' : 'red'};" title="Ao reaplicar (botão da página, ♻️ da lista e Reaplicar em todos), se a regra marcada estiver na lista de trocas, aplica o destino no lugar (padrão: Permissão Médicos Padrão e Perfil Padrão viram MÉDICOS). Vale SÓ para profissionais; funcionário reaplica sempre a própria regra.">
+                        Trocar regras ao reaplicar (só profissionais): ${featureTrocasAtiva ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="editar-trocas" style="padding: 5px 10px; cursor: pointer; color: #333;" title="Lista origem => destino, separada por ponto e vírgula. Comparação sem acento, caixa ou espaços extras. Lista vazia restaura o padrão.">
+                        Editar lista de trocas (só profissionais): ${trocasTexto.replace(/&/g, '&amp;').replace(/</g, '&lt;')}
+                    </li>
+                    <li class="toggle-remover" data-key="prof_sem_regra" style="padding: 5px 10px; cursor: pointer; color: ${featureProfSemRegraAtiva ? 'green' : 'red'};" title="Na página e na lista de PROFISSIONAIS, quando o cadastro está sem regra marcada, o Reaplicar aplica a regra MÉDICOS. Funcionário sem regra continua sem receber nada.">
+                        Profissional sem regra recebe MÉDICOS (só profissionais): ${featureProfSemRegraAtiva ? 'ON' : 'OFF'}
+                    </li>
                 </ul>
               </div>
             `;
@@ -1634,6 +1662,17 @@ const protocolosDilatacao = {
                     GM_setValue(key, !currentState);
                     location.reload(); 
                 });
+            });
+
+            const itemTrocas = btn.querySelector('.editar-trocas');
+            if (itemTrocas) itemTrocas.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const novo = window.prompt('Trocar regras ao reaplicar. Formato: origem => destino ; origem => destino
+(deixe vazio para restaurar o padrão)', trocasTexto);
+                if (novo === null) return;
+                GM_setValue('trocas_regras_texto', novo.trim() ? novo.trim() : TROCAS_TEXTO_PADRAO);
+                location.reload();
             });
 
             // Insere antes do primeiro elemento que ele conseguiu achar na lista de prioridades

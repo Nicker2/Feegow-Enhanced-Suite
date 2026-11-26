@@ -2,7 +2,7 @@
 
 [Voltar ao README](../README.md)
 
-**Versão atual: 1.7.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
+**Versão atual: 1.8.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
 
 ## Instalação
 
@@ -38,6 +38,16 @@ Em `?P=Funcionarios&Pers=Follow` e `?P=Profissionais&Pers=Follow`, ao lado do no
 - Engrenagem: **Botão Permissões nas listas de funcionários e profissionais** (ON), **Botão Reaplicar nas listas** (ON) e **Pedir confirmação antes de reaplicar pela lista** (OFF; ligada, mostra o modal da Suite antes de aplicar).
 - Atributos do `<html>`: `data-hoc-cfg-btn-perm`, `data-hoc-cfg-btn-reaplicar-lista`, `data-hoc-cfg-confirma-lista`.
 - A lista é um web component (`<feegow-staff-list>`, `<feegow-professionals-list>`) com shadow DOM aberto; cada linha tem `a[href*="Pers=1"][href*="I="]` e `[data-testid="access-state-badge"][data-state]`. Um observador por shadow root refaz os botões na paginação/filtro/busca e confere o id da linha a cada varredura.
+
+### Regra MÉDICOS para profissionais (1.8.0)
+
+Só em profissionais, ao reaplicar (botão da página, ♻️ da lista e Reaplicar em todos):
+
+1. Regra marcada (✓) = "Permissão Médicos Padrão" ou "Perfil Padrão" (lista editável na engrenagem): aplica **MÉDICOS** no lugar. O id sai da tabela de regras daquele cadastro; sem regra MÉDICOS, não aplica e avisa.
+2. Sem regra marcada: aplica **MÉDICOS** (opção "Profissional sem regra recebe MÉDICOS", ON).
+3. Funcionários: sempre reaplicam a própria regra marcada; sem ✓, nada.
+
+Toast, confirmação e relatório mostram "Permissão Médicos Padrão → MÉDICOS" ou "sem regra → MÉDICOS". Nomes comparados sem acento, caixa e espaços extras; etiquetas como "Perfil Padrão" não entram no nome. Engrenagem: "Trocar regras ao reaplicar (só profissionais)", "Editar lista de trocas (só profissionais)" (`origem => destino ; ...`) e "Profissional sem regra recebe MÉDICOS (só profissionais)".
 
 ### Mostrar todos os cadastros, sem páginas (1.6.0)
 
@@ -111,6 +121,7 @@ Começa **travado**. Clicar mostra as condições: último backup **COMPLETO (N/
 
 ## Histórico
 
+- **1.8.0 (26/11/2026)**: só em profissionais, a regra marcada "Permissão Médicos Padrão"/"Perfil Padrão" e o cadastro sem regra recebem a regra **MÉDICOS** ao reaplicar (lista de trocas editável na engrenagem; relatório mostra "→ MÉDICOS"). Funcionários não mudam.
 - **1.7.0 (26/11/2026)**: funciona também no cadastro e na lista de **profissionais** (profissional tem regras predefinidas, como funcionário; só muda `T=Profissionais`): Reaplicar regra atual, backup/comparar/restaurar, ♻️ por linha e Reaplicar em todos habilitado. Corrigido o link `&Aba=Permissoes` em profissionais (abria Procedimentos da Agenda por haver três links `#divPermissoes`).
 - **1.6.0 (26/11/2026)**: nas listas, mostra todos os cadastros de uma vez (sem páginas), com opção na engrenagem.
 - **1.5.0 (26/11/2026)**: botão **♻️ Reaplicar em todos (N)** nas listas de funcionários (sem abrir abas, com confirmação, progresso, Parar e relatório).
