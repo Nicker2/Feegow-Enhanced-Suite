@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.4.1** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.4.2** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -268,6 +268,7 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
+| **1.4.2** | 26/11/2026 | Exérese de corpo e de rosto (baixa, média e alta complexidade) usam a mesma descrição (a de média complexidade); frases `exerese corpo/rosto/face`. |
 | **1.4.1** | 26/11/2026 | "ANATOMOPATOLÓGICO (2 FRASCO)" usa a descrição de "MAIS DE 02 FRASCOS" (2 frascos e mais de 2); 1 frasco continua na própria. |
 | **1.4.0** | 26/11/2026 | **Gerenciar descrições**: botão ao lado de "Imprimir HOC Derma" (e menu do Tampermonkey) com lista e busca de todos os procedimentos, adicionar, editar, excluir e "Restaurar o padrão" por item; personalizações gravadas no PC (`GM_setValue`, ou `localStorage`) e mescladas por id sobre o catálogo padrão; "Procedimentos do Feegow sem descrição" (lê o select2 `#ProcedimentoID`, só leitura, ou lista colada/CSV/TXT); backup JSON datado, restauração com prévia e "Juntar"/"Substituir tudo" (com backup automático antes); "Enviar para a lista padrão" (JSON + trecho do catálogo, sem envio). |
 | **1.3.12** | 26/11/2026 | 16 descrições novas no catálogo (dacriocistorrinostomia, calázio, cisto de Moll, infiltração intralesional, ressecção de tumores palpebrais, peeling retinóico + Jessner 1 sessão, anatomopatológico 1 frasco / mais de 2 frascos, bioimpedância, biópsia por punch, blefaroplastia + ptose (2 combinações), cantopexia, cantoplastia tarsal strip, cauterização química, clipping ungueal); título/texto da ptose atualizados. A combinação mais específica vence. |

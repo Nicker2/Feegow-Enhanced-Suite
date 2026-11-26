@@ -9,7 +9,7 @@
 | Core | 1.1.7.0 |
 | Suite principal | 4.9.11.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.4.1 |
+| Propostas HOC Derma | 1.4.2 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.3.0 |
 
@@ -79,6 +79,10 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.4.2 (26/11/2026)
+
+- **Exérese de corpo e de rosto** (baixa, média e alta complexidade) passam a usar a mesma descrição, a de "EXÉRESE DE LESÃO | MÉDIA COMPLEXIDADE". Antes, baixa e média usavam textos diferentes e a alta ficava sem descrição. As outras exéreses (cisto, lipoma, calázio, cisto de Moll) não mudam.
 
 ### Propostas 1.4.1 (26/11/2026)
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.1
+// @version      1.4.2
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.1
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.2
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -212,6 +212,10 @@ window.HOCDERMA_TIMBRADO = {
  *     "Substituir os ajustes atuais?". Fontes do Google Fonts oficial (SIL OFL; licenças em
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
+ *
+ * v1.4.2 (26/11/2026)
+ *   - Exérese de CORPO e de ROSTO (baixa, média e alta complexidade) usam a mesma descrição,
+ *     a de "EXÉRESE DE LESÃO | MÉDIA COMPLEXIDADE" (frases novas "exerese corpo/rosto/face").
  *
  * v1.4.1 (26/11/2026)
  *   - "ANATOMOPATOLÓGICO (2 FRASCO)" passa a usar a descrição de "ANATOMOPATOLÓGICO | MAIS DE 02 FRASCOS"
@@ -407,6 +411,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 98,
       titulo: "EXÉRESE DE LESÃO | BAIXA COMPLEXIDADE",
       palavrasChave: ["exerese baixa complexidade"],
+      excluir: ["corpo", "rosto", "face"],
       investimento: "",
       texto: "Procedimento cirúrgico de menor porte para retirar uma lesão da pele, com cuidados para favorecer a cicatrização da região."
     },
@@ -430,7 +435,8 @@ window.HOCDERMA_TIMBRADO = {
       id: "exerese-media-complexidade",
       modeloFeegow: 99,
       titulo: "EXÉRESE DE LESÃO | MÉDIA COMPLEXIDADE",
-      palavrasChave: ["exerese media complexidade", "exerese lesao media complexidade"],
+      palavrasChave: ["exerese media complexidade", "exerese lesao media complexidade", "exerese corpo", "exerese rosto", "exerese face"],
+      excluir: ["cisto", "lipoma"],
       investimento: "",
       texto: "Cirurgia para retirar uma lesão da pele que exige cuidados adicionais pelo tamanho, profundidade ou localização, com atenção ao fechamento e à cicatrização da área."
     },
@@ -963,7 +969,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.4.1';
+  const VERSAO = '1.4.2';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
