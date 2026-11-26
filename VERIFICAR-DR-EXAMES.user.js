@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.14.0
+// @version      4.9.15.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -16,6 +16,9 @@
 
 (function() {
     'use strict';
+
+    // 4.9.15.0: Reaplicar Permissões também em PROFISSIONAIS (regra atual, backup/comparar/restaurar, ♻️ por linha e Reaplicar em todos).
+    // A Suite só sobe de versão para o módulo 1.7.0 ser baixado na hora.
 
     // 4.9.14.0: "Mostrar todos os cadastros na lista (sem páginas)" (todos_lista) entra ligada em todos os PCs
     // (migração de uma vez; depois a engrenagem vale).
@@ -555,7 +558,7 @@
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
     const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
-    const PERMREG_SUITE_VERSAO  = '4.9.14.0';
+    const PERMREG_SUITE_VERSAO  = '4.9.15.0';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
@@ -1588,7 +1591,7 @@ const protocolosDilatacao = {
                     <li class="toggle-remover" data-key="btn_perm_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureBtnPermListaAtiva ? 'green' : 'red'};" title="Botão '🔐 Permissões' ao lado de cada cadastro ativo nas listas de funcionários e profissionais (abre a aba Permissões em nova aba)">
                         Botão Permissões nas listas de funcionários e profissionais: ${featureBtnPermListaAtiva ? 'ON' : 'OFF'}
                     </li>
-                    <li class="toggle-remover" data-key="btn_reaplicar_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureBtnReaplicarListaAtiva ? 'green' : 'red'};" title="Botão '♻️ Reaplicar' na lista de funcionários ativos: abre o cadastro e reaplica a regra de permissões marcada (✓), uma vez só">
+                    <li class="toggle-remover" data-key="btn_reaplicar_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureBtnReaplicarListaAtiva ? 'green' : 'red'};" title="Botão '♻️ Reaplicar' nas listas de funcionários e de profissionais ativos: abre o cadastro e reaplica a regra de permissões marcada (✓), uma vez só">
                         Botão Reaplicar nas listas: ${featureBtnReaplicarListaAtiva ? 'ON' : 'OFF'}
                     </li>
                     <li class="toggle-remover" data-key="lista_ativo" style="padding: 5px 10px; cursor: pointer; color: ${featureListaAtivoAtiva ? 'green' : 'red'};" title="Ao abrir as listas de funcionários e de profissionais, deixa o filtro de status em 'Ativo' (uma vez por carregamento; se você trocar o filtro, é respeitado)">
@@ -1597,7 +1600,7 @@ const protocolosDilatacao = {
                     <li class="toggle-remover" data-key="todos_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureTodosListaAtiva ? 'green' : 'red'};" title="Nas listas de funcionários e de profissionais, mostra todos os cadastros de uma vez (sem páginas de 20), com o filtro de status, a busca e as letras funcionando; no lugar da paginação aparece 'Mostrando todos: N cadastros'. Só leitura: busca as páginas da própria lista, não grava nada.">
                         Mostrar todos os cadastros na lista (sem páginas): ${featureTodosListaAtiva ? 'ON' : 'OFF'}
                     </li>
-                    <li class="toggle-remover" data-key="btn_massa" style="padding: 5px 10px; cursor: pointer; color: ${featureBtnMassaAtiva ? 'green' : 'red'};" title="Botão '♻️ Reaplicar em todos (N)' à direita do filtro de status na lista de funcionários: reaplica a regra marcada (✓) em todos os funcionários ativos que aparecem na tela, um por vez, sem abrir abas. Na lista de profissionais fica desabilitado (profissional não tem regras predefinidas).">
+                    <li class="toggle-remover" data-key="btn_massa" style="padding: 5px 10px; cursor: pointer; color: ${featureBtnMassaAtiva ? 'green' : 'red'};" title="Botão '♻️ Reaplicar em todos (N)' à direita do filtro de status nas listas de funcionários e de profissionais: reaplica a regra marcada (✓) em todos os cadastros ativos que aparecem na tela, um por vez, sem abrir abas.">
                         Botão Reaplicar em todos nas listas: ${featureBtnMassaAtiva ? 'ON' : 'OFF'}
                     </li>
                     <li class="toggle-remover" data-key="confirma_massa" style="padding: 5px 10px; cursor: pointer; color: ${featureConfirmaMassaAtiva ? 'green' : 'red'};" title="Mostra a janela 'Reaplicar a regra marcada em N funcionários desta página?' antes de o botão 'Reaplicar em todos' começar. Vem ligada (ação em massa).">

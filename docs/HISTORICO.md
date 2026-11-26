@@ -6,14 +6,22 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.2.0.0 |
-| Suite principal | 4.9.14.0 |
+| Core | 1.2.1.0 |
+| Suite principal | 4.9.15.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.4.9 |
 | HOC Gastos para Excel | 1.1.0 |
-| HOC Reaplicar Permissões | 1.6.0 |
+| HOC Reaplicar Permissões | 1.7.0 |
 
 ---
+
+### Core 1.2.1.0, Suite 4.9.15.0 e Reaplicar Permissões 1.7.0 (26/11/2026): permissões também em PROFISSIONAIS
+
+- **Correção de premissa:** profissional TEM regras predefinidas de permissões, exatamente como funcionário. A aba Permissões do profissional usa as mesmas requisições, trocando `T=Funcionarios` por `T=Profissionais` (`ajxContent.asp?P=Permissoes&T=Profissionais&I=<id>&Pers=1&Div=divPermissoes`; leitura/gravação das regras em `EditaPermissoes.asp` / `saveEditaPermissoes.asp` com `T=Profissionais`). O `I` da linha da lista é o mesmo do `ajxContent`, e o `UsId` do botão Aplicar bate com o campo `e` do formulário.
+- Na página do profissional: botão **Reaplicar regra atual** e as ferramentas **Backup das regras / Comparar com backup / Restaurar uma regra / Restaurar todas** (a lista de regras é a mesma; os backups continuam compatíveis).
+- Na lista de profissionais: botão **♻️ Reaplicar** por linha (ativos) e **♻️ Reaplicar em todos (N)** habilitado, com a mesma confirmação, progresso, Parar e relatório (cada item usa o `T` do próprio cadastro).
+- **Correção do link `&Aba=Permissoes`/`hocAba=1` em profissionais:** no cadastro do profissional três links usam `href="#divPermissoes"` (Procedimentos da Agenda, Permissões e Compartilhamento de Prontuário, com o mesmo id `gtPermissoes`). O módulo clicava no primeiro e abria "Procedimentos da Agenda". Agora a aba é reconhecida pelo `onclick` `ajxContent('Permissoes...')`.
+- Removidos os textos "profissional não tem regras predefinidas" (tooltips, avisos e docs). A Suite 4.9.15.0 e o Core 1.2.1.0 só sobem de versão para o módulo novo ser baixado na hora.
 
 ### Core 1.2.0.0, Suite 4.9.14.0 e Reaplicar Permissões 1.6.0 (26/11/2026): listas mostram todos os cadastros, sem páginas
 
@@ -29,7 +37,7 @@
 - Na lista de funcionários, à direita do filtro de status, botão **♻️ Reaplicar em todos (N)**: reaplica a regra marcada (✓) em todos os funcionários **ativos que aparecem na tela** (N = linhas com ♻️), um por vez, com pausa de 500 ms, **sem abrir abas**.
 - Para cada um, usa as mesmas requisições do Feegow: lê a aba (`POST ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&q=&Div=divPermissoes`), extrai o `permissionProfileCsrf` do formulário e a regra com ✓ (mesma `regraAtual()`), e envia o mesmo corpo do `permissoesAcao` (`AplicaRegra`, `UsId`, `permissionProfileCsrf`) para `ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&Div=divPermissoes`. A resposta é conferida (a regra segue marcada). Sem ✓: pula ("sem regra marcada"). Erro: registra e segue.
 - Confirmação da Suite antes de começar ("Reaplicar a regra marcada em N funcionários desta página?"), painel com barra de progresso e botão **Parar**, e no fim "Reaplicado: X · Sem regra: Y · Erros: Z" com a lista por nome e **Copiar relatório**. Nada de `alert` do navegador.
-- Em **profissionais** o botão aparece **desabilitado** com dica (profissional não tem regras predefinidas; mostrar desabilitado explica por que não há ação).
+- (Corrigido na 1.7.0: em profissionais o botão também funciona.)
 - Engrenagem: **Botão Reaplicar em todos nas listas** (ON) e **Confirmar antes de reaplicar em todos** (ON), ambas ligadas em todos os PCs por migração. Atributos do `<html>`: `data-hoc-cfg-btn-massa`, `data-hoc-cfg-confirma-massa`.
 - O botão se refaz com a paginação/filtro/busca (sem duplicar) e o N acompanha as linhas atuais.
 - Core 1.1.9.0 faz a Suite nova ser baixada na hora.

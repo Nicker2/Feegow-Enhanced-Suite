@@ -2,7 +2,7 @@
 
 [Voltar ao README](../README.md)
 
-**Versão atual: 1.6.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
+**Versão atual: 1.7.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
 
 ## Instalação
 
@@ -34,7 +34,7 @@ Cole `https://app.feegow.com/main/?P=Funcionarios&Pers=1&I=<número>&Aba=Permiss
 Em `?P=Funcionarios&Pers=Follow` e `?P=Profissionais&Pers=Follow`, ao lado do nome de cada cadastro **ativo** (estado de acesso diferente de Inativo e Desabilitado):
 
 - **🔐 Permissões**: link para `...?P=<Funcionarios|Profissionais>&Pers=1&I=<id>&Aba=Permissoes&hocAba=1`, em nova aba. O `hocAba=1` faz o módulo abrir a aba mesmo com a opção global desligada.
-- **♻️ Reaplicar** (só funcionários, tom verde): mesmo link com `&hocAcao=reaplicar`. Ao abrir, clica no **Aplicar** da regra com ✓ verde (reusa `regraAtual()`), **sem confirmação**, uma vez só (o parâmetro é apagado da URL na hora). Sem regra marcada, avisa e não aplica. Termina com toast verde ("Regra X reaplicada em Y (antes → depois permissões marcadas)") ou vermelho.
+- **♻️ Reaplicar** (funcionários e profissionais, tom verde): mesmo link com `&hocAcao=reaplicar`. Ao abrir, clica no **Aplicar** da regra com ✓ verde (reusa `regraAtual()`), **sem confirmação**, uma vez só (o parâmetro é apagado da URL na hora). Sem regra marcada, avisa e não aplica. Termina com toast verde ("Regra X reaplicada em Y (antes → depois permissões marcadas)") ou vermelho.
 - Engrenagem: **Botão Permissões nas listas de funcionários e profissionais** (ON), **Botão Reaplicar nas listas** (ON) e **Pedir confirmação antes de reaplicar pela lista** (OFF; ligada, mostra o modal da Suite antes de aplicar).
 - Atributos do `<html>`: `data-hoc-cfg-btn-perm`, `data-hoc-cfg-btn-reaplicar-lista`, `data-hoc-cfg-confirma-lista`.
 - A lista é um web component (`<feegow-staff-list>`, `<feegow-professionals-list>`) com shadow DOM aberto; cada linha tem `a[href*="Pers=1"][href*="I="]` e `[data-testid="access-state-badge"][data-state]`. Um observador por shadow root refaz os botões na paginação/filtro/busca e confere o id da linha a cada varredura.
@@ -51,9 +51,9 @@ Nas listas de funcionários e de profissionais, todos os cadastros aparecem de u
 
 ### Reaplicar em todos (1.5.0)
 
-Botão **♻️ Reaplicar em todos (N)** à direita do filtro de status em `?P=Funcionarios&Pers=Follow`. N é a quantidade de funcionários ativos com linha na tela (o filtro, a busca e a paginação mudam o N; o botão se refaz sem duplicar). Em profissionais fica **desabilitado**, com dica (profissional não tem regras predefinidas).
+Botão **♻️ Reaplicar em todos (N)** à direita do filtro de status em `?P=Funcionarios&Pers=Follow` e em `?P=Profissionais&Pers=Follow`. N é a quantidade de funcionários ativos com linha na tela (o filtro, a busca e a paginação mudam o N; o botão se refaz sem duplicar). Funciona igual em `?P=Profissionais&Pers=Follow` (cada item usa o `T=` do próprio cadastro).
 
-1. **Confirmação** (janela da Suite): "Reaplicar a regra marcada em N funcionários desta página?" [Reaplicar] [Cancelar].
+1. **Confirmação** (janela da Suite): "Reaplicar a regra marcada em N funcionários (ou profissionais) desta lista?" [Reaplicar] [Cancelar].
 2. **Para cada funcionário, em sequência** (pausa de 500 ms, sem abrir abas): lê a aba com `POST ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&q=&Div=divPermissoes` (corpo vazio, como o `ajxContent()` da aba), acha a regra com ✓ (`regraAtual()` sobre o HTML lido) e o `permissionProfileCsrf` do formulário, confere que o `UsId` bate com o do formulário e envia o mesmo corpo do `permissoesAcao` (`AplicaRegra`, `UsId`, `permissionProfileCsrf`) para `ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&Div=divPermissoes`. A resposta precisa trazer a mesma regra marcada, senão conta como erro.
 3. **Sem ✓**: pulado ("sem regra marcada"). **Erro** (HTTP, rede, 30 s, resposta estranha): registrado, segue para o próximo.
 4. **Painel**: barra de progresso, **Parar** (termina o funcionário em curso e não começa outro) e, no fim, "Reaplicado: X · Sem regra: Y · Erros: Z" com a lista por nome e **Copiar relatório**.
@@ -111,6 +111,7 @@ Começa **travado**. Clicar mostra as condições: último backup **COMPLETO (N/
 
 ## Histórico
 
+- **1.7.0 (26/11/2026)**: funciona também no cadastro e na lista de **profissionais** (profissional tem regras predefinidas, como funcionário; só muda `T=Profissionais`): Reaplicar regra atual, backup/comparar/restaurar, ♻️ por linha e Reaplicar em todos habilitado. Corrigido o link `&Aba=Permissoes` em profissionais (abria Procedimentos da Agenda por haver três links `#divPermissoes`).
 - **1.6.0 (26/11/2026)**: nas listas, mostra todos os cadastros de uma vez (sem páginas), com opção na engrenagem.
 - **1.5.0 (26/11/2026)**: botão **♻️ Reaplicar em todos (N)** nas listas de funcionários (sem abrir abas, com confirmação, progresso, Parar e relatório).
 - **1.4.0 (26/11/2026)**: listas abrem com o filtro em Ativo; ♻️ espera a aba Permissões carregar por completo.

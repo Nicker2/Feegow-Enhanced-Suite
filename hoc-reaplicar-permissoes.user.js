@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HOC Reaplicar Permissões (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.6.0
-// @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Nas listas de funcionários e profissionais, mostra ao lado de cada cadastro ATIVO os botões "🔐 Permissões" (abre a aba Permissões em nova aba) e, só na lista de funcionários, "♻️ Reaplicar" (abre e reaplica a regra marcada, uma vez só) e o botão "♻️ Reaplicar em todos (N)" à direita do filtro de status (reaplica a regra marcada em todos os funcionários ativos da tela, um por vez, com confirmação, progresso, Parar e relatório). Nas duas listas, mostra TODOS os cadastros de uma vez, sem páginas ("Mostrando todos: N cadastros"; funciona com filtro, busca e letra). Também abre a aba pelo link (&Aba=Permissoes, desligado por padrão) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
+// @version      1.7.0
+// @description  No cadastro de funcionário e de profissional do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Nas listas de funcionários e profissionais, mostra ao lado de cada cadastro ATIVO os botões "🔐 Permissões" (abre a aba Permissões em nova aba) e "♻️ Reaplicar" (abre e reaplica a regra marcada, uma vez só) e o botão "♻️ Reaplicar em todos (N)" à direita do filtro de status (reaplica a regra marcada em todos os cadastros ativos da tela (funcionários ou profissionais), um por vez, com confirmação, progresso, Parar e relatório). Nas duas listas, mostra TODOS os cadastros de uma vez, sem páginas ("Mostrando todos: N cadastros"; funciona com filtro, busca e letra). Também abre a aba pelo link (&Aba=Permissoes, desligado por padrão) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
 // @match        https://feegow.com/*
@@ -18,12 +18,18 @@
 (function () {
     'use strict';
 
-    var VERSAO = '1.6.0';
+    var VERSAO = '1.7.0';
     var PREFIXO = '[HOC Reaplicar Permissões]';
 
-    // Telas tratadas: cadastro de funcionário e (só o link de aba) de profissional.
+    // Telas tratadas: cadastro de funcionário e de profissional (os dois têm regras predefinidas de permissões;
+    // a única diferença nas requisições é T=Funcionarios x T=Profissionais).
+    // telaDeFuncionario() mantém o nome antigo: vale para as duas telas de cadastro.
     function telaDeFuncionario() {
-        return /[?&]P=funcionarios(?:&|#|$)/i.test(location.search + location.hash);
+        return /[?&]P=(?:funcionarios|profissionais)(?:&|#|$)/i.test(location.search + location.hash);
+    }
+    // Valor do parâmetro T= do ajxContent/EditaPermissoes para a tela aberta.
+    function tipoDaTela() {
+        return /[?&]P=profissionais(?:&|#|$)/i.test(location.search + location.hash) ? 'Profissionais' : 'Funcionarios';
     }
     function telaDePessoal() {
         return /[?&]P=(?:funcionarios|profissionais)(?:&|#|$)/i.test(location.search + location.hash);
@@ -62,7 +68,9 @@
     // Nome do link (sem acento, minúsculo) -> como reconhecer a aba na página.
     // Cada aba é um <a href="#div..."> do menu lateral; o clique dispara o carregamento do próprio Feegow.
     var ABAS_LINK = {
-        permissoes: { hrefs: ['#divpermissoes'], id: 'gtPermissoes', texto: /^permiss/ },
+        // No cadastro de profissional vários links usam href="#divPermissoes" (e até o mesmo id gtPermissoes): Procedimentos da
+        // Agenda, Permissões e Compartilhamento de Prontuário. O que identifica a aba certa é o onclick ajxContent('Permissoes...').
+        permissoes: { hrefs: ['#divpermissoes'], id: 'gtPermissoes', texto: /^permiss/, onclick: /ajxContent\(\s*['"]Permissoes(?:&|['"])/i },
         permissao: 'permissoes',
         divpermissoes: 'permissoes',
         acesso: { hrefs: ['#divacesso'], texto: /acesso/ },
@@ -115,6 +123,12 @@
     }
 
     function acharAba(desc) {
+        if (desc.onclick) {
+            var todos = document.querySelectorAll('a[onclick]');
+            for (var k = 0; k < todos.length; k++) {
+                if (desc.onclick.test(todos[k].getAttribute('onclick') || '') && /^#div/i.test(todos[k].getAttribute('href') || '')) return todos[k];
+            }
+        }
         var links = document.querySelectorAll('a[href^="#div"], a[href^="#"][onclick]');
         for (var i = 0; i < links.length; i++) {
             var a = links[i];
@@ -186,7 +200,7 @@
     function linkDasPermissoes() {
         var id = idDaPessoa();
         if (!id) return '';
-        var p = /[?&]P=profissionais(?:&|#|$)/i.test(location.search) ? 'Profissionais' : 'Funcionarios';
+        var p = tipoDaTela();
         return location.origin + '/main/?P=' + p + '&Pers=1&I=' + id + '&Aba=Permissoes';
     }
 
@@ -333,7 +347,7 @@
             id: id,
             funcionario: p === 'funcionarios',
             perm: ligadoBtnPerm,
-            reaplicar: ligadoBtnReaplicarLista && p === 'funcionarios'   // só funcionário tem "regras predefinidas"
+            reaplicar: ligadoBtnReaplicarLista   // funcionários e profissionais têm regras predefinidas
         };
     }
 
@@ -385,8 +399,7 @@
     }
 
     // ---- Botão "Reaplicar em todos (N)" à direita do filtro de status ----
-    // N = funcionários ATIVOS com linha na tela agora (mesma regra do ♻️ de cada linha). Só em funcionários:
-    // profissional não tem regras predefinidas, então na lista de profissionais o botão fica desabilitado, com dica.
+    // N = cadastros ATIVOS (funcionários ou profissionais, conforme a lista) com linha na tela agora (mesma regra do ♻️ de cada linha).
     var TEXTO_MASSA = '♻️ Reaplicar em todos';
     function funcionariosDaTela(raiz) {
         var achados = [], vistos = {};
@@ -394,9 +407,9 @@
         for (var i = 0; i < badges.length; i++) {
             var tr = badges[i].closest('tr');
             var alvo = tr && alvoDaLinha(tr);
-            if (!alvo || !alvo.funcionario || vistos[alvo.id]) continue;
+            if (!alvo || vistos[alvo.id]) continue;
             vistos[alvo.id] = true;
-            achados.push({ id: alvo.id, nome: limpar(alvo.a.textContent) || ('Funcionário ' + alvo.id) });
+            achados.push({ id: alvo.id, tipo: alvo.p, nome: limpar(alvo.a.textContent) || (alvo.p === 'Profissionais' ? 'Profissional ' : 'Funcionário ') + alvo.id });
         }
         return achados;
     }
@@ -407,12 +420,11 @@
         var pai = lab && lab.parentNode;
         var antigo = pai ? pai.querySelector('.hoc-perm-massa') : null;
         if (!pai || !ligadoBtnMassa) { if (antigo) antigo.remove(); return; }
-        var ehFuncionarios = !!raiz.host && raiz.host.tagName.toLowerCase() === 'feegow-staff-list';
-        var n = ehFuncionarios ? funcionariosDaTela(raiz).length : 0;
-        var texto = ehFuncionarios ? TEXTO_MASSA + ' (' + n + ')' : TEXTO_MASSA;
-        var titulo = !ehFuncionarios
-            ? 'Indisponível em profissionais: só funcionários têm regras de permissões predefinidas para reaplicar.'
-            : (n ? 'Reaplica a regra de permissões marcada (✓) em cada um dos ' + n + ' funcionários ativos desta lista, um por vez, sem abrir abas.' : 'Nenhum funcionário ativo na tela.');
+        var ehProf = !!raiz.host && raiz.host.tagName.toLowerCase() === 'feegow-professionals-list';
+        var quem = ehProf ? 'profissionais' : 'funcionários';
+        var n = funcionariosDaTela(raiz).length;
+        var texto = TEXTO_MASSA + ' (' + n + ')';
+        var titulo = n ? 'Reaplica a regra de permissões marcada (✓) em cada um dos ' + n + ' ' + quem + ' ativos desta lista, um por vez, sem abrir abas.' : 'Nenhum ' + (ehProf ? 'profissional ativo' : 'funcionário ativo') + ' na tela.';
         var b = antigo;
         if (!b) {
             b = document.createElement('button');
@@ -432,7 +444,7 @@
         var carregando = !!raiz.host && expansaoEmCurso(raiz.host);
         if (carregando) titulo = 'Carregando todos os cadastros da lista...';
         if (b.title !== titulo) b.title = titulo;
-        var desab = !ehFuncionarios || !n || massaRodando || carregando;
+        var desab = !n || massaRodando || carregando;
         if (b.disabled !== desab) b.disabled = desab;
     }
 
@@ -649,21 +661,21 @@
     window.__hocPermListas = { varrer: varrerListas, alvoDaLinha: alvoDaLinha, linkDoCadastro: linkDoCadastro };
 
     // =====================================================================
-    // REAPLICAR EM TODOS: reaplica a regra marcada (✓) em todos os funcionários ativos da tela
+    // REAPLICAR EM TODOS: reaplica a regra marcada (✓) em todos os cadastros ativos da tela (funcionários ou profissionais)
     // =====================================================================
     // Sem abrir abas: para cada funcionário, em sequência (pausa de 500 ms), usa as MESMAS requisições que o
     // Feegow faz na aba Permissões:
-    //   1) ler:    POST ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&q=&Div=divPermissoes (corpo vazio, como o
+    //   1) ler:    POST ajxContent.asp?P=Permissoes&T=<Funcionarios|Profissionais>&I=<id>&Pers=1&q=&Div=divPermissoes (corpo vazio, como o
     //              ajxContent() da aba) -> HTML com o formulário (permissionProfileCsrf) e a tabela de regras (✓ + Aplicar);
-    //   2) aplicar: POST ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&Div=divPermissoes com
+    //   2) aplicar: POST ajxContent.asp?P=Permissoes&T=<Funcionarios|Profissionais>&I=<id>&Pers=1&Div=divPermissoes com
     //              AplicaRegra, UsId e permissionProfileCsrf (corpo igual ao permissoesAcao() da página).
     // A regra e o UsId saem do onclick do botão Aplicar da linha com ✓ (regraAtual() sobre o HTML lido); o token vem
     // do próprio formulário daquele funcionário. A resposta do aplicar é conferida (regra segue marcada).
     var MASSA_PAUSA_MS = 500;
     var MASSA_TIMEOUT_MS = 30000;
 
-    function pedidoPermissoes(id, aplicar) {
-        var url = location.origin + '/main/ajxContent.asp?P=Permissoes&T=Funcionarios&I=' + encodeURIComponent(id) + '&Pers=1' + (aplicar ? '' : '&q=') + '&Div=divPermissoes';
+    function pedidoPermissoes(id, aplicar, tipo) {
+        var url = location.origin + '/main/ajxContent.asp?P=Permissoes&T=' + (tipo === 'Profissionais' ? 'Profissionais' : 'Funcionarios') + '&I=' + encodeURIComponent(id) + '&Pers=1' + (aplicar ? '' : '&q=') + '&Div=divPermissoes';
         var ctl = (typeof AbortController === 'function') ? new AbortController() : null;
         var timer = ctl ? setTimeout(function () { ctl.abort(); }, MASSA_TIMEOUT_MS) : null;
         return fetch(url, {
@@ -681,8 +693,8 @@
     }
 
     // Lê a aba Permissões de um funcionário sem abrir nada. Devolve {ok, semRegra, regra, csrf, doc} ou {ok:false, motivo}.
-    function lerPermissoesDe(id) {
-        return pedidoPermissoes(id, null).then(function (res) {
+    function lerPermissoesDe(id, tipo) {
+        return pedidoPermissoes(id, null, tipo).then(function (res) {
             if (!res.ok) return res;
             var doc = new DOMParser().parseFromString(res.html, 'text/html');
             var form = doc.getElementById('frmPermissoes');
@@ -704,8 +716,8 @@
         return { AplicaRegra: leitura.regra.aplicaRegra, UsId: leitura.regra.usId, permissionProfileCsrf: leitura.csrf };
     }
 
-    function aplicarRegraDe(id, leitura) {
-        return pedidoPermissoes(id, parametrosDoAplicar(leitura)).then(function (res) {
+    function aplicarRegraDe(id, leitura, tipo) {
+        return pedidoPermissoes(id, parametrosDoAplicar(leitura), tipo).then(function (res) {
             if (!res.ok) return res;
             var doc = new DOMParser().parseFromString(res.html, 'text/html');
             var nova = regraAtual(doc);
@@ -749,9 +761,10 @@
         if (massaRodando) return;
         if (raiz.host && expansaoEmCurso(raiz.host)) { aviso('A lista ainda está carregando todos os cadastros. Tente de novo em instantes.', 'erro', 5000); return; }
         var alvos = funcionariosDaTela(raiz);
-        if (!alvos.length) { aviso('Nenhum funcionário ativo na tela. Nada foi feito.', 'erro', 6000); return; }
+        var quem = (alvos[0] && alvos[0].tipo === 'Profissionais') ? 'profissionais' : 'funcionários';
+        if (!alvos.length) { aviso('Nenhum cadastro ativo na tela. Nada foi feito.', 'erro', 6000); return; }
         var etapa = ligadoConfirmaMassa
-            ? perguntar('Reaplicar em todos', 'Reaplicar a regra marcada em ' + alvos.length + ' funcionários desta lista?', 'Reaplicar')
+            ? perguntar('Reaplicar em todos', 'Reaplicar a regra marcada em ' + alvos.length + ' ' + quem + ' desta lista?', 'Reaplicar')
             : Promise.resolve(true);
         etapa.then(function (sim) {
             if (!sim) { aviso('Cancelado. Nada foi alterado.', '', 4000); return; }
@@ -764,7 +777,7 @@
         massaRodando = true;
         agendarListas();
         cssMassa();
-        var itens = alvos.map(function (a) { return { id: a.id, nome: a.nome, estado: 'pend', txt: 'aguardando' }; });
+        var itens = alvos.map(function (a) { return { id: a.id, tipo: a.tipo, nome: a.nome, estado: 'pend', txt: 'aguardando' }; });
         var parar = false, concluido = false;
         var fundo = el('div', { classe: 'hoc-massa-fundo' });
         var titulo = el('h4', { texto: 'Reaplicar em todos' });
@@ -803,7 +816,7 @@
             titulo.textContent = parar ? 'Reaplicar em todos: parado' : 'Reaplicar em todos: concluído';
             if (parar) itens.forEach(function (it) { if (it.estado === 'pend') it.txt = 'não processado (parado)'; });
             var c = contagem();
-            atual.textContent = parar ? 'Parado pelo usuário. Quem já foi processado ficou como está na lista.' : 'Terminou: ' + itens.length + ' funcionários.';
+            atual.textContent = parar ? 'Parado pelo usuário. Quem já foi processado ficou como está na lista.' : 'Terminou: ' + itens.length + ' cadastros.';
             desenhar();
             bFechar.focus();
             agendarListas();
@@ -821,11 +834,11 @@
             if (i >= itens.length || parar) return encerrar();
             var it = itens[i];
             atual.textContent = 'Processando ' + (i + 1) + ' de ' + itens.length + ': ' + it.nome;
-            lerPermissoesDe(it.id).then(function (leitura) {
+            lerPermissoesDe(it.id, it.tipo).then(function (leitura) {
                 if (!leitura.ok) { it.estado = 'erro'; it.txt = 'erro ao ler: ' + leitura.motivo; return; }
                 if (leitura.semRegra) { it.estado = 'sem'; it.txt = 'sem regra marcada (pulado)'; return; }
                 if (parar) return;   // parou durante a leitura: nada enviado para este
-                return aplicarRegraDe(it.id, leitura).then(function (r) {
+                return aplicarRegraDe(it.id, leitura, it.tipo).then(function (r) {
                     if (r.ok) { it.estado = 'ok'; it.txt = 'regra \'' + leitura.regra.nome + '\' reaplicada'; }
                     else { it.estado = 'erro'; it.txt = 'erro: ' + r.motivo; }
                 });
@@ -969,7 +982,7 @@
         reaplicarPelaLista();
     }
 
-    // Daqui para baixo: Reaplicar Permissões (só no cadastro de funcionário).
+    // Daqui para baixo: Reaplicar Permissões (cadastro de funcionário e de profissional).
     if (!ligadoReaplicar || !telaDeFuncionario()) return;
 
     var CLASSE_BTN = 'hoc-reaplicar-regra-btn';
@@ -1024,7 +1037,7 @@
         for (var i = 0; i < lixo.length; i++) lixo[i].remove();
         var txt = limpar(copia.textContent);
         var m = /Permiss(?:õ|o)es\s+de\s+(.+)$/i.exec(txt);
-        return m ? limpar(m[1]) : 'este funcionário';
+        return m ? limpar(m[1]) : 'este cadastro';
     }
 
     // ---------- estilo (só do modal e do aviso; o botão usa as classes do Feegow) ----------
@@ -1126,10 +1139,10 @@
         var heading = btn.closest('.panel-heading');
         var regra = regraAtual();
         if (!regra) {
-            perguntar('Reaplicar regra', 'Nenhuma regra aplicada a este funcionário.', '');
+            perguntar('Reaplicar regra', 'Nenhuma regra aplicada a este cadastro.', '');
             return;
         }
-        var funcionario = heading ? nomeFuncionario(heading) : 'este funcionário';
+        var funcionario = heading ? nomeFuncionario(heading) : 'este cadastro';
         perguntar('Reaplicar regra de permissões',
             'Reaplicar a regra \'' + regra.nome + '\' para ' + funcionario + '?',
             'Reaplicar').then(function (sim) {
@@ -1159,7 +1172,7 @@
 
     function atualizarEstado(btn) {
         var regra = regraAtual();
-        var titulo = regra ? 'Reaplicar a regra atual: ' + regra.nome : 'Nenhuma regra aplicada a este funcionário';
+        var titulo = regra ? 'Reaplicar a regra atual: ' + regra.nome : 'Nenhuma regra aplicada a este cadastro';
         if (btn.title !== titulo) btn.title = titulo;
         var desabilitar = !regra;
         if (btn.disabled !== desabilitar) btn.disabled = desabilitar;
@@ -1383,7 +1396,7 @@
     }
 
     function lerRegraAgora(id) {
-        var url = 'EditaPermissoes.asp?I=' + encodeURIComponent(id) + '&T=Funcionarios&PessoaID=' + encodeURIComponent(pessoaId());
+        var url = 'EditaPermissoes.asp?I=' + encodeURIComponent(id) + '&T=' + tipoDaTela() + '&PessoaID=' + encodeURIComponent(pessoaId());
         return fetch(url, {
             method: 'POST', body: '', credentials: 'same-origin', cache: 'no-store',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' }
@@ -1427,7 +1440,7 @@
     }
 
     function gravarRegra(id, form, alvo) {
-        var url = 'saveEditaPermissoes.asp?I=' + encodeURIComponent(id) + '&T=Funcionarios&PessoaID=' + encodeURIComponent(pessoaId());
+        var url = 'saveEditaPermissoes.asp?I=' + encodeURIComponent(id) + '&T=' + tipoDaTela() + '&PessoaID=' + encodeURIComponent(pessoaId());
         var corpo = montarCorpo(form, alvo);
         return fetch(url, {
             method: 'POST', body: corpo.toString(), credentials: 'same-origin',
