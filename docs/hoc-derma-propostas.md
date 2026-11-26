@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.4.7** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.4.8** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -155,6 +155,10 @@ O botão **Gerenciar descrições** fica ao lado de "Imprimir HOC Derma" na prop
 - **Fazer backup**: baixa `hoc-derma-descricoes-AAAA-MM-DD-HHMM.json` (com a versão do formato e do script). **Restaurar backup**: valida o arquivo (recusa arquivo que não é do HOC Derma ou com defeito, sem mudar nada), mostra a prévia (novos, alterados, removidos) e aplica com **Juntar com o atual** ou **Substituir tudo**. Antes de aplicar, o estado atual fica guardado automaticamente; **Desfazer a última restauração** volta a ele.
 - **Enviar para a lista padrão**: gera o JSON e o trecho já no formato do catálogo (`DESCRICOES_PROCEDIMENTOS`) com o que foi personalizado neste PC. **Não envia nada sozinho**: baixe e entregue ao coordenador, que cola o trecho no script oficial.
 
+**Buscar procedimento no Feegow** (botão na tela): digite o nome e a lista aparece enquanto você digita (até 20 por busca), com "tem descrição / sem descrição", **Criar descrição** ou **Editar descrição**. Com a proposta de um paciente aberta, também aparece **Inserir na proposta** (e caixas de seleção para inserir vários); o script usa o mesmo mecanismo do campo Procedimento do Feegow e **não salva**: confira e clique em SALVAR.
+
+**Investimento** (valor que sai em cada descrição), em ordem de prioridade: 1) o valor do item na proposta; 2) o investimento da descrição no script (fixo ou "a partir de R$ X"); 3) o valor atual do procedimento no Feegow, lido na hora (só quando as anteriores não têm valor); 4) a tabela de valores embutida no script, se a leitura falhar. Valor 0 = sem valor: não imprime "R$ 0,00".
+
 **Onde fica gravado**: `GM_setValue` (Tampermonkey) e `localStorage` do navegador, chave `hoc_propostas_descricoes` (as personalizações) e `hoc_propostas_descricoes_ultimo_backup` (último backup automático). Valem por cima do catálogo do script, por `id`; ao atualizar o script, as personalizações continuam e os itens padrão novos entram normalmente. É por PC/navegador: use o backup para levar para outro computador.
 
 ## 5. Configurações das propostas
@@ -268,6 +272,7 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
+| **1.4.8** | 26/11/2026 | **Valor atual do Feegow** lido na hora (campo Valor da página do procedimento; cache por sessão) quando o item está sem valor e o script também; ordem: proposta > investimento do script > valor atual > tabela embutida. Gerenciar descrições: **busca no Feegow** (sir.asp, 250 ms) com status tem/sem descrição, Criar/Editar; **Inserir na proposta** (`itens('S','I',id)`, múltipla, sem salvar). |
 | **1.4.7** | 26/11/2026 | **Investimento sem vazio**: item da proposta sem valor usa o valor do procedimento no Feegow (tabela `VALORES_FEEGOW`, por ID ou nome exato); valor da proposta tem prioridade; 0 = sem valor (sem "R$ 0,00"); cortesia não ganha valor do catálogo; 46 entradas do catálogo preenchidas ("a partir de" onde há variantes). |
 | **1.4.6** | 26/11/2026 | Título "BACCIO LIP \| REVITALIZAÇÃO LABIAL" (dois C), também casa "BACCIO LÁBIOS". Conferência com os nomes renomeados no Feegow: nada se perdeu. |
 | **1.4.5** | 26/11/2026 | Falsos positivos: a sigla ECG não reconhece mais eletrocoagulação (só por extenso; fora eletrocardiograma, ergométrico, consulta); linhas de anestesista/auxiliar nunca recebem descrição; blefaroplastia sem tumor/biópsia/Plasma IQ; LIP sem oftalmo/glow; ácido hialurônico sem quadril; exérese de cisto não cai na de lesão baixa. |

@@ -9,7 +9,7 @@
 | Core | 1.2.0.0 |
 | Suite principal | 4.9.14.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.4.7 |
+| Propostas HOC Derma | 1.4.8 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.6.0 |
 
@@ -106,10 +106,17 @@
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
 
+### Propostas 1.4.8 (26/11/2026): valor atual, busca e inserir na proposta
+
+- **Ordem do Investimento (final):** valor da proposta > investimento do script (fixo ou "a partir de R$ X": os valores que o script já tem são mantidos) > **valor atual do Feegow** (lido na hora) > tabela embutida (reserva). Valor 0 = sem valor.
+- **Valor atual:** quando o item vem sem valor e o script também não tem valor (ou o item não casa com nenhuma entrada), o script lê o campo "Valor" da página do procedimento no próprio Feegow (mesma sessão, sem token), guarda em cache na sessão e a prévia/impressão já saem com ele. Se a leitura falhar, usa a tabela embutida da 1.4.7.
+- **Gerenciar descrições, "Buscar procedimento no Feegow":** busca enquanto digita (como o campo Procedimento do Feegow, até 20 resultados) e mostra se cada procedimento "tem descrição" (e qual) ou está "sem descrição", com **Criar descrição** (nome já preenchido) ou **Editar descrição**.
+- **Inserir na proposta:** na tela da proposta de um paciente, a mesma busca tem **Inserir na proposta** (um) e seleção múltipla ("Inserir selecionados"), usando o mecanismo do próprio Feegow (`itens('S','I',id)`), um de cada vez. **Não salva**: clique em SALVAR no Feegow.
+
 ### Propostas 1.4.7 (26/11/2026): Investimento sem vazio
 
 - O "Investimento" saía vazio quando o item da proposta estava sem valor (valor unitário 0) e a descrição do catálogo também não tinha valor; item sem descrição e sem valor saía como "R$ 0,00".
-- Agora, **item sem valor na proposta usa o valor do procedimento no Feegow** (pelo ID do item ou pelo nome exato). O valor negociado da própria proposta continua valendo primeiro. Valor 0 no Feegow = sem valor (nada de "R$ 0,00"), e item de cortesia (100% de desconto) não ganha o valor do catálogo.
+- Agora, **item sem valor na proposta usa o valor do procedimento no Feegow** (pelo ID do item ou pelo nome exato; a partir da 1.4.8 o investimento do próprio script vem antes). O valor negociado da própria proposta continua valendo primeiro. Valor 0 no Feegow = sem valor (nada de "R$ 0,00"), e item de cortesia (100% de desconto) não ganha o valor do catálogo.
 - **46 entradas do catálogo** que estavam sem investimento receberam o valor da API; onde as variantes têm preços diferentes (sessões, frascos, complexidade) aparece "a partir de R$ X". Ficam sem valor 7 entradas, que não têm procedimento correspondente no Feegow ou têm valor 0.
 - Os valores vêm de uma tabela no script gerada da API em 26/11/2026; se os preços do Feegow mudarem, a tabela precisa ser regenerada (o valor da proposta sempre tem prioridade).
 
