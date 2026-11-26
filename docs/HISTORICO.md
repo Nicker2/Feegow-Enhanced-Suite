@@ -6,14 +6,21 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.1.7.0 |
-| Suite principal | 4.9.11.0 |
+| Core | 1.1.8.0 |
+| Suite principal | 4.9.12.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.4.2 |
 | HOC Gastos para Excel | 1.1.0 |
-| HOC Reaplicar Permissões | 1.3.0 |
+| HOC Reaplicar Permissões | 1.4.0 |
 
 ---
+
+### Core 1.1.8.0, Suite 4.9.12.0 e Reaplicar Permissões 1.4.0 (26/11/2026): listas abrem em Ativo e ♻️ espera a aba carregar
+
+- Nas listas `?P=Funcionarios&Pers=Follow` e `?P=Profissionais&Pers=Follow`, o filtro de status ("Filtrar por status de acesso", dentro do shadow root) abre sempre em **Ativo**. O módulo acha o `<select>`, define `value="active"` e dispara `input` + `change` (bubbles + composed), que é o que o componente escuta (conferido na página real: a lista refaz pela API e cai de 299 para 83 funcionários e de 167 para 50 profissionais). Vale uma vez por carregamento; se a pessoa trocar o filtro, é respeitado. Se o componente for recriado por navegação interna e a pessoa não tiver mexido, aplica de novo. Os botões 🔐/♻️ seguem funcionando com a lista filtrada.
+- Engrenagem: **Listas de funcionários/profissionais abrem em Ativo** (ON, migração para ficar ON em todos os PCs). Atributo `data-hoc-cfg-lista-ativo`.
+- **♻️ Reaplicar**: corrigido o "Este cadastro não tem regra marcada" que aparecia cedo demais. Agora espera o `#divPermissoes` carregar por completo (`#frmPermissoes` + tabela de regras com `editaRegra(...)`/Aplicar, e nada mudando por 700 ms; limite de 25 s) antes de procurar a regra com ✓. "Sem regra marcada" só aparece se a tabela carregou e não há ✓; se estourar o tempo: "A aba Permissões demorou para carregar; tente de novo" (nada é aplicado). O ♻️ existe só na lista de funcionários (profissional não tem regras predefinidas).
+- Core 1.1.8.0 faz a Suite nova ser baixada na hora.
 
 ### Core 1.1.7.0 e Suite 4.9.11.0 (26/11/2026): botões de permissão ON em todos os PCs
 

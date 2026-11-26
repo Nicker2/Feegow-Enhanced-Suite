@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.11.0
+// @version      4.9.12.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -17,6 +17,10 @@
 (function() {
     'use strict';
 
+    // 4.9.12.0: "Listas abrem em Ativo" (lista_ativo) entra ligada em todos os PCs (migração de uma vez; depois a engrenagem vale).
+    if (!GM_getValue('mig_lista_ativo_49120', false)) {
+        try { GM_setValue('lista_ativo', true); GM_setValue('mig_lista_ativo_49120', true); } catch (e) { /* noop */ }
+    }
     // 4.9.11.0: os botões de permissão (Reaplicar regra atual, 🔐 Permissões e ♻️ Reaplicar nas listas)
     // voltam a ficar ON em todos os PCs uma vez (pedido do dono); depois disso a escolha na engrenagem vale.
     if (!GM_getValue('mig_botoes_perm_on_49110', false)) {
@@ -39,6 +43,8 @@
     const featureBtnPermListaAtiva = GM_getValue('btn_perm_lista', true);
     // Botão "♻️ Reaplicar" na lista de funcionários (vem ON por padrão).
     const featureBtnReaplicarListaAtiva = GM_getValue('btn_reaplicar_lista', true);
+    // Listas de funcionários/profissionais abrem com o filtro de status em "Ativo" (vem ON por padrão).
+    const featureListaAtivoAtiva = GM_getValue('lista_ativo', true);
     // Pedir confirmação antes de reaplicar pela lista (vem OFF por padrão).
     const featureConfirmaListaAtiva = GM_getValue('confirma_reaplicar_lista', false);
     // Padrão de cada opção da engrenagem (a maioria vem ON; estas vêm OFF).
@@ -534,7 +540,7 @@
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
     const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
-    const PERMREG_SUITE_VERSAO  = '4.9.11.0';
+    const PERMREG_SUITE_VERSAO  = '4.9.12.0';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
@@ -612,13 +618,14 @@
     }
 
     function iniciarModuloReaplicarPermissoes() {
-        if (!featureReaplicarPermissoesAtiva && !featureAbaLinkAtiva && !featureBtnPermListaAtiva && !featureBtnReaplicarListaAtiva) return;    // tudo OFF na engrenagem: nem baixa
+        if (!featureReaplicarPermissoesAtiva && !featureAbaLinkAtiva && !featureBtnPermListaAtiva && !featureBtnReaplicarListaAtiva && !featureListaAtivoAtiva) return;    // tudo OFF na engrenagem: nem baixa
         if (!/[?&]P=(?:funcionarios|profissionais)(?:&|#|$)/i.test(location.search + location.hash)) return;   // só no cadastro de funcionário/profissional
         // O módulo lê estas opções do <html> (ele não tem acesso ao GM_getValue).
         document.documentElement.setAttribute('data-hoc-cfg-reaplicar', featureReaplicarPermissoesAtiva ? '1' : '0');
         document.documentElement.setAttribute('data-hoc-cfg-aba-link', featureAbaLinkAtiva ? '1' : '0');
         document.documentElement.setAttribute('data-hoc-cfg-btn-perm', featureBtnPermListaAtiva ? '1' : '0');
         document.documentElement.setAttribute('data-hoc-cfg-btn-reaplicar-lista', featureBtnReaplicarListaAtiva ? '1' : '0');
+        document.documentElement.setAttribute('data-hoc-cfg-lista-ativo', featureListaAtivoAtiva ? '1' : '0');
         document.documentElement.setAttribute('data-hoc-cfg-confirma-lista', featureConfirmaListaAtiva ? '1' : '0');
         carregarReaplicarPermissoes(false);              // o módulo tem o próprio vigia (MutationObserver)
     }
@@ -1565,6 +1572,9 @@ const protocolosDilatacao = {
                     </li>
                     <li class="toggle-remover" data-key="btn_reaplicar_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureBtnReaplicarListaAtiva ? 'green' : 'red'};" title="Botão '♻️ Reaplicar' na lista de funcionários ativos: abre o cadastro e reaplica a regra de permissões marcada (✓), uma vez só">
                         Botão Reaplicar nas listas: ${featureBtnReaplicarListaAtiva ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="lista_ativo" style="padding: 5px 10px; cursor: pointer; color: ${featureListaAtivoAtiva ? 'green' : 'red'};" title="Ao abrir as listas de funcionários e de profissionais, deixa o filtro de status em 'Ativo' (uma vez por carregamento; se você trocar o filtro, é respeitado)">
+                        Listas de funcionários/profissionais abrem em Ativo: ${featureListaAtivoAtiva ? 'ON' : 'OFF'}
                     </li>
                     <li class="toggle-remover" data-key="confirma_reaplicar_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureConfirmaListaAtiva ? 'green' : 'red'};" title="Mostra uma janela da Suite pedindo confirmação antes de o botão ♻️ da lista reaplicar a regra. Vem desligada: aplica direto.">
                         Pedir confirmação antes de reaplicar pela lista: ${featureConfirmaListaAtiva ? 'ON' : 'OFF'}

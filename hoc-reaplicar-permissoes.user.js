@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HOC Reaplicar Permissões (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.0
-// @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Nas listas de funcionários e profissionais, mostra ao lado de cada cadastro ATIVO os botões "🔐 Permissões" (abre a aba Permissões em nova aba) e, só na lista de funcionários, "♻️ Reaplicar" (abre e reaplica a regra marcada, uma vez só). Também abre a aba pelo link (&Aba=Permissoes, desligado por padrão) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
+// @version      1.4.0
+// @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Nas listas de funcionários e profissionais, mostra ao lado de cada cadastro ATIVO os botões "🔐 Permissões" (abre a aba Permissões em nova aba) e, só na lista de funcionários, "♻️ Reaplicar" (abre e reaplica a regra marcada, uma vez só). Nas duas listas, o filtro de status abre sempre em "Ativo" (uma vez por carregamento; se você trocar, é respeitado). O ♻️ Reaplicar espera a aba Permissões carregar por completo antes de procurar a regra marcada. Também abre a aba pelo link (&Aba=Permissoes, desligado por padrão) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
 // @match        https://feegow.com/*
@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    var VERSAO = '1.3.0';
+    var VERSAO = '1.4.0';
     var PREFIXO = '[HOC Reaplicar Permissões]';
 
     // Telas tratadas: cadastro de funcionário e (só o link de aba) de profissional.
@@ -48,6 +48,8 @@
     var ligadoBtnPerm = raizDoc.getAttribute('data-hoc-cfg-btn-perm') !== '0';
     var ligadoBtnReaplicarLista = raizDoc.getAttribute('data-hoc-cfg-btn-reaplicar-lista') !== '0';
     var ligadoConfirmaLista = raizDoc.getAttribute('data-hoc-cfg-confirma-lista') === '1';
+    // Listas abrem com o filtro de status em "Ativo" (ligado por padrão).
+    var ligadoListaAtivo = raizDoc.getAttribute('data-hoc-cfg-lista-ativo') !== '0';
 
     // ---------- LINK DIRETO PARA ABA (&Aba=Permissoes ou #divPermissoes) ----------
 
@@ -378,9 +380,38 @@
         agendadoListas = setTimeout(function () { agendadoListas = null; varrerListas(); }, 150);
     }
 
+    // ---- Filtro de status em "Ativo" ao abrir ----
+    // O <select aria-label="Filtrar por status de acesso"> está no shadow root do componente (staff-status-filter
+    // em funcionários, professionals-status-filter em profissionais). O componente reage a input/change (testado):
+    // ao mudar o valor ele refaz a lista pela API. Aplica UMA vez por select; se o usuário mexer no filtro
+    // (evento confiável), nunca mais mexe naquele componente. Se o componente recriar o select sem o usuário
+    // ter mexido, aplica de novo.
+    var selectsAplicados = (typeof WeakSet === 'function') ? new WeakSet() : null;
+    var hostsDoUsuario = (typeof WeakSet === 'function') ? new WeakSet() : null;
+    var hostsComEscuta = (typeof WeakSet === 'function') ? new WeakSet() : null;
+
+    function filtroAtivoNoHost(host, raiz) {
+        if (!ligadoListaAtivo || !selectsAplicados) return;
+        if (!hostsComEscuta.has(host)) {
+            hostsComEscuta.add(host);
+            raiz.addEventListener('change', function (ev) { if (ev.isTrusted) hostsDoUsuario.add(host); }, true);
+        }
+        if (hostsDoUsuario.has(host)) return;
+        var sel = raiz.querySelector('select[aria-label="Filtrar por status de acesso"]');
+        if (!sel || selectsAplicados.has(sel)) return;
+        var temAtivo = false;
+        for (var i = 0; i < sel.options.length; i++) if (sel.options[i].value === 'active') temAtivo = true;
+        if (!temAtivo) return;
+        selectsAplicados.add(sel);
+        if (sel.value === 'active') return;
+        sel.value = 'active';
+        sel.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        sel.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+    }
+
     function varrerListas() {
         if (!tela_lista()) return;
-        if (!ligadoBtnPerm && !ligadoBtnReaplicarLista) return;
+        if (!ligadoBtnPerm && !ligadoBtnReaplicarLista && !ligadoListaAtivo) return;
         for (var i = 0; i < HOSTS_LISTA.length; i++) {
             var hosts = document.querySelectorAll(HOSTS_LISTA[i]);
             for (var j = 0; j < hosts.length; j++) {
@@ -390,12 +421,13 @@
                     raizesObservadas.add(raiz);
                     new MutationObserver(agendarListas).observe(raiz, { childList: true, subtree: true });
                 }
-                processarRaiz(raiz);
+                filtroAtivoNoHost(hosts[j], raiz);
+                if (ligadoBtnPerm || ligadoBtnReaplicarLista) processarRaiz(raiz);
             }
         }
     }
 
-    if (tela_lista() && (ligadoBtnPerm || ligadoBtnReaplicarLista)) {
+    if (tela_lista() && (ligadoBtnPerm || ligadoBtnReaplicarLista || ligadoListaAtivo)) {
         varrerListas();
         new MutationObserver(agendarListas).observe(document.documentElement, { childList: true, subtree: true });
         setInterval(varrerListas, 1000);   // rede de segurança: o shadow root pode surgir depois do host
@@ -445,16 +477,46 @@
         });
     }
 
+    // Espera a aba Permissões carregar POR COMPLETO: #frmPermissoes + tabela de regras predefinidas
+    // (botões editaRegra(...) / AplicaRegra) presentes e ESTÁVEIS (nada mudou no #divPermissoes por 700 ms).
+    // Devolve Promise<'ok' | 'sem-form' | 'sem-tabela'> (timeout padrão 25 s).
+    var SEL_TABELA_REGRAS = '[onclick*="editaRegra("], [onclick*="AplicaRegra"]';
+    function aguardarPermissoesCarregada(ms, estavelMs) {
+        ms = ms || 25000; estavelMs = estavelMs || 700;
+        return new Promise(function (resolve) {
+            var fim = Date.now() + ms, ultimaMudanca = Date.now(), assinatura = '', obs = null, timer = null;
+            function assin() {
+                var f = document.getElementById('frmPermissoes');
+                if (!f) return '';
+                var d = document.getElementById('divPermissoes') || document;
+                var n = d.querySelectorAll(SEL_TABELA_REGRAS).length;
+                if (!n) return '';
+                return n + '|' + d.querySelectorAll('td i.fa-check.green').length + '|' + f.querySelectorAll('input[type="checkbox"]').length;
+            }
+            function fechar(r) {
+                if (obs) obs.disconnect();
+                clearTimeout(timer);
+                resolve(r);
+            }
+            function checar() {
+                var a = assin();
+                if (a !== assinatura) { assinatura = a; ultimaMudanca = Date.now(); }
+                if (a && Date.now() - ultimaMudanca >= estavelMs) return fechar('ok');
+                if (Date.now() >= fim) return fechar(document.getElementById('frmPermissoes') ? 'sem-tabela' : 'sem-form');
+                timer = setTimeout(checar, 150);
+            }
+            try {
+                obs = new MutationObserver(function () { ultimaMudanca = Date.now(); });
+                obs.observe(document.documentElement, { childList: true, subtree: true });
+            } catch (e) { obs = null; }
+            checar();
+        });
+    }
+
     function reaplicarPelaLista() {
-        // Espera a aba Permissões carregar: precisa do formulário e da tabela de regras (botões Aplicar).
-        esperarAte(function () {
-            if (!document.getElementById('frmPermissoes')) return null;
-            if (!document.querySelector('#frmPermissoes button[onclick*="AplicaRegra"], #frmPermissoes a[onclick*="AplicaRegra"], button[onclick*="AplicaRegra"], a[onclick*="AplicaRegra"]')) return null;
-            return true;
-        }, 25000, 300).then(function (carregou) {
-            if (!carregou) {
-                if (document.getElementById('frmPermissoes')) aviso('Este cadastro não tem regra marcada. Nada foi aplicado.', 'erro', 9000);
-                else aviso('Não consegui abrir a aba Permissões. Nada foi aplicado.', 'erro', 9000);
+        aguardarPermissoesCarregada(25000, 700).then(function (estado) {
+            if (estado !== 'ok') {
+                aviso('A aba Permissões demorou para carregar; tente de novo. Nada foi aplicado.', 'erro', 9000);
                 return;
             }
             var regra = regraAtual();

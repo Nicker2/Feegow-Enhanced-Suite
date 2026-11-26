@@ -2,7 +2,7 @@
 
 [Voltar ao README](../README.md)
 
-**Versão atual: 1.3.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
+**Versão atual: 1.4.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
 
 ## Instalação
 
@@ -38,6 +38,14 @@ Em `?P=Funcionarios&Pers=Follow` e `?P=Profissionais&Pers=Follow`, ao lado do no
 - Engrenagem: **Botão Permissões nas listas de funcionários e profissionais** (ON), **Botão Reaplicar nas listas** (ON) e **Pedir confirmação antes de reaplicar pela lista** (OFF; ligada, mostra o modal da Suite antes de aplicar).
 - Atributos do `<html>`: `data-hoc-cfg-btn-perm`, `data-hoc-cfg-btn-reaplicar-lista`, `data-hoc-cfg-confirma-lista`.
 - A lista é um web component (`<feegow-staff-list>`, `<feegow-professionals-list>`) com shadow DOM aberto; cada linha tem `a[href*="Pers=1"][href*="I="]` e `[data-testid="access-state-badge"][data-state]`. Um observador por shadow root refaz os botões na paginação/filtro/busca e confere o id da linha a cada varredura.
+
+### Filtro em "Ativo" (1.4.0)
+
+Ao abrir as duas listas, o filtro de status fica em **Ativo** (define o `<select>` e dispara `input`/`change`; uma vez por carregamento, respeitando a troca feita pela pessoa). Engrenagem: **Listas de funcionários/profissionais abrem em Ativo** (ON; atributo `data-hoc-cfg-lista-ativo`).
+
+### Espera da aba no ♻️ (1.4.0)
+
+O ♻️ espera `#frmPermissoes` e a tabela de regras (`editaRegra(...)`/Aplicar) ficarem presentes e estáveis por 700 ms (até 25 s) antes de procurar o ✓. Só avisa "não tem regra marcada" com a tabela carregada e sem ✓; estourando o tempo, avisa que a aba demorou e não aplica. O ♻️ só existe em funcionários.
 
 ## Como acha a regra atual
 
@@ -81,6 +89,8 @@ Começa **travado**. Clicar mostra as condições: último backup **COMPLETO (N/
 - Não guarda nem registra dados de pacientes nem o token de segurança da página.
 
 ## Histórico
+
+- **1.4.0 (26/11/2026)**: listas abrem com o filtro em Ativo; ♻️ espera a aba Permissões carregar por completo.
 
 - **1.1.0 (26/11/2026)**: botões Backup das regras, Comparar com backup, Restaurar uma regra e Restaurar todas (travado), à esquerda do Reaplicar.
 - **1.0.1 (25/11/2026)**: o botão mostra o texto "Reaplicar regra atual" ao lado do ícone.

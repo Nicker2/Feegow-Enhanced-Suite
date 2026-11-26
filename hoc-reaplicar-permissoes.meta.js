@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HOC Reaplicar Permissões (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.0
+// @version      1.4.0
 // @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Nas listas de funcionários e profissionais, mostra ao lado de cada cadastro ATIVO os botões "🔐 Permissões" (abre a aba Permissões em nova aba) e, só na lista de funcionários, "♻️ Reaplicar" (abre e reaplica a regra marcada, uma vez só). Também abre a aba pelo link (&Aba=Permissoes, desligado por padrão) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
