@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.11
+// @version      1.3.12
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.11
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.12
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -212,6 +212,13 @@ window.HOCDERMA_TIMBRADO = {
  *     "Substituir os ajustes atuais?". Fontes do Google Fonts oficial (SIL OFL; licenças em
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
+ *
+ * v1.3.12 (26/11/2026)
+ *   - Catálogo: 16 descrições novas (dacriocistorrinostomia, exérese de calázio e de cisto de Moll,
+ *     infiltração intralesional, ressecção de tumores palpebrais, peeling retinoico+Jessner 01 sessão,
+ *     anatomopatológico 01 frasco / mais de 02 frascos, bioimpedância, biópsia por punch, blefaroplastia
+ *     + ptose (2 combinações), cantopexia, cantoplastia tarsal strip, cauterização química, clipping
+ *     ungueal) e título/texto da ptose atualizados. A combinação mais específica vence.
  *
  * v1.3.11 (26/11/2026)
  *   - "LIFTING DE SUPERCÍLIO - BROW LIFT - CASTANHARES" e "CASTANHARES (LIFT DE SUPERCÍLIO)" usam a descrição de
@@ -723,10 +730,10 @@ window.HOCDERMA_TIMBRADO = {
     {
       id: "ptose-palpebral",
       modeloFeegow: 66,
-      titulo: "CORREÇÃO DE PTOSE",
+      titulo: "CORREÇÃO DE PTOSE PALPEBRAL",
       palavrasChave: ["ptose"],
       investimento: "",
-      texto: "Cirurgia que eleva a pálpebra caída, deixando o olhar mais aberto e melhorando o campo de visão quando ele está comprometido."
+      texto: "Cirurgia para elevar a pálpebra superior caída, melhorando a abertura dos olhos e a posição da pálpebra."
     },
     {
       id: "skin-booster",
@@ -775,6 +782,124 @@ window.HOCDERMA_TIMBRADO = {
       palavrasChave: ["tranex nctf", "tranex"],
       investimento: "",
       texto: "Associação de ativos que auxilia no clareamento de manchas e na melhora da qualidade da pele. O ácido tranexâmico atua na pigmentação, enquanto o NCTF contribui para a hidratação, a textura e a luminosidade."
+    },
+    {
+      id: "dacriocistorrinostomia",
+      titulo: "DACRIOCISTORRINOSTOMIA",
+      palavrasChave: ["dacriocistorrinostomia"],
+      excluir: ["anestesista", "auxiliar"],
+      investimento: "",
+      texto: "Cirurgia que cria uma nova passagem para a drenagem das lágrimas até o nariz, ajudando a aliviar o lacrimejamento causado pela obstrução do canal lacrimal."
+    },
+    {
+      id: "exerese-de-calazio",
+      titulo: "EXÉRESE DE CALÁZIO",
+      palavrasChave: ["calazio"],
+      excluir: ["anestesista", "auxiliar"],
+      investimento: "",
+      texto: "Pequena cirurgia para remover o conteúdo do nódulo formado pela obstrução de uma glândula da pálpebra, ajudando a reduzir o volume e o desconforto local."
+    },
+    {
+      id: "exerese-de-cisto-de-moll",
+      titulo: "EXÉRESE DE CISTO DE MOLL",
+      palavrasChave: ["exerese cisto moll", "cisto moll"],
+      investimento: "",
+      texto: "Procedimento para retirar um pequeno cisto com líquido que se forma próximo à borda da pálpebra."
+    },
+    {
+      id: "infiltracao-intralesional",
+      titulo: "INFILTRAÇÃO INTRALESIONAL",
+      palavrasChave: ["infiltracao intralesional"],
+      investimento: "",
+      texto: "Aplicação de medicamento diretamente na lesão para agir na área tratada, auxiliando no controle da inflamação ou na redução do seu volume."
+    },
+    {
+      id: "reseccao-de-tumores-palpebrais",
+      titulo: "RESSECÇÃO DE TUMORES PALPEBRAIS",
+      palavrasChave: ["reseccao tumores palpebrais", "reseccao tumor palpebral"],
+      excluir: ["anestesista", "auxiliar", "reconstrucao"],
+      investimento: "",
+      texto: "Cirurgia para retirar lesões das pálpebras, com cuidado para preservar o formato e a função da região na proteção dos olhos."
+    },
+    {
+      id: "peeling-ar-jessner-01ss",
+      titulo: "PEELING ÁCIDO RETINÓICO COM JESSNER | 01 SESSÃO",
+      palavrasChave: ["peeling jessner 1 sessoes", "peeling retinoico 1 sessoes", "peeling retinoico sessoes"],
+      excluir: ["3 sessoes", "salicilico"],
+      investimento: "",
+      texto: "Associação de ácidos que promove a renovação da pele, ajudando a suavizar manchas e a melhorar a textura e a luminosidade."
+    },
+    {
+      id: "anatomopatologico-01-frasco",
+      titulo: "ANATOMOPATOLÓGICO | 01 FRASCO",
+      palavrasChave: ["anatomopatologico 1 frasco"],
+      investimento: "",
+      texto: "Análise em laboratório do tecido retirado durante o procedimento e enviado em um frasco, para identificar a natureza da lesão e auxiliar no diagnóstico."
+    },
+    {
+      id: "anatomopatologico-mais-de-02-frascos",
+      titulo: "ANATOMOPATOLÓGICO | MAIS DE 02 FRASCOS",
+      palavrasChave: ["anatomopatologico mais 2 frascos", "anatomopatologico acima 2 frascos"],
+      investimento: "",
+      texto: "Análise em laboratório dos tecidos retirados durante o procedimento e enviados em mais de dois frascos, para identificar a natureza das lesões e auxiliar no diagnóstico."
+    },
+    {
+      id: "bioimpedancia",
+      titulo: "BIOIMPEDÂNCIA",
+      palavrasChave: ["bioimpedancia", "bioimpedanciometria"],
+      investimento: "",
+      texto: "Exame que estima a composição corporal, incluindo a quantidade de gordura, massa muscular e água no organismo, auxiliando no acompanhamento nutricional."
+    },
+    {
+      id: "biopsia-por-punch",
+      titulo: "BIÓPSIA POR PUNCH | 01 PONTO",
+      palavrasChave: ["biopsia punch"],
+      investimento: "",
+      texto: "Retirada de uma pequena amostra da pele com um instrumento circular, para análise em laboratório e esclarecimento do diagnóstico."
+    },
+    {
+      id: "blefaro-superior-inferior-ptose",
+      titulo: "BLEFAROPLASTIA SUPERIOR E INFERIOR + CORREÇÃO DE PTOSE BILATERAL",
+      palavrasChave: ["blefaro superior inferior ptose"],
+      investimento: "",
+      texto: "Cirurgia que trata o excesso de pele e as bolsas de gordura das pálpebras, associada à correção da queda das pálpebras superiores dos dois olhos, melhorando a abertura e o contorno do olhar."
+    },
+    {
+      id: "blefaro-superior-ptose",
+      titulo: "BLEFAROPLASTIA SUPERIOR BILATERAL + CORREÇÃO DE PTOSE BILATERAL",
+      palavrasChave: ["blefaro superior ptose"],
+      excluir: ["inferior"],
+      investimento: "",
+      texto: "Cirurgia que remove o excesso de pele das pálpebras superiores e corrige sua queda nos dois olhos, proporcionando uma abertura maior do olhar."
+    },
+    {
+      id: "cantopexia",
+      titulo: "CANTOPEXIA | MONOCULAR",
+      palavrasChave: ["cantopexia"],
+      investimento: "",
+      texto: "Cirurgia para reforçar a sustentação do canto externo da pálpebra de um olho, melhorando sua firmeza e posição."
+    },
+    {
+      id: "cantoplastia-tarsal-strip",
+      titulo: "CANTOPLASTIA TARSAL STRIP | MONOCULAR",
+      palavrasChave: ["cantoplastia tarsal strip"],
+      investimento: "",
+      texto: "Cirurgia que ajusta e reforça a sustentação da pálpebra inferior de um olho, corrigindo a flacidez e melhorando seu contato com a superfície ocular."
+    },
+    {
+      id: "cauterizacao-quimica",
+      titulo: "CAUTERIZAÇÃO QUÍMICA",
+      palavrasChave: ["cauterizacao quimica"],
+      excluir: ["uterino"],
+      investimento: "",
+      texto: "Aplicação de uma substância química diretamente sobre a lesão para tratar e remover o tecido alterado."
+    },
+    {
+      id: "clipping-ungueal",
+      titulo: "CLIPPING UNGUEAL",
+      palavrasChave: ["clipping ungueal"],
+      investimento: "",
+      texto: "Coleta de um pequeno fragmento da unha para análise em laboratório, auxiliando na investigação de micose e de outras alterações das unhas."
     }
   ];
 
@@ -826,7 +951,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.11';
+  const VERSAO = '1.3.12';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';

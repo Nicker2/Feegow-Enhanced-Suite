@@ -9,7 +9,7 @@
 | Core | 1.1.7.0 |
 | Suite principal | 4.9.11.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.3.11 |
+| Propostas HOC Derma | 1.3.12 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.3.0 |
 
@@ -79,6 +79,11 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.3.12 (26/11/2026)
+
+- **16 descrições novas** na lista padrão: dacriocistorrinostomia, exérese de calázio, exérese de cisto de Moll, infiltração intralesional, ressecção de tumores palpebrais, peeling ácido retinóico com Jessner (1 sessão), anatomopatológico (1 frasco e mais de 2 frascos), bioimpedância, biópsia por punch (1, 2 e 3 pontos), blefaroplastia superior e inferior + ptose, blefaroplastia superior + ptose, cantopexia, cantoplastia tarsal strip, cauterização química e clipping ungueal.
+- Título e texto da **correção de ptose** atualizados. Nas blefaroplastias com ptose, sai uma descrição só (a da combinação), em vez de duas.
 
 ### Propostas 1.3.11 (26/11/2026)
 

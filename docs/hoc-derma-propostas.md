@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.3.11** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.3.12** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -255,6 +255,7 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
+| **1.3.12** | 26/11/2026 | 16 descrições novas no catálogo (dacriocistorrinostomia, calázio, cisto de Moll, infiltração intralesional, ressecção de tumores palpebrais, peeling retinóico + Jessner 1 sessão, anatomopatológico 1 frasco / mais de 2 frascos, bioimpedância, biópsia por punch, blefaroplastia + ptose (2 combinações), cantopexia, cantoplastia tarsal strip, cauterização química, clipping ungueal); título/texto da ptose atualizados. A combinação mais específica vence. |
 | **1.3.11** | 26/11/2026 | "LIFTING DE SUPERCÍLIO - BROW LIFT - CASTANHARES" (e "CASTANHARES (LIFT DE SUPERCÍLIO)") usa a descrição de `lifting-de-supercilio`: palavras-chave novas `brow lift` e `castanhares supercilio`. |
 | **1.3.9** | 24/11/2026 | "Padrão Poppins" (e padrão inicial): **títulos dos procedimentos na fonte original** da 1.3.6 (Palatino 13,5 pt, peso e altura de linha originais); o resto continua em Poppins. Quem já tinha ajustes salvos só muda se o título estava no padrão Poppins (escolha manual de fonte ou tamanho do título é mantida). "Padrão original" e o seletor por parte não mudam. |
 | **1.3.8** | 24/11/2026 | Aviso do topo da janela curto ("Itens, valores e descontos são salvos no Feegow · Descrições e textos valem só para a impressão") numa faixa fina própria, em uma linha (texto completo na dica). A barra superior volta à altura da 1.3.6. |
