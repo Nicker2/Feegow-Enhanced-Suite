@@ -6,14 +6,24 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.1.8.0 |
-| Suite principal | 4.9.12.0 |
+| Core | 1.1.9.0 |
+| Suite principal | 4.9.13.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.4.5 |
 | HOC Gastos para Excel | 1.1.0 |
-| HOC Reaplicar Permissões | 1.4.0 |
+| HOC Reaplicar Permissões | 1.5.0 |
 
 ---
+
+### Core 1.1.9.0, Suite 4.9.13.0 e Reaplicar Permissões 1.5.0 (26/11/2026): botão "Reaplicar em todos (N)" nas listas
+
+- Na lista de funcionários, à direita do filtro de status, botão **♻️ Reaplicar em todos (N)**: reaplica a regra marcada (✓) em todos os funcionários **ativos que aparecem na tela** (N = linhas com ♻️), um por vez, com pausa de 500 ms, **sem abrir abas**.
+- Para cada um, usa as mesmas requisições do Feegow: lê a aba (`POST ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&q=&Div=divPermissoes`), extrai o `permissionProfileCsrf` do formulário e a regra com ✓ (mesma `regraAtual()`), e envia o mesmo corpo do `permissoesAcao` (`AplicaRegra`, `UsId`, `permissionProfileCsrf`) para `ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&Div=divPermissoes`. A resposta é conferida (a regra segue marcada). Sem ✓: pula ("sem regra marcada"). Erro: registra e segue.
+- Confirmação da Suite antes de começar ("Reaplicar a regra marcada em N funcionários desta página?"), painel com barra de progresso e botão **Parar**, e no fim "Reaplicado: X · Sem regra: Y · Erros: Z" com a lista por nome e **Copiar relatório**. Nada de `alert` do navegador.
+- Em **profissionais** o botão aparece **desabilitado** com dica (profissional não tem regras predefinidas; mostrar desabilitado explica por que não há ação).
+- Engrenagem: **Botão Reaplicar em todos nas listas** (ON) e **Confirmar antes de reaplicar em todos** (ON), ambas ligadas em todos os PCs por migração. Atributos do `<html>`: `data-hoc-cfg-btn-massa`, `data-hoc-cfg-confirma-massa`.
+- O botão se refaz com a paginação/filtro/busca (sem duplicar) e o N acompanha as linhas atuais.
+- Core 1.1.9.0 faz a Suite nova ser baixada na hora.
 
 ### Core 1.1.8.0, Suite 4.9.12.0 e Reaplicar Permissões 1.4.0 (26/11/2026): listas abrem em Ativo e ♻️ espera a aba carregar
 

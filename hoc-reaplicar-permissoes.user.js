@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    var VERSAO = '1.4.0';
+    var VERSAO = '1.5.0';
     var PREFIXO = '[HOC Reaplicar Permissões]';
 
     // Telas tratadas: cadastro de funcionário e (só o link de aba) de profissional.
@@ -50,6 +50,10 @@
     var ligadoConfirmaLista = raizDoc.getAttribute('data-hoc-cfg-confirma-lista') === '1';
     // Listas abrem com o filtro de status em "Ativo" (ligado por padrão).
     var ligadoListaAtivo = raizDoc.getAttribute('data-hoc-cfg-lista-ativo') !== '0';
+    // Botão "Reaplicar em todos (N)" nas listas (ligado por padrão) e confirmação antes de começar (ligada por padrão).
+    var ligadoBtnMassa = raizDoc.getAttribute('data-hoc-cfg-btn-massa') !== '0';
+    var ligadoConfirmaMassa = raizDoc.getAttribute('data-hoc-cfg-confirma-massa') !== '0';
+    var massaRodando = false;
 
     // ---------- LINK DIRETO PARA ABA (&Aba=Permissoes ou #divPermissoes) ----------
 
@@ -291,6 +295,8 @@
             '.hoc-perm-btn:hover{background:var(--w-color-background-hover,rgba(229,231,231,.6));border-color:var(--w-color-border-highlight,#868e8e);color:var(--w-color-foreground-primary,#181818);text-decoration:none;}',
             '.hoc-perm-btn:focus-visible{outline:2px solid var(--w-color-border-highlight,#868e8e);outline-offset:2px;}',
             '.hoc-perm-btn.hoc-perm-reaplicar{color:var(--w-color-foreground-accent,#006453);border-color:rgba(0,100,83,.35);background:rgba(0,100,83,.07);}',
+            '.hoc-perm-btn.hoc-perm-massa{height:28px;margin-left:12px;padding:0 12px;font-size:13px;align-self:center;}',
+            '.hoc-perm-btn[disabled]{opacity:.5;cursor:not-allowed;pointer-events:auto;}',
             '.hoc-perm-btn.hoc-perm-reaplicar:hover{background:rgba(0,100,83,.15);border-color:var(--w-color-foreground-accent,#006453);color:var(--w-color-foreground-accent,#006453);}'
         ].join('');
     }
@@ -323,6 +329,7 @@
             a: a,
             p: p === 'funcionarios' ? 'Funcionarios' : 'Profissionais',
             id: id,
+            funcionario: p === 'funcionarios',
             perm: ligadoBtnPerm,
             reaplicar: ligadoBtnReaplicarLista && p === 'funcionarios'   // só funcionário tem "regras predefinidas"
         };
@@ -372,6 +379,56 @@
             var tr = badges[i].closest('tr');
             if (tr) processarLinha(tr);
         }
+        atualizarBotaoMassa(raiz);
+    }
+
+    // ---- Botão "Reaplicar em todos (N)" à direita do filtro de status ----
+    // N = funcionários ATIVOS com linha na tela agora (mesma regra do ♻️ de cada linha). Só em funcionários:
+    // profissional não tem regras predefinidas, então na lista de profissionais o botão fica desabilitado, com dica.
+    var TEXTO_MASSA = '♻️ Reaplicar em todos';
+    function funcionariosDaTela(raiz) {
+        var achados = [], vistos = {};
+        var badges = raiz.querySelectorAll('[data-testid="access-state-badge"]');
+        for (var i = 0; i < badges.length; i++) {
+            var tr = badges[i].closest('tr');
+            var alvo = tr && alvoDaLinha(tr);
+            if (!alvo || !alvo.funcionario || vistos[alvo.id]) continue;
+            vistos[alvo.id] = true;
+            achados.push({ id: alvo.id, nome: limpar(alvo.a.textContent) || ('Funcionário ' + alvo.id) });
+        }
+        return achados;
+    }
+
+    function atualizarBotaoMassa(raiz) {
+        var sel = raiz.querySelector('select[aria-label="Filtrar por status de acesso"]');
+        var lab = sel && (sel.closest('label') || sel);
+        var pai = lab && lab.parentNode;
+        var antigo = pai ? pai.querySelector('.hoc-perm-massa') : null;
+        if (!pai || !ligadoBtnMassa) { if (antigo) antigo.remove(); return; }
+        var ehFuncionarios = !!raiz.host && raiz.host.tagName.toLowerCase() === 'feegow-staff-list';
+        var n = ehFuncionarios ? funcionariosDaTela(raiz).length : 0;
+        var texto = ehFuncionarios ? TEXTO_MASSA + ' (' + n + ')' : TEXTO_MASSA;
+        var titulo = !ehFuncionarios
+            ? 'Indisponível em profissionais: só funcionários têm regras de permissões predefinidas para reaplicar.'
+            : (n ? 'Reaplica a regra de permissões marcada (✓) em cada um dos ' + n + ' funcionários ativos desta página, um por vez, sem abrir abas.' : 'Nenhum funcionário ativo na tela.');
+        var b = antigo;
+        if (!b) {
+            b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'hoc-perm-btn hoc-perm-reaplicar hoc-perm-massa';
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                if (b.disabled) return;
+                iniciarMassa(raiz);
+            });
+            pai.insertBefore(b, lab.nextSibling);
+        } else if (b.previousSibling !== lab) {
+            pai.insertBefore(b, lab.nextSibling);
+        }
+        if (b.textContent !== texto) b.textContent = texto;
+        if (b.title !== titulo) b.title = titulo;
+        var desab = !ehFuncionarios || !n || massaRodando;
+        if (b.disabled !== desab) b.disabled = desab;
     }
 
     var agendadoListas = null;
@@ -411,7 +468,7 @@
 
     function varrerListas() {
         if (!tela_lista()) return;
-        if (!ligadoBtnPerm && !ligadoBtnReaplicarLista && !ligadoListaAtivo) return;
+        if (!ligadoBtnPerm && !ligadoBtnReaplicarLista && !ligadoListaAtivo && !ligadoBtnMassa) return;
         for (var i = 0; i < HOSTS_LISTA.length; i++) {
             var hosts = document.querySelectorAll(HOSTS_LISTA[i]);
             for (var j = 0; j < hosts.length; j++) {
@@ -422,17 +479,209 @@
                     new MutationObserver(agendarListas).observe(raiz, { childList: true, subtree: true });
                 }
                 filtroAtivoNoHost(hosts[j], raiz);
-                if (ligadoBtnPerm || ligadoBtnReaplicarLista) processarRaiz(raiz);
+                if (ligadoBtnPerm || ligadoBtnReaplicarLista || ligadoBtnMassa) processarRaiz(raiz);
             }
         }
     }
 
-    if (tela_lista() && (ligadoBtnPerm || ligadoBtnReaplicarLista || ligadoListaAtivo)) {
+    if (tela_lista() && (ligadoBtnPerm || ligadoBtnReaplicarLista || ligadoListaAtivo || ligadoBtnMassa)) {
         varrerListas();
         new MutationObserver(agendarListas).observe(document.documentElement, { childList: true, subtree: true });
         setInterval(varrerListas, 1000);   // rede de segurança: o shadow root pode surgir depois do host
     }
     window.__hocPermListas = { varrer: varrerListas, alvoDaLinha: alvoDaLinha, linkDoCadastro: linkDoCadastro };
+
+    // =====================================================================
+    // REAPLICAR EM TODOS: reaplica a regra marcada (✓) em todos os funcionários ativos da tela
+    // =====================================================================
+    // Sem abrir abas: para cada funcionário, em sequência (pausa de 500 ms), usa as MESMAS requisições que o
+    // Feegow faz na aba Permissões:
+    //   1) ler:    POST ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&q=&Div=divPermissoes (corpo vazio, como o
+    //              ajxContent() da aba) -> HTML com o formulário (permissionProfileCsrf) e a tabela de regras (✓ + Aplicar);
+    //   2) aplicar: POST ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&Div=divPermissoes com
+    //              AplicaRegra, UsId e permissionProfileCsrf (corpo igual ao permissoesAcao() da página).
+    // A regra e o UsId saem do onclick do botão Aplicar da linha com ✓ (regraAtual() sobre o HTML lido); o token vem
+    // do próprio formulário daquele funcionário. A resposta do aplicar é conferida (regra segue marcada).
+    var MASSA_PAUSA_MS = 500;
+    var MASSA_TIMEOUT_MS = 30000;
+
+    function pedidoPermissoes(id, aplicar) {
+        var url = location.origin + '/main/ajxContent.asp?P=Permissoes&T=Funcionarios&I=' + encodeURIComponent(id) + '&Pers=1' + (aplicar ? '' : '&q=') + '&Div=divPermissoes';
+        var ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+        var timer = ctl ? setTimeout(function () { ctl.abort(); }, MASSA_TIMEOUT_MS) : null;
+        return fetch(url, {
+            method: 'POST', credentials: 'same-origin', cache: 'no-store', signal: ctl ? ctl.signal : undefined,
+            body: aplicar ? new URLSearchParams(aplicar).toString() : '',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) {
+            clearTimeout(timer);
+            if (!r.ok) return { ok: false, motivo: 'HTTP ' + r.status };
+            return r.text().then(function (html) { return { ok: true, html: html }; });
+        }).catch(function (e) {
+            clearTimeout(timer);
+            return { ok: false, motivo: (e && e.name === 'AbortError') ? 'demorou mais de ' + (MASSA_TIMEOUT_MS / 1000) + ' s' : 'falha de rede (' + (e && e.message || e) + ')' };
+        });
+    }
+
+    // Lê a aba Permissões de um funcionário sem abrir nada. Devolve {ok, semRegra, regra, csrf, doc} ou {ok:false, motivo}.
+    function lerPermissoesDe(id) {
+        return pedidoPermissoes(id, null).then(function (res) {
+            if (!res.ok) return res;
+            var doc = new DOMParser().parseFromString(res.html, 'text/html');
+            var form = doc.getElementById('frmPermissoes');
+            if (!form) return { ok: false, motivo: 'a aba Permissões não veio (sessão expirada ou sem acesso?)' };
+            var campo = form.querySelector('input[name="permissionProfileCsrf"]');
+            var csrf = campo && campo.value;
+            if (!csrf) { var m = /permissionProfileCsrf\s*=\s*["']([^"']+)["']/.exec(res.html); csrf = m ? m[1] : ''; }
+            if (!csrf) return { ok: false, motivo: 'sem token de segurança na aba (sessão expirada?)' };
+            var regra = regraAtual(doc);
+            if (!regra) return { ok: true, semRegra: true, doc: doc };
+            var e = form.querySelector('input[name="e"]');
+            if (e && e.value && e.value !== regra.usId) return { ok: false, motivo: 'UsId da regra não confere com o do formulário; nada enviado' };
+            return { ok: true, regra: regra, csrf: csrf, doc: doc };
+        });
+    }
+
+    // Parâmetros EXATOS que o Aplicar envia (os mesmos do permissoesAcao).
+    function parametrosDoAplicar(leitura) {
+        return { AplicaRegra: leitura.regra.aplicaRegra, UsId: leitura.regra.usId, permissionProfileCsrf: leitura.csrf };
+    }
+
+    function aplicarRegraDe(id, leitura) {
+        return pedidoPermissoes(id, parametrosDoAplicar(leitura)).then(function (res) {
+            if (!res.ok) return res;
+            var doc = new DOMParser().parseFromString(res.html, 'text/html');
+            var nova = regraAtual(doc);
+            if (!nova) return { ok: false, motivo: 'enviado, mas a resposta não mostra regra marcada; confira o cadastro' };
+            if (nova.aplicaRegra !== leitura.regra.aplicaRegra) return { ok: false, motivo: 'enviado, mas a regra marcada na resposta é outra (' + nova.nome + '); confira o cadastro' };
+            return { ok: true, nome: nova.nome };
+        });
+    }
+
+    function pausaMassa(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+    function cssMassa() {
+        if (document.getElementById('hoc-massa-css')) return;
+        var st = document.createElement('style');
+        st.id = 'hoc-massa-css';
+        st.textContent = [
+            '.hoc-massa-fundo{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:2147483000;display:flex;align-items:center;justify-content:center;}',
+            '.hoc-massa-caixa{background:#fff;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.3);width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 48px);display:flex;flex-direction:column;padding:18px 20px 14px;font-size:14px;color:#333;}',
+            '.hoc-massa-caixa h4{margin:0 0 10px;font-size:16px;font-weight:600;}',
+            '.hoc-massa-atual{margin:0 0 8px;line-height:1.4;min-height:20px;}',
+            '.hoc-massa-barra{height:10px;background:#e5e7e7;border-radius:999px;overflow:hidden;margin:0 0 12px;}',
+            '.hoc-massa-barra>div{height:100%;width:0;background:#006453;transition:width .2s;}',
+            '.hoc-massa-resumo{margin:0 0 8px;font-weight:600;}',
+            '.hoc-massa-lista{list-style:none;margin:0 0 14px;padding:0;overflow:auto;border:1px solid #e5e7e7;border-radius:4px;max-height:42vh;font-size:13px;}',
+            '.hoc-massa-lista li{padding:4px 10px;border-bottom:1px solid #f0f1f1;display:flex;gap:8px;justify-content:space-between;}',
+            '.hoc-massa-lista li:last-child{border-bottom:0;}',
+            '.hoc-massa-lista .ok{color:#2e7d32;}.hoc-massa-lista .sem{color:#8a6d00;}.hoc-massa-lista .erro{color:#c62828;}.hoc-massa-lista .pend{color:#777;}',
+            '.hoc-massa-acoes{display:flex;justify-content:flex-end;gap:8px;}'
+        ].join('\n');
+        (document.head || document.documentElement).appendChild(st);
+    }
+
+    function textoRelatorioMassa(itens, contagem, parou) {
+        var linhas = ['Reaplicar em todos (' + new Date().toLocaleString('pt-BR') + ')',
+            'Reaplicado: ' + contagem.ok + ' · Sem regra: ' + contagem.sem + ' · Erros: ' + contagem.erro + (parou ? ' · Não processados (parado): ' + contagem.pend : ''), ''];
+        itens.forEach(function (it) { linhas.push(it.nome + ' (' + it.id + '): ' + it.txt); });
+        return linhas.join('\n');
+    }
+
+    function iniciarMassa(raiz) {
+        if (massaRodando) return;
+        var alvos = funcionariosDaTela(raiz);
+        if (!alvos.length) { aviso('Nenhum funcionário ativo na tela. Nada foi feito.', 'erro', 6000); return; }
+        var etapa = ligadoConfirmaMassa
+            ? perguntar('Reaplicar em todos', 'Reaplicar a regra marcada em ' + alvos.length + ' funcionários desta página?', 'Reaplicar')
+            : Promise.resolve(true);
+        etapa.then(function (sim) {
+            if (!sim) { aviso('Cancelado. Nada foi alterado.', '', 4000); return; }
+            executarMassa(alvos);
+        });
+    }
+
+    function executarMassa(alvos) {
+        if (massaRodando) return;
+        massaRodando = true;
+        agendarListas();
+        cssMassa();
+        var itens = alvos.map(function (a) { return { id: a.id, nome: a.nome, estado: 'pend', txt: 'aguardando' }; });
+        var parar = false, concluido = false;
+        var fundo = el('div', { classe: 'hoc-massa-fundo' });
+        var titulo = el('h4', { texto: 'Reaplicar em todos' });
+        var atual = el('p', { classe: 'hoc-massa-atual', texto: 'Preparando...' });
+        var preench = el('div');
+        var barra = el('div', { classe: 'hoc-massa-barra' }, [preench]);
+        var resumo = el('p', { classe: 'hoc-massa-resumo' });
+        var ul = el('ul', { classe: 'hoc-massa-lista' });
+        var bParar = el('button', { type: 'button', classe: 'btn btn-sm btn-default', texto: 'Parar' });
+        var bCopiar = el('button', { type: 'button', classe: 'btn btn-sm btn-default', texto: 'Copiar relatório' });
+        var bFechar = el('button', { type: 'button', classe: 'btn btn-sm btn-primary', texto: 'Fechar' });
+        bCopiar.style.display = 'none'; bFechar.style.display = 'none';
+        var acoes = el('div', { classe: 'hoc-massa-acoes' }, [bParar, bCopiar, bFechar]);
+        var caixa = el('div', { classe: 'hoc-massa-caixa', role: 'dialog', 'aria-modal': 'true' }, [titulo, atual, barra, resumo, ul, acoes]);
+        fundo.appendChild(caixa);
+
+        function contagem() {
+            var c = { ok: 0, sem: 0, erro: 0, pend: 0 };
+            itens.forEach(function (it) { c[it.estado === 'pend' ? 'pend' : it.estado]++; });
+            return c;
+        }
+        function desenhar() {
+            var c = contagem(), feitas = itens.length - c.pend;
+            preench.style.width = Math.round(feitas * 100 / itens.length) + '%';
+            resumo.textContent = 'Reaplicado: ' + c.ok + ' · Sem regra: ' + c.sem + ' · Erros: ' + c.erro + (concluido && c.pend ? ' · Não processados: ' + c.pend : '');
+            ul.textContent = '';
+            itens.forEach(function (it) {
+                ul.appendChild(el('li', { classe: it.estado }, [el('span', { texto: it.nome }), el('span', { texto: it.txt })]));
+            });
+        }
+        function encerrar() {
+            concluido = true;
+            massaRodando = false;
+            bParar.style.display = 'none';
+            bCopiar.style.display = ''; bFechar.style.display = '';
+            titulo.textContent = parar ? 'Reaplicar em todos: parado' : 'Reaplicar em todos: concluído';
+            if (parar) itens.forEach(function (it) { if (it.estado === 'pend') it.txt = 'não processado (parado)'; });
+            var c = contagem();
+            atual.textContent = parar ? 'Parado pelo usuário. Quem já foi processado ficou como está na lista.' : 'Terminou: ' + itens.length + ' funcionários.';
+            desenhar();
+            bFechar.focus();
+            agendarListas();
+            window.__hocUltimoRelatorioMassa = textoRelatorioMassa(itens, c, parar);
+        }
+        bParar.addEventListener('click', function () { parar = true; bParar.disabled = true; bParar.textContent = 'Parando...'; });
+        bFechar.addEventListener('click', function () { fundo.remove(); });
+        bCopiar.addEventListener('click', function () {
+            copiarTexto(textoRelatorioMassa(itens, contagem(), parar)).then(function () { aviso('Relatório copiado.', 'ok', 3000); }, function () { aviso('Não consegui copiar o relatório.', 'erro', 5000); });
+        });
+        document.body.appendChild(fundo);
+        desenhar();
+
+        function proximo(i) {
+            if (i >= itens.length || parar) return encerrar();
+            var it = itens[i];
+            atual.textContent = 'Processando ' + (i + 1) + ' de ' + itens.length + ': ' + it.nome;
+            lerPermissoesDe(it.id).then(function (leitura) {
+                if (!leitura.ok) { it.estado = 'erro'; it.txt = 'erro ao ler: ' + leitura.motivo; return; }
+                if (leitura.semRegra) { it.estado = 'sem'; it.txt = 'sem regra marcada (pulado)'; return; }
+                if (parar) return;   // parou durante a leitura: nada enviado para este
+                return aplicarRegraDe(it.id, leitura).then(function (r) {
+                    if (r.ok) { it.estado = 'ok'; it.txt = 'regra \'' + leitura.regra.nome + '\' reaplicada'; }
+                    else { it.estado = 'erro'; it.txt = 'erro: ' + r.motivo; }
+                });
+            }).catch(function (e) {
+                it.estado = 'erro'; it.txt = 'erro: ' + (e && e.message || e);
+            }).then(function () {
+                desenhar();
+                return pausaMassa(MASSA_PAUSA_MS);
+            }).then(function () { proximo(i + 1); });
+        }
+        proximo(0);
+    }
+
+    window.__hocPermMassa = { ler: lerPermissoesDe, parametros: parametrosDoAplicar, iniciar: iniciarMassa, funcionarios: funcionariosDaTela };
 
     // =====================================================================
     // AÇÃO PELO LINK: &hocAcao=reaplicar (botão ♻️ das listas)
@@ -588,10 +837,12 @@
 
     // Regra atual: a linha da tabela de regras predefinidas com <i class="fa-check green">
     // e um botão "Aplicar" (onclick com AplicaRegra). Devolve null se não houver.
-    function regraAtual() {
-        var escopo = document.getElementById('divPermissoes') || document;
+    // raiz (opcional): um Document já interpretado (resposta do ajxContent); sem ela, lê a página aberta.
+    function regraAtual(raiz) {
+        var base = raiz || document;
+        var escopo = base.getElementById('divPermissoes') || base;
         var checks = escopo.querySelectorAll('td i.fa-check.green');
-        if (!checks.length && escopo !== document) checks = document.querySelectorAll('td i.fa-check.green');
+        if (!checks.length && escopo !== base) checks = base.querySelectorAll('td i.fa-check.green');
         for (var i = 0; i < checks.length; i++) {
             var tr = checks[i].closest('tr');
             if (!tr) continue;

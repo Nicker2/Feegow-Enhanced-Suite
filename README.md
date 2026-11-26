@@ -13,7 +13,7 @@
   <img alt="Userscript Tampermonkey" src="https://img.shields.io/badge/userscript-Tampermonkey-00485B?logo=tampermonkey&logoColor=white">
   <img alt="Chrome | Edge" src="https://img.shields.io/badge/navegador-Chrome%20%7C%20Edge-4285F4?logo=googlechrome&logoColor=white">
   <img alt="Plataforma Feegow" src="https://img.shields.io/badge/plataforma-Feegow-2ea44f">
-  <img alt="Suite 4.9.10.0" src="https://img.shields.io/badge/suite-4.9.12.0-blue">
+  <img alt="Suite 4.9.13.0" src="https://img.shields.io/badge/suite-4.9.13.0-blue">
   <a href="LICENSE"><img alt="Licença MIT" src="https://img.shields.io/github/license/Nicker2/Feegow-Enhanced-Suite?label=licen%C3%A7a"></a>
   <img alt="Último commit" src="https://img.shields.io/github/last-commit/Nicker2/Feegow-Enhanced-Suite?label=%C3%BAltima%20atualiza%C3%A7%C3%A3o">
 </p>
@@ -78,8 +78,8 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 
 | Script | Para que serve | Versão | Instalar |
 | :--- | :--- | :---: | :--- |
-| 🚀 **Core** (`core.user.js`) | Injetor: baixa a Suite do GitHub, guarda em cache e executa. É o **único** que você precisa instalar para ter a Suite, o Timbrador, as Propostas, o Gastos para Excel e o Reaplicar Permissões. | 1.1.8.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js) |
-| 🧩 **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Contador do DR. EXAMES, especialidade e dilatação, engrenagem, limpeza da tela, atalho para o prontuário e entrada com sessão ocupada. | 4.9.12.0 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
+| 🚀 **Core** (`core.user.js`) | Injetor: baixa a Suite do GitHub, guarda em cache e executa. É o **único** que você precisa instalar para ter a Suite, o Timbrador, as Propostas, o Gastos para Excel e o Reaplicar Permissões. | 1.1.9.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js) |
+| 🧩 **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Contador do DR. EXAMES, especialidade e dilatação, engrenagem, limpeza da tela, atalho para o prontuário e entrada com sessão ocupada. | 4.9.13.0 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
 | 🖨️ **PDF HOC Derma** (`hoc-derma-stamping-tool.user.js`) | Janela que aplica o timbrado HOC Derma em qualquer PDF, ajusta o encaixe e exporta ou imprime. | 3.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js)) |
 | 💼 **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário, com editor e folha A4 timbrada, e botão **Gerenciar descrições** (adicionar/editar/excluir descrições, com backup). | 1.4.5 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
 | 📋 **HOC Gastos para Excel** (`hoc-gastos-excel.user.js`) | Botão **📋 Copiar para Excel** nos registros de gasto da linha do tempo do prontuário. | 1.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js)) |
@@ -169,6 +169,8 @@ Clique na **engrenagem** da barra superior. Cada clique liga ou desliga o item e
 | Abrir aba pelo link (&Aba=Permissoes) | Abre a aba pedida no link do funcionário/profissional e mostra o botão "Copiar link das permissões" | **OFF** |
 | Botão Permissões nas listas de funcionários e profissionais | Botão "🔐 Permissões" ao lado de cada cadastro ativo; abre a aba Permissões em nova aba (funciona mesmo com a opção acima desligada) | ON |
 | Botão Reaplicar nas listas | Botão "♻️ Reaplicar" na lista de funcionários ativos: abre o cadastro e reaplica a regra marcada (✓), uma vez só | ON |
+| Botão Reaplicar em todos nas listas | Botão "♻️ Reaplicar em todos (N)" à direita do filtro de status da lista de funcionários: reaplica a regra marcada (✓) em todos os ativos da tela, um por vez, sem abrir abas (desabilitado em profissionais) | ON |
+| Confirmar antes de reaplicar em todos | Janela "Reaplicar a regra marcada em N funcionários desta página?" antes de começar | ON |
 | Pedir confirmação antes de reaplicar pela lista | Modal da Suite antes de o ♻️ aplicar | **OFF** |
 
 ### Configurações das Propostas

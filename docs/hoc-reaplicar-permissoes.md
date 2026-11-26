@@ -2,7 +2,7 @@
 
 [Voltar ao README](../README.md)
 
-**Versão atual: 1.4.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
+**Versão atual: 1.5.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
 
 ## Instalação
 
@@ -38,6 +38,17 @@ Em `?P=Funcionarios&Pers=Follow` e `?P=Profissionais&Pers=Follow`, ao lado do no
 - Engrenagem: **Botão Permissões nas listas de funcionários e profissionais** (ON), **Botão Reaplicar nas listas** (ON) e **Pedir confirmação antes de reaplicar pela lista** (OFF; ligada, mostra o modal da Suite antes de aplicar).
 - Atributos do `<html>`: `data-hoc-cfg-btn-perm`, `data-hoc-cfg-btn-reaplicar-lista`, `data-hoc-cfg-confirma-lista`.
 - A lista é um web component (`<feegow-staff-list>`, `<feegow-professionals-list>`) com shadow DOM aberto; cada linha tem `a[href*="Pers=1"][href*="I="]` e `[data-testid="access-state-badge"][data-state]`. Um observador por shadow root refaz os botões na paginação/filtro/busca e confere o id da linha a cada varredura.
+
+### Reaplicar em todos (1.5.0)
+
+Botão **♻️ Reaplicar em todos (N)** à direita do filtro de status em `?P=Funcionarios&Pers=Follow`. N é a quantidade de funcionários ativos com linha na tela (o filtro, a busca e a paginação mudam o N; o botão se refaz sem duplicar). Em profissionais fica **desabilitado**, com dica (profissional não tem regras predefinidas).
+
+1. **Confirmação** (janela da Suite): "Reaplicar a regra marcada em N funcionários desta página?" [Reaplicar] [Cancelar].
+2. **Para cada funcionário, em sequência** (pausa de 500 ms, sem abrir abas): lê a aba com `POST ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&q=&Div=divPermissoes` (corpo vazio, como o `ajxContent()` da aba), acha a regra com ✓ (`regraAtual()` sobre o HTML lido) e o `permissionProfileCsrf` do formulário, confere que o `UsId` bate com o do formulário e envia o mesmo corpo do `permissoesAcao` (`AplicaRegra`, `UsId`, `permissionProfileCsrf`) para `ajxContent.asp?P=Permissoes&T=Funcionarios&I=<id>&Pers=1&Div=divPermissoes`. A resposta precisa trazer a mesma regra marcada, senão conta como erro.
+3. **Sem ✓**: pulado ("sem regra marcada"). **Erro** (HTTP, rede, 30 s, resposta estranha): registrado, segue para o próximo.
+4. **Painel**: barra de progresso, **Parar** (termina o funcionário em curso e não começa outro) e, no fim, "Reaplicado: X · Sem regra: Y · Erros: Z" com a lista por nome e **Copiar relatório**.
+
+Engrenagem: **Botão Reaplicar em todos nas listas** (ON) e **Confirmar antes de reaplicar em todos** (ON). Atributos do `<html>`: `data-hoc-cfg-btn-massa` e `data-hoc-cfg-confirma-massa` (só `0` desliga).
 
 ### Filtro em "Ativo" (1.4.0)
 
@@ -90,6 +101,7 @@ Começa **travado**. Clicar mostra as condições: último backup **COMPLETO (N/
 
 ## Histórico
 
+- **1.5.0 (26/11/2026)**: botão **♻️ Reaplicar em todos (N)** nas listas de funcionários (sem abrir abas, com confirmação, progresso, Parar e relatório).
 - **1.4.0 (26/11/2026)**: listas abrem com o filtro em Ativo; ♻️ espera a aba Permissões carregar por completo.
 
 - **1.1.0 (26/11/2026)**: botões Backup das regras, Comparar com backup, Restaurar uma regra e Restaurar todas (travado), à esquerda do Reaplicar.
