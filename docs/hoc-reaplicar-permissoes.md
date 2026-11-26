@@ -2,7 +2,7 @@
 
 [Voltar ao README](../README.md)
 
-**Versão atual: 1.2.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
+**Versão atual: 1.3.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
 
 ## Instalação
 
@@ -27,7 +27,17 @@ Cole `https://app.feegow.com/main/?P=Funcionarios&Pers=1&I=<número>&Aba=Permiss
 - Espera a aba existir (observador de mudanças + verificação a cada 250 ms, no máximo 15 s) e clica **uma vez**. Não clica se a aba já estiver ativa nem se a pessoa clicar em outra aba antes.
 - Lê também a URL original da navegação, porque o Feegow reescreve o endereço e perde o `&Aba`.
 - O botão **🔗 Copiar link das permissões** (perto do título) copia esse link para a área de transferência.
-- Engrenagem: **Abrir aba pelo link (&Aba=Permissoes)**, ON por padrão. A Suite passa as opções pelos atributos `data-hoc-cfg-aba-link` e `data-hoc-cfg-reaplicar` do `<html>`; no avulso, ficam ligadas.
+- Engrenagem: **Abrir aba pelo link (&Aba=Permissoes)**, **OFF por padrão desde a 1.3.0**. A Suite passa as opções pelos atributos `data-hoc-cfg-aba-link` (só `1` liga) e `data-hoc-cfg-reaplicar` do `<html>`. Com a opção desligada, links com `&hocAba=1` (gerados pelos botões das listas) abrem a aba do mesmo jeito.
+
+## Botões nas listas de cadastros (1.3.0)
+
+Em `?P=Funcionarios&Pers=Follow` e `?P=Profissionais&Pers=Follow`, ao lado do nome de cada cadastro **ativo** (estado de acesso diferente de Inativo e Desabilitado):
+
+- **🔐 Permissões**: link para `...?P=<Funcionarios|Profissionais>&Pers=1&I=<id>&Aba=Permissoes&hocAba=1`, em nova aba. O `hocAba=1` faz o módulo abrir a aba mesmo com a opção global desligada.
+- **♻️ Reaplicar** (só funcionários, tom verde): mesmo link com `&hocAcao=reaplicar`. Ao abrir, clica no **Aplicar** da regra com ✓ verde (reusa `regraAtual()`), **sem confirmação**, uma vez só (o parâmetro é apagado da URL na hora). Sem regra marcada, avisa e não aplica. Termina com toast verde ("Regra X reaplicada em Y (antes → depois permissões marcadas)") ou vermelho.
+- Engrenagem: **Botão Permissões nas listas de funcionários e profissionais** (ON), **Botão Reaplicar nas listas** (ON) e **Pedir confirmação antes de reaplicar pela lista** (OFF; ligada, mostra o modal da Suite antes de aplicar).
+- Atributos do `<html>`: `data-hoc-cfg-btn-perm`, `data-hoc-cfg-btn-reaplicar-lista`, `data-hoc-cfg-confirma-lista`.
+- A lista é um web component (`<feegow-staff-list>`, `<feegow-professionals-list>`) com shadow DOM aberto; cada linha tem `a[href*="Pers=1"][href*="I="]` e `[data-testid="access-state-badge"][data-state]`. Um observador por shadow root refaz os botões na paginação/filtro/busca e confere o id da linha a cada varredura.
 
 ## Como acha a regra atual
 

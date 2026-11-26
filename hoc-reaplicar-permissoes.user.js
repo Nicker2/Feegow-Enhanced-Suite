@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HOC Reaplicar Permissões (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.2.0
-// @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Também abre a aba pelo link (&Aba=Permissoes) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
+// @version      1.3.0
+// @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Nas listas de funcionários e profissionais, mostra ao lado de cada cadastro ATIVO os botões "🔐 Permissões" (abre a aba Permissões em nova aba) e, só na lista de funcionários, "♻️ Reaplicar" (abre e reaplica a regra marcada, uma vez só). Também abre a aba pelo link (&Aba=Permissoes, desligado por padrão) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
 // @match        https://feegow.com/*
@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    var VERSAO = '1.2.0';
+    var VERSAO = '1.3.0';
     var PREFIXO = '[HOC Reaplicar Permissões]';
 
     // Telas tratadas: cadastro de funcionário e (só o link de aba) de profissional.
@@ -42,7 +42,12 @@
 
     // Opções da engrenagem da Suite (atributos do <html>; sem o atributo = ligado, como no avulso).
     var ligadoReaplicar = raizDoc.getAttribute('data-hoc-cfg-reaplicar') !== '0';
-    var ligadoAbaLink = raizDoc.getAttribute('data-hoc-cfg-aba-link') !== '0';
+    // "Abrir aba pelo link" vem DESLIGADA por padrão desde a 1.3.0 (só liga com '1', que a Suite grava).
+    var ligadoAbaLink = raizDoc.getAttribute('data-hoc-cfg-aba-link') === '1';
+    // Botões das listas (ligados por padrão) e confirmação do ♻️ (desligada por padrão).
+    var ligadoBtnPerm = raizDoc.getAttribute('data-hoc-cfg-btn-perm') !== '0';
+    var ligadoBtnReaplicarLista = raizDoc.getAttribute('data-hoc-cfg-btn-reaplicar-lista') !== '0';
+    var ligadoConfirmaLista = raizDoc.getAttribute('data-hoc-cfg-confirma-lista') === '1';
 
     // ---------- LINK DIRETO PARA ABA (&Aba=Permissoes ou #divPermissoes) ----------
 
@@ -125,6 +130,7 @@
 
     function abrirAbaPeloLink() {
         var nome = abaPedida();
+        if (!nome && /^reaplicar$/i.test(paramDaUrl('hocAcao'))) nome = 'permissoes';
         if (!nome) return;
         var desc = descreverAba(nome);
         if (!desc) return;
@@ -229,14 +235,269 @@
         if (ligadoAbaLink) injetarBotaoCopiarLink();
     }
 
+    // Os botões das listas usam &hocAba=1, que o módulo SEMPRE honra, mesmo com a opção global desligada.
+    if (ligadoAbaLink || paramDaUrl('hocAba') === '1' || /^reaplicar$/i.test(paramDaUrl('hocAcao'))) abrirAbaPeloLink();
     if (ligadoAbaLink) {
-        abrirAbaPeloLink();
         varrerLink();
         var agLink = null;
         new MutationObserver(function () {
             if (agLink) return;
             agLink = setTimeout(function () { agLink = null; varrerLink(); }, 300);
         }).observe(document.documentElement, { childList: true, subtree: true });
+    }
+
+    // =====================================================================
+    // BOTÕES NAS LISTAS DE CADASTROS (Profissionais / Funcionários, ?Pers=Follow)
+    // =====================================================================
+    // As listas são web components do Feegow (<feegow-staff-list> e <feegow-professionals-list>)
+    // com shadow DOM aberto. Cada linha é um <tr> com o link do nome (?P=...&Pers=1&I=<id>) e um
+    // selo data-testid="access-state-badge" com data-state (active, invite_pending, invite_expired,
+    // legacy_invalid, no_invite, disabled, inactive). Cadastro ATIVO = qualquer estado menos
+    // "inactive" e "disabled". Os botões são <a> comuns (nova aba), sem mexer nos dados do Feegow.
+
+    var HOSTS_LISTA = ['feegow-staff-list', 'feegow-professionals-list'];
+    var CLASSE_GRUPO_LISTA = 'hoc-perm-grupo';
+    var ESTADOS_INATIVOS = { inactive: true, disabled: true };
+    var raizesObservadas = (typeof WeakSet === 'function') ? new WeakSet() : null;
+
+    function tela_lista() {
+        return /[?&]Pers=Follow(?:&|#|$)/i.test(location.search) && telaDePessoal();
+    }
+
+    function paramDaUrl(nome) {
+        var urls = urlsDaPagina();
+        for (var i = 0; i < urls.length; i++) {
+            var u;
+            try { u = new URL(urls[i]); } catch (e) { continue; }
+            var achado = '';
+            u.searchParams.forEach(function (v, k) { if (!achado && k.toLowerCase() === nome.toLowerCase()) achado = v; });
+            if (achado) return achado;
+        }
+        return '';
+    }
+
+    function linkDoCadastro(p, id, reaplicar) {
+        return location.origin + '/main/?P=' + p + '&Pers=1&I=' + id + '&Aba=Permissoes&hocAba=1' + (reaplicar ? '&hocAcao=reaplicar' : '');
+    }
+
+    function cssDasListas() {
+        return [
+            '.hoc-perm-grupo{display:inline-flex;align-items:center;gap:6px;margin-left:8px;vertical-align:middle;}',
+            '.hoc-perm-btn{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;font-family:inherit;font-size:12px;font-weight:450;line-height:1;white-space:nowrap;',
+            'border-radius:999px;border:1px solid var(--w-color-border-primary,#d4d8d8);background:var(--w-color-background-primary,#f8f9f9);color:var(--w-color-foreground-secondary,#515959);',
+            'text-decoration:none;cursor:pointer;transition:background .12s,border-color .12s,color .12s;}',
+            '.hoc-perm-btn:hover{background:var(--w-color-background-hover,rgba(229,231,231,.6));border-color:var(--w-color-border-highlight,#868e8e);color:var(--w-color-foreground-primary,#181818);text-decoration:none;}',
+            '.hoc-perm-btn:focus-visible{outline:2px solid var(--w-color-border-highlight,#868e8e);outline-offset:2px;}',
+            '.hoc-perm-btn.hoc-perm-reaplicar{color:var(--w-color-foreground-accent,#006453);border-color:rgba(0,100,83,.35);background:rgba(0,100,83,.07);}',
+            '.hoc-perm-btn.hoc-perm-reaplicar:hover{background:rgba(0,100,83,.15);border-color:var(--w-color-foreground-accent,#006453);color:var(--w-color-foreground-accent,#006453);}'
+        ].join('');
+    }
+
+    function criarBotaoLista(classe, texto, titulo, href) {
+        var a = document.createElement('a');
+        a.className = 'hoc-perm-btn ' + classe;
+        a.href = href;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.title = titulo;
+        a.textContent = texto;
+        a.addEventListener('click', function (ev) { ev.stopPropagation(); });   // não vaza para a linha
+        return a;
+    }
+
+    // Decide o que a linha deve ter: null (nada) ou {p, id, reaplicar}.
+    function alvoDaLinha(tr) {
+        var badge = tr.querySelector('[data-testid="access-state-badge"]');
+        var a = tr.querySelector('a[href*="Pers=1"][href*="I="]');
+        if (!badge || !a) return null;
+        var estado = String(badge.getAttribute('data-state') || '').toLowerCase();
+        if (!estado || ESTADOS_INATIVOS[estado]) return null;
+        var u;
+        try { u = new URL(a.getAttribute('href'), location.href); } catch (e) { return null; }
+        var p = (u.searchParams.get('P') || '').toLowerCase();
+        var id = u.searchParams.get('I') || '';
+        if (!/^\d+$/.test(id) || (p !== 'funcionarios' && p !== 'profissionais')) return null;
+        return {
+            a: a,
+            p: p === 'funcionarios' ? 'Funcionarios' : 'Profissionais',
+            id: id,
+            perm: ligadoBtnPerm,
+            reaplicar: ligadoBtnReaplicarLista && p === 'funcionarios'   // só funcionário tem "regras predefinidas"
+        };
+    }
+
+    function processarLinha(tr) {
+        var alvo = alvoDaLinha(tr);
+        var cont = alvo ? alvo.a.parentNode : (tr.querySelector('a[href*="Pers=1"][href*="I="]') || {}).parentNode;
+        if (!cont) return;
+        var grupos = cont.querySelectorAll('.' + CLASSE_GRUPO_LISTA);
+        var quer = alvo && (alvo.perm || alvo.reaplicar);
+        var chave = quer ? [alvo.p, alvo.id, alvo.perm ? 1 : 0, alvo.reaplicar ? 1 : 0].join('|') : '';
+        // Linha reaproveitada pela lista (paginação/filtro): confere a chave e refaz se mudou.
+        for (var i = 0; i < grupos.length; i++) {
+            if (i === 0 && chave && grupos[i].getAttribute('data-chave') === chave) continue;
+            grupos[i].remove();
+        }
+        if (!quer || (grupos.length && grupos[0].isConnected && grupos[0].getAttribute('data-chave') === chave)) return;
+
+        // Nome e "Último acesso" ficavam em coluna; passam a quebrar linha para o botão ficar AO LADO do nome.
+        if (!cont.hasAttribute('data-hoc-perm-ajustado')) {
+            cont.setAttribute('data-hoc-perm-ajustado', '1');
+            cont.style.flexDirection = 'row';
+            cont.style.flexWrap = 'wrap';
+            cont.style.alignItems = 'center';
+            for (var k = 0; k < cont.children.length; k++) {
+                if (cont.children[k] !== alvo.a && cont.children[k].tagName === 'P') cont.children[k].style.flexBasis = '100%';
+            }
+        }
+        var g = document.createElement('span');
+        g.className = CLASSE_GRUPO_LISTA;
+        g.setAttribute('data-chave', chave);
+        if (alvo.perm) g.appendChild(criarBotaoLista('hoc-perm-abrir', '🔐 Permissões', 'Abrir as permissões deste cadastro em nova aba', linkDoCadastro(alvo.p, alvo.id, false)));
+        if (alvo.reaplicar) g.appendChild(criarBotaoLista('hoc-perm-reaplicar', '♻️ Reaplicar', 'Abrir e reaplicar a regra de permissões deste cadastro', linkDoCadastro(alvo.p, alvo.id, true)));
+        alvo.a.parentNode.insertBefore(g, alvo.a.nextSibling);
+    }
+
+    function processarRaiz(raiz) {
+        if (!raiz.getElementById || !raiz.querySelector('#hoc-perm-lista-css')) {
+            var st = document.createElement('style');
+            st.id = 'hoc-perm-lista-css';
+            st.textContent = cssDasListas();
+            raiz.appendChild(st);
+        }
+        var badges = raiz.querySelectorAll('[data-testid="access-state-badge"]');
+        for (var i = 0; i < badges.length; i++) {
+            var tr = badges[i].closest('tr');
+            if (tr) processarLinha(tr);
+        }
+    }
+
+    var agendadoListas = null;
+    function agendarListas() {
+        if (agendadoListas) return;
+        agendadoListas = setTimeout(function () { agendadoListas = null; varrerListas(); }, 150);
+    }
+
+    function varrerListas() {
+        if (!tela_lista()) return;
+        if (!ligadoBtnPerm && !ligadoBtnReaplicarLista) return;
+        for (var i = 0; i < HOSTS_LISTA.length; i++) {
+            var hosts = document.querySelectorAll(HOSTS_LISTA[i]);
+            for (var j = 0; j < hosts.length; j++) {
+                var raiz = hosts[j].shadowRoot;
+                if (!raiz) continue;
+                if (raizesObservadas && !raizesObservadas.has(raiz)) {
+                    raizesObservadas.add(raiz);
+                    new MutationObserver(agendarListas).observe(raiz, { childList: true, subtree: true });
+                }
+                processarRaiz(raiz);
+            }
+        }
+    }
+
+    if (tela_lista() && (ligadoBtnPerm || ligadoBtnReaplicarLista)) {
+        varrerListas();
+        new MutationObserver(agendarListas).observe(document.documentElement, { childList: true, subtree: true });
+        setInterval(varrerListas, 1000);   // rede de segurança: o shadow root pode surgir depois do host
+    }
+    window.__hocPermListas = { varrer: varrerListas, alvoDaLinha: alvoDaLinha, linkDoCadastro: linkDoCadastro };
+
+    // =====================================================================
+    // AÇÃO PELO LINK: &hocAcao=reaplicar (botão ♻️ das listas)
+    // =====================================================================
+    // Dispara UMA vez: o parâmetro sai da URL (history.replaceState) assim que é lido, então
+    // recarregar a página não reaplica. Sem confirmação por padrão (a opção "Pedir confirmação"
+    // da engrenagem vem desligada). Reusa regraAtual(), perguntar() e aviso() do módulo e clica no
+    // próprio "Aplicar" da regra com ✓ verde.
+
+    function removerParamDaUrl(nome) {
+        try {
+            var u = new URL(location.href);
+            var apagar = [];
+            u.searchParams.forEach(function (v, k) { if (k.toLowerCase() === nome.toLowerCase()) apagar.push(k); });
+            if (!apagar.length) return;
+            apagar.forEach(function (k) { u.searchParams.delete(k); });
+            history.replaceState(history.state, '', u.pathname + u.search + u.hash);
+        } catch (e) { /* sem history API: segue */ }
+    }
+
+    function contarMarcadas() {
+        var f = document.getElementById('frmPermissoes');
+        return f ? f.querySelectorAll('input[type="checkbox"]:checked').length : 0;
+    }
+
+    function nomeDoCadastroAberto() {
+        var f = document.getElementById('frmPermissoes');
+        var h = f && f.querySelector('.panel-heading');
+        return h ? nomeFuncionario(h) : 'este cadastro';
+    }
+
+    function esperarAte(teste, ms, passo) {
+        return new Promise(function (resolve) {
+            var fim = Date.now() + ms;
+            (function volta() {
+                var r;
+                try { r = teste(); } catch (e) { r = null; }
+                if (r) return resolve(r);
+                if (Date.now() >= fim) return resolve(null);
+                setTimeout(volta, passo || 300);
+            })();
+        });
+    }
+
+    function reaplicarPelaLista() {
+        // Espera a aba Permissões carregar: precisa do formulário e da tabela de regras (botões Aplicar).
+        esperarAte(function () {
+            if (!document.getElementById('frmPermissoes')) return null;
+            if (!document.querySelector('#frmPermissoes button[onclick*="AplicaRegra"], #frmPermissoes a[onclick*="AplicaRegra"], button[onclick*="AplicaRegra"], a[onclick*="AplicaRegra"]')) return null;
+            return true;
+        }, 25000, 300).then(function (carregou) {
+            if (!carregou) {
+                if (document.getElementById('frmPermissoes')) aviso('Este cadastro não tem regra marcada. Nada foi aplicado.', 'erro', 9000);
+                else aviso('Não consegui abrir a aba Permissões. Nada foi aplicado.', 'erro', 9000);
+                return;
+            }
+            var regra = regraAtual();
+            if (!regra) { aviso('Este cadastro não tem regra marcada. Nada foi aplicado.', 'erro', 9000); return; }
+            var nome = nomeDoCadastroAberto();
+            var etapa = ligadoConfirmaLista
+                ? perguntar('Reaplicar regra de permissões', 'Reaplicar a regra \'' + regra.nome + '\' em ' + nome + '?', 'Reaplicar')
+                : Promise.resolve(true);
+            etapa.then(function (sim) {
+                if (!sim) { aviso('Cancelado. Nada foi alterado.', '', 4000); return; }
+                var agora = regraAtual();
+                if (!agora || agora.aplicaRegra !== regra.aplicaRegra || agora.usId !== regra.usId) {
+                    aviso('A regra marcada mudou na tela. Nada foi feito.', 'erro', 8000);
+                    return;
+                }
+                var formAntigo = document.getElementById('frmPermissoes');
+                var antes = contarMarcadas();
+                agora.botao.click();   // mesmo caminho do "Aplicar" original (permissoesAcao + token da página)
+                aviso('Reaplicando a regra \'' + regra.nome + '\'...', '', 20000);
+                esperarAte(function () {
+                    var f = document.getElementById('frmPermissoes');
+                    return (f && f !== formAntigo && regraAtual()) ? true : null;   // #divPermissoes foi recarregado
+                }, 20000, 300).then(function (recarregou) {
+                    if (!recarregou) {
+                        aviso('Pedido enviado, mas não vi a tela recarregar. Confira se apareceu "Regra aplicada.".', 'erro', 10000);
+                        return;
+                    }
+                    var depois = contarMarcadas();
+                    var nova = regraAtual();
+                    if (!nova || nova.aplicaRegra !== regra.aplicaRegra) {
+                        aviso('Recarregou, mas a regra \'' + regra.nome + '\' não aparece marcada. Confira o cadastro.', 'erro', 10000);
+                        return;
+                    }
+                    aviso('✔ Regra \'' + regra.nome + '\' reaplicada em ' + nome + ' (' + (antes === depois ? depois + ' permissões marcadas, sem mudança' : antes + ' → ' + depois + ' permissões marcadas') + ').', 'ok', 9000);
+                });
+            });
+        });
+    }
+
+    var acaoPedida = paramDaUrl('hocAcao').toLowerCase();
+    if (acaoPedida) removerParamDaUrl('hocAcao');   // uma vez só: recarregar não repete
+    if (acaoPedida === 'reaplicar' && ligadoBtnReaplicarLista && telaDeFuncionario() && idDaPessoa()) {
+        reaplicarPelaLista();
     }
 
     // Daqui para baixo: Reaplicar Permissões (só no cadastro de funcionário).

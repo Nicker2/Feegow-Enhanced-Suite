@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.9.0
+// @version      4.9.10.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -26,8 +26,18 @@
     const featureGastosExcelAtiva = GM_getValue('gastos_excel', true);
     // Botão que reaplica a regra de permissões atual no cadastro de funcionário (vem ON por padrão).
     const featureReaplicarPermissoesAtiva = GM_getValue('reaplicar_permissoes', true);
-    // Abrir a aba do cadastro de funcionário/profissional pelo link (&Aba=Permissoes) e botão de copiar o link (vem ON por padrão).
-    const featureAbaLinkAtiva = GM_getValue('aba_link', true);
+    // Abrir a aba do cadastro de funcionário/profissional pelo link (&Aba=Permissoes) e botão de copiar o link.
+    // Desde a 4.9.10.0 vem OFF por padrão. Migração: quem nunca mexeu não tem valor guardado (cai no OFF);
+    // quem ligou/desligou à mão tem true/false guardado e é respeitado.
+    const featureAbaLinkAtiva = GM_getValue('aba_link', false);
+    // Botão "🔐 Permissões" nas listas de funcionários e profissionais (vem ON por padrão).
+    const featureBtnPermListaAtiva = GM_getValue('btn_perm_lista', true);
+    // Botão "♻️ Reaplicar" na lista de funcionários (vem ON por padrão).
+    const featureBtnReaplicarListaAtiva = GM_getValue('btn_reaplicar_lista', true);
+    // Pedir confirmação antes de reaplicar pela lista (vem OFF por padrão).
+    const featureConfirmaListaAtiva = GM_getValue('confirma_reaplicar_lista', false);
+    // Padrão de cada opção da engrenagem (a maioria vem ON; estas vêm OFF).
+    const PADRAO_OPCOES_OFF = { aba_link: true, confirma_reaplicar_lista: true };
 
     // =========================================================================
     // OCULTAR PEDIDO DE NOTIFICAÇÕES DO FEEGOW (vem ON por padrão)
@@ -518,6 +528,8 @@
     const PERMREG_CHAVE_CODIGO  = 'hoc_permregra_codigo';
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
+    const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
+    const PERMREG_SUITE_VERSAO  = '4.9.10.0';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
@@ -546,7 +558,8 @@
         const agora = Date.now();
         const ultimoFetch = Number(GM_getValue(PERMREG_CHAVE_TIME, 0)) || 0;
         const codigoCache = String(GM_getValue(PERMREG_CHAVE_CODIGO, '') || '');
-        const expirou = (agora - ultimoFetch) > (PERMREG_CACHE_MINUTOS * 60 * 1000);
+        const suiteMudou = String(GM_getValue(PERMREG_CHAVE_SUITE, '') || '') !== PERMREG_SUITE_VERSAO;
+        const expirou = suiteMudou || (agora - ultimoFetch) > (PERMREG_CACHE_MINUTOS * 60 * 1000);
 
         if (!forcarAtualizacao && codigoCache && !expirou) {
             if (executarPermRegra(codigoCache, 'memória local')) return Promise.resolve(true);
@@ -571,6 +584,7 @@
                         try {
                             GM_setValue(PERMREG_CHAVE_CODIGO, codigo);
                             GM_setValue(PERMREG_CHAVE_TIME, agora);
+                            GM_setValue(PERMREG_CHAVE_SUITE, PERMREG_SUITE_VERSAO);
                             GM_setValue(PERMREG_CHAVE_VERSAO, hocDermaVersaoDe(codigo));
                         } catch (e) { /* noop */ }
                         resolve(true);
@@ -593,11 +607,14 @@
     }
 
     function iniciarModuloReaplicarPermissoes() {
-        if (!featureReaplicarPermissoesAtiva && !featureAbaLinkAtiva) return;    // os dois OFF na engrenagem: nem baixa
+        if (!featureReaplicarPermissoesAtiva && !featureAbaLinkAtiva && !featureBtnPermListaAtiva && !featureBtnReaplicarListaAtiva) return;    // tudo OFF na engrenagem: nem baixa
         if (!/[?&]P=(?:funcionarios|profissionais)(?:&|#|$)/i.test(location.search + location.hash)) return;   // só no cadastro de funcionário/profissional
         // O módulo lê estas opções do <html> (ele não tem acesso ao GM_getValue).
         document.documentElement.setAttribute('data-hoc-cfg-reaplicar', featureReaplicarPermissoesAtiva ? '1' : '0');
         document.documentElement.setAttribute('data-hoc-cfg-aba-link', featureAbaLinkAtiva ? '1' : '0');
+        document.documentElement.setAttribute('data-hoc-cfg-btn-perm', featureBtnPermListaAtiva ? '1' : '0');
+        document.documentElement.setAttribute('data-hoc-cfg-btn-reaplicar-lista', featureBtnReaplicarListaAtiva ? '1' : '0');
+        document.documentElement.setAttribute('data-hoc-cfg-confirma-lista', featureConfirmaListaAtiva ? '1' : '0');
         carregarReaplicarPermissoes(false);              // o módulo tem o próprio vigia (MutationObserver)
     }
 
@@ -1535,8 +1552,17 @@ const protocolosDilatacao = {
                     <li class="toggle-remover" data-key="reaplicar_permissoes" style="padding: 5px 10px; cursor: pointer; color: ${featureReaplicarPermissoesAtiva ? 'green' : 'red'};" title="Botão que reaplica a regra de permissões atual no cadastro de funcionário (aba Permissões)">
                         Reaplicar Permissões: ${featureReaplicarPermissoesAtiva ? 'ON' : 'OFF'}
                     </li>
-                    <li class="toggle-remover" data-key="aba_link" style="padding: 5px 10px; cursor: pointer; color: ${featureAbaLinkAtiva ? 'green' : 'red'};" title="Abre a aba pelo link (&Aba=Permissoes) no cadastro de funcionário e mostra o botão 'Copiar link das permissões'">
+                    <li class="toggle-remover" data-key="aba_link" style="padding: 5px 10px; cursor: pointer; color: ${featureAbaLinkAtiva ? 'green' : 'red'};" title="Abre a aba pelo link (&Aba=Permissoes) no cadastro de funcionário e mostra o botão 'Copiar link das permissões'. Vem desligada por padrão; os botões das listas funcionam mesmo com ela desligada.">
                         Abrir aba pelo link (&amp;Aba=Permissoes): ${featureAbaLinkAtiva ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="btn_perm_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureBtnPermListaAtiva ? 'green' : 'red'};" title="Botão '🔐 Permissões' ao lado de cada cadastro ativo nas listas de funcionários e profissionais (abre a aba Permissões em nova aba)">
+                        Botão Permissões nas listas de funcionários e profissionais: ${featureBtnPermListaAtiva ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="btn_reaplicar_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureBtnReaplicarListaAtiva ? 'green' : 'red'};" title="Botão '♻️ Reaplicar' na lista de funcionários ativos: abre o cadastro e reaplica a regra de permissões marcada (✓), uma vez só">
+                        Botão Reaplicar nas listas: ${featureBtnReaplicarListaAtiva ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="confirma_reaplicar_lista" style="padding: 5px 10px; cursor: pointer; color: ${featureConfirmaListaAtiva ? 'green' : 'red'};" title="Mostra uma janela da Suite pedindo confirmação antes de o botão ♻️ da lista reaplicar a regra. Vem desligada: aplica direto.">
+                        Pedir confirmação antes de reaplicar pela lista: ${featureConfirmaListaAtiva ? 'ON' : 'OFF'}
                     </li>
                 </ul>
               </div>
@@ -1555,8 +1581,9 @@ const protocolosDilatacao = {
                     e.stopPropagation(); 
                     const key = item.getAttribute('data-key');
                     
-                    // Todos os itens começam como ON (true), igual à leitura no topo do script
-                    const valorPorDefeito = true;
+                    // Quase todos os itens começam como ON (true), igual à leitura no topo do script;
+                    // as exceções (começam OFF) estão em PADRAO_OPCOES_OFF.
+                    const valorPorDefeito = !PADRAO_OPCOES_OFF[key];
                     
                     const currentState = GM_getValue(key, valorPorDefeito);
                     GM_setValue(key, !currentState);

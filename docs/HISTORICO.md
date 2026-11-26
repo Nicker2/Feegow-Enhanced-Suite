@@ -6,14 +6,23 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.1.5.0 |
-| Suite principal | 4.9.9.0 |
+| Core | 1.1.6.0 |
+| Suite principal | 4.9.10.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.3.9 |
 | HOC Gastos para Excel | 1.1.0 |
-| HOC Reaplicar Permissões | 1.2.0 |
+| HOC Reaplicar Permissões | 1.3.0 |
 
 ---
+
+### Core 1.1.6.0, Suite 4.9.10.0 e Reaplicar Permissões 1.3.0 (26/11/2026): botões Permissões e Reaplicar nas listas
+
+- **Abrir aba pelo link (&Aba=Permissoes)** passa a vir **DESLIGADA** por padrão. Migração: a Suite lia `aba_link` com padrão ON; agora o padrão é OFF. Quem nunca mexeu não tem valor guardado e fica OFF; quem ligou ou desligou à mão tem `true`/`false` guardado e é respeitado. No módulo avulso (sem Suite) a opção também vem desligada.
+- Nas listas `?P=Funcionarios&Pers=Follow` e `?P=Profissionais&Pers=Follow`, ao lado do nome de cada cadastro **ativo** (qualquer estado de acesso menos Inativo e Desabilitado), botão **🔐 Permissões**: abre em nova aba o cadastro já na aba Permissões. O link usa `&Aba=Permissoes&hocAba=1`; o `hocAba=1` é honrado SEMPRE, mesmo com a opção global desligada.
+- Só na lista de funcionários, botão **♻️ Reaplicar** (tom verde): abre a nova aba (`&hocAcao=reaplicar`), espera a aba Permissões carregar e clica no próprio **Aplicar** da regra com o ✓ verde (mesma função `regraAtual()` do botão Reaplicar regra atual). **Sem confirmação** por padrão. O `hocAcao` sai da URL (`history.replaceState`) assim que é lido, então recarregar não reaplica. Sem regra marcada: não aplica e avisa. Depois espera o `#divPermissoes` recarregar e mostra o toast com a contagem de permissões marcadas (antes → depois).
+- Engrenagem: **Botão Permissões nas listas de funcionários e profissionais** (ON), **Botão Reaplicar nas listas** (ON) e **Pedir confirmação antes de reaplicar pela lista** (OFF).
+- As listas são web components do Feegow com shadow DOM aberto; o módulo observa cada shadow root (paginação, filtro, busca) e confere o id de cada linha a cada varredura, sem duplicar botões.
+- Core 1.1.6.0 e a Suite nova forçam o download imediato do módulo novo.
 
 ### Core 1.1.5.0, Suite 4.9.9.0 e Reaplicar Permissões 1.2.0 (26/11/2026): link direto para as abas do funcionário
 
