@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.12
+// @version      1.4.0
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.12
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.0
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -213,6 +213,14 @@ window.HOCDERMA_TIMBRADO = {
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
  *
+ * v1.4.0 (26/11/2026)
+ *   - "Gerenciar descrições" (botão ao lado de "Imprimir HOC Derma" e menu do Tampermonkey): lista com
+ *     busca, adicionar, editar, excluir e "Restaurar o padrão" por item. As personalizações ficam
+ *     neste PC (GM_setValue; sem GM, localStorage) e são mescladas POR CIMA do catálogo padrão por id,
+ *     sem se perder nas atualizações do script. "Procedimentos do Feegow sem descrição" (lê o select2
+ *     #ProcedimentoID da página, só leitura; ou lista colada/importada). Backup em JSON datado,
+ *     restauração com prévia (novos/alterados/removidos), "Juntar" ou "Substituir tudo" e backup
+ *     automático antes de aplicar. "Enviar para a lista padrão": gera JSON + trecho do catálogo (não envia nada).
  * v1.3.12 (26/11/2026)
  *   - Catálogo: 16 descrições novas (dacriocistorrinostomia, exérese de calázio e de cisto de Moll,
  *     infiltração intralesional, ressecção de tumores palpebrais, peeling retinoico+Jessner 01 sessão,
@@ -951,7 +959,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.12';
+  const VERSAO = '1.4.0';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -1395,6 +1403,300 @@ window.HOCDERMA_TIMBRADO = {
   }
 
   /* --------------------------------------------------------------------------
+   * 2.1.1 DESCRIÇÕES PERSONALIZADAS (v1.4.0) — "Gerenciar descrições"
+   *     O catálogo DESCRICOES_PROCEDIMENTOS (acima) é o PADRÃO do script. O que a pessoa
+   *     adiciona, edita ou exclui na tela "Gerenciar descrições" fica gravado neste PC
+   *     (GM_setValue; sem GM, localStorage) e é mesclado POR CIMA do padrão, por id, a cada
+   *     uso. Assim as atualizações do script não apagam nada: o padrão novo entra e as
+   *     personalizações continuam valendo. Formato gravado:
+   *       { formato:1, itens:{ [id]: { id, titulo, palavrasChave:[], texto, investimento,
+   *                                    incluirPadrao, personalizado?, removido?, atualizadoEm } } }
+   *     id igual ao de um item padrão = alteração dele (ou exclusão, se removido:true);
+   *     id novo = item personalizado (id gerado, "x-...").
+   * ------------------------------------------------------------------------ */
+
+  const DESC_CHAVE = 'hoc_propostas_descricoes';
+  const DESC_ULTIMO_CHAVE = 'hoc_propostas_descricoes_ultimo_backup';
+  const DESC_FORMATO = 1;
+  const DESC_TIPO = 'hoc-derma-descricoes';
+  const DESC_CAMPOS = ['titulo', 'palavrasChave', 'texto', 'investimento', 'incluirPadrao'];
+  const descMem = {}; // reserva em memória (chave → texto), quando GM e localStorage falham
+  let descCache = null;
+
+  function armLer(chave) {
+    let s = null;
+    try { if (typeof GM_getValue === 'function') s = GM_getValue(chave, null); } catch (e) { s = null; } // eslint-disable-line no-undef
+    if (typeof s !== 'string' || !s) {
+      try { s = window.localStorage.getItem(chave); } catch (e) { s = null; }
+    }
+    if (typeof s !== 'string' || !s) s = descMem[chave] || null;
+    return s;
+  }
+  function armGravar(chave, texto) {
+    descMem[chave] = texto;
+    try { if (typeof GM_setValue === 'function') GM_setValue(chave, texto); } catch (e) { /* noop */ } // eslint-disable-line no-undef
+    try { window.localStorage.setItem(chave, texto); } catch (e) { /* noop */ }
+  }
+
+  const ID_DESC_OK = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
+  // Entrada válida (ou null). Corta tamanhos e ignora campos desconhecidos.
+  function descSanitizar(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const id = String(raw.id == null ? '' : raw.id).trim();
+    if (!ID_DESC_OK.test(id)) return null;
+    const out = { id };
+    if (raw.removido === true) {
+      out.removido = true;
+    } else {
+      out.titulo = String(raw.titulo == null ? '' : raw.titulo).replace(/\s+/g, ' ').trim().slice(0, 200);
+      out.texto = String(raw.texto == null ? '' : raw.texto).replace(/\r/g, '').trim().slice(0, 20000);
+      let pc = raw.palavrasChave;
+      if (typeof pc === 'string') pc = pc.split(/\r?\n|;/);
+      out.palavrasChave = (Array.isArray(pc) ? pc : []).map((p) => limpa(p).slice(0, 120)).filter(Boolean).slice(0, 100);
+      out.investimento = limpa(raw.investimento).slice(0, 60);
+      out.incluirPadrao = raw.incluirPadrao !== false;
+      if (!out.titulo) return null;
+    }
+    if (raw.personalizado === true) out.personalizado = true;
+    if (raw.atualizadoEm) out.atualizadoEm = String(raw.atualizadoEm).slice(0, 30);
+    return out;
+  }
+
+  function descLer() {
+    if (descCache) return descCache;
+    let obj = null;
+    const s = armLer(DESC_CHAVE);
+    if (s) { try { obj = JSON.parse(s); } catch (e) { obj = null; } }
+    const itens = {};
+    if (obj && typeof obj === 'object' && obj.itens && typeof obj.itens === 'object') {
+      Object.keys(obj.itens).forEach((k) => {
+        const e = descSanitizar(Object.assign({}, obj.itens[k], { id: obj.itens[k] && obj.itens[k].id != null ? obj.itens[k].id : k }));
+        if (e) itens[e.id] = e;
+      });
+    }
+    descCache = { formato: DESC_FORMATO, itens };
+    return descCache;
+  }
+  function descGravar(itens) {
+    const est = { formato: DESC_FORMATO, itens: itens || {} };
+    descCache = null;
+    armGravar(DESC_CHAVE, JSON.stringify(est));
+    return descLer();
+  }
+
+  function descPadraoMapa() {
+    const m = new Map();
+    DESCRICOES_PROCEDIMENTOS.forEach((e) => { if (e && e.id && !m.has(String(e.id))) m.set(String(e.id), e); });
+    return m;
+  }
+  const descIgualCampos = (a, b) => JSON.stringify(DESC_CAMPOS.map((k) => a[k])) === JSON.stringify(DESC_CAMPOS.map((k) => b[k]));
+  // campos padrão do script no mesmo formato das personalizações
+  function descPadraoComoEntrada(e) {
+    return descSanitizar({ id: e.id, titulo: e.titulo, palavrasChave: e.palavrasChave, texto: e.texto, investimento: e.investimento, incluirPadrao: e.incluirPadrao !== false }) ||
+      { id: String(e.id), titulo: String(e.titulo || e.id), palavrasChave: [], texto: '', investimento: '', incluirPadrao: true };
+  }
+
+  // Catálogo efetivo = padrão do script + personalizações por cima (alterados, removidos, novos).
+  function catalogoMesclado() {
+    const ov = descLer().itens;
+    const base = [];
+    const vistos = new Set();
+    DESCRICOES_PROCEDIMENTOS.forEach((e) => {
+      if (!e || !e.id || vistos.has(String(e.id))) return;
+      vistos.add(String(e.id));
+      const o = ov[String(e.id)];
+      if (o && o.removido) return;
+      if (o) base.push(Object.assign({}, e, { titulo: o.titulo, palavrasChave: o.palavrasChave, texto: o.texto, investimento: o.investimento, incluirPadrao: o.incluirPadrao, exemplo: false, revisar: '' }));
+      else base.push(e);
+    });
+    Object.keys(ov).forEach((id) => {
+      const o = ov[id];
+      if (vistos.has(id) || o.removido) return;
+      base.push({ id: o.id, titulo: o.titulo, palavrasChave: o.palavrasChave, texto: o.texto, investimento: o.investimento, incluirPadrao: o.incluirPadrao });
+    });
+    return base;
+  }
+
+  // Linhas da tela: padrão (alterado ou não, ou excluído) + personalizados.
+  function descLista() {
+    const ov = descLer().itens;
+    const out = [];
+    const pad = descPadraoMapa();
+    pad.forEach((e, id) => {
+      const o = ov[id];
+      if (o && o.removido) { const p = descPadraoComoEntrada(e); out.push(Object.assign({}, p, { origem: 'removido' })); return; }
+      if (o) { out.push(Object.assign({}, o, { origem: 'alterado' })); return; }
+      out.push(Object.assign({}, descPadraoComoEntrada(e), { origem: 'padrao' }));
+    });
+    Object.keys(ov).forEach((id) => { if (!pad.has(id) && !ov[id].removido) out.push(Object.assign({}, ov[id], { origem: 'personalizado' })); });
+    return out;
+  }
+
+  function descNovoId(titulo) {
+    const slug = normalizar(titulo).replace(/ /g, '-').slice(0, 40).replace(/-+$/, '') || 'item';
+    const pad = descPadraoMapa();
+    const ov = descLer().itens;
+    for (let i = 0; i < 50; i++) {
+      const id = 'x-' + slug + '-' + Math.random().toString(36).slice(2, 6);
+      if (!pad.has(id) && !ov[id]) return id;
+    }
+    return 'x-' + slug + '-' + Date.now().toString(36);
+  }
+
+  // Cria (sem id) ou edita (com id). Retorna { ok, id } ou { ok:false, erro }.
+  function descSalvarItem(dados) {
+    const id = dados && dados.id ? String(dados.id) : descNovoId(dados && dados.titulo);
+    const pad = descPadraoMapa();
+    const e = descSanitizar({ id, titulo: dados.titulo, palavrasChave: dados.palavrasChave, texto: dados.texto, investimento: dados.investimento, incluirPadrao: dados.incluirPadrao, personalizado: !pad.has(id), atualizadoEm: new Date().toISOString() });
+    if (!e) return { ok: false, erro: 'Informe o título (o identificador deve ter só letras, números, "-" e "_").' };
+    if (!e.palavrasChave.length) return { ok: false, erro: 'Informe ao menos uma palavra ou frase para reconhecer o procedimento.' };
+    if (!e.texto) return { ok: false, erro: 'Informe a descrição (o texto que sai na proposta).' };
+    const itens = Object.assign({}, descLer().itens);
+    if (pad.has(id) && descIgualCampos(e, descPadraoComoEntrada(pad.get(id)))) delete itens[id]; // igual ao padrão: sem personalização
+    else itens[id] = e;
+    descGravar(itens);
+    return { ok: true, id };
+  }
+  // padrão: marca como excluído (volta com "Restaurar o padrão"); personalizado: apaga de vez
+  function descExcluir(id) {
+    id = String(id);
+    const itens = Object.assign({}, descLer().itens);
+    if (descPadraoMapa().has(id)) itens[id] = { id, removido: true, atualizadoEm: new Date().toISOString() };
+    else delete itens[id];
+    descGravar(itens);
+    return true;
+  }
+  function descRestaurar(id) {
+    id = String(id);
+    if (!descPadraoMapa().has(id)) return false;
+    const itens = Object.assign({}, descLer().itens);
+    delete itens[id];
+    descGravar(itens);
+    return true;
+  }
+
+  // ---- backup ----
+  const dataArquivo = () => {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes());
+  };
+  function descExportar() {
+    const itens = Object.keys(descLer().itens).map((k) => descLer().itens[k]);
+    return { tipo: DESC_TIPO, formato: DESC_FORMATO, script: VERSAO, geradoEm: new Date().toISOString(), itens };
+  }
+  const descNomeBackup = () => 'hoc-derma-descricoes-' + dataArquivo() + '.json';
+
+  // Valida o texto de um backup. { ok, itens:[entradas] } ou { ok:false, erro }.
+  function descValidarBackup(texto) {
+    let obj;
+    try { obj = JSON.parse(String(texto || '').replace(/^﻿/, '')); } catch (e) { return { ok: false, erro: 'O arquivo não é um JSON válido.' }; }
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj) || obj.tipo !== DESC_TIPO) return { ok: false, erro: 'Este arquivo não é um backup de descrições do HOC Derma.' };
+    if (!Number.isInteger(obj.formato) || obj.formato < 1) return { ok: false, erro: 'O backup não informa a versão do formato.' };
+    if (obj.formato > DESC_FORMATO) return { ok: false, erro: 'Backup de um formato mais novo (' + obj.formato + '). Atualize o script antes de restaurar.' };
+    if (!Array.isArray(obj.itens)) return { ok: false, erro: 'O backup está sem a lista de itens.' };
+    if (obj.itens.length > 2000) return { ok: false, erro: 'O backup tem itens demais.' };
+    const itens = [];
+    const ids = new Set();
+    for (let i = 0; i < obj.itens.length; i++) {
+      const e = descSanitizar(obj.itens[i]);
+      if (!e) return { ok: false, erro: 'Item ' + (i + 1) + ' do backup inválido (título/identificador ausente ou fora do padrão).' };
+      if (!e.removido && (!e.palavrasChave.length || !e.texto)) return { ok: false, erro: 'Item "' + e.titulo + '" do backup sem palavras para reconhecer ou sem descrição.' };
+      if (ids.has(e.id)) return { ok: false, erro: 'Identificador repetido no backup: ' + e.id };
+      ids.add(e.id);
+      itens.push(e);
+    }
+    return { ok: true, itens, script: String(obj.script || ''), geradoEm: String(obj.geradoEm || '') };
+  }
+
+  const descChave = (e) => JSON.stringify(e.removido ? { id: e.id, removido: true } : { id: e.id, t: e.titulo, p: e.palavrasChave, x: e.texto, i: e.investimento, d: e.incluirPadrao });
+  // Prévia do que muda: novos / alterados / removidos (só no "Substituir tudo") / iguais.
+  function descPrevia(itensBackup) {
+    const atual = descLer().itens;
+    const novo = {};
+    itensBackup.forEach((e) => { novo[e.id] = e; });
+    const r = { novos: [], alterados: [], removidos: [], iguais: 0 };
+    const nome = (e) => e.titulo || (descPadraoMapa().get(e.id) || {}).titulo || e.id;
+    itensBackup.forEach((e) => {
+      if (!atual[e.id]) r.novos.push({ id: e.id, titulo: nome(e), removido: !!e.removido });
+      else if (descChave(atual[e.id]) !== descChave(e)) r.alterados.push({ id: e.id, titulo: nome(e) });
+      else r.iguais++;
+    });
+    Object.keys(atual).forEach((id) => { if (!novo[id]) r.removidos.push({ id, titulo: nome(atual[id]) }); });
+    return r;
+  }
+  // guarda o estado atual como "último backup automático" (e devolve o objeto)
+  function descBackupAutomatico() {
+    const b = descExportar();
+    b.automatico = true;
+    armGravar(DESC_ULTIMO_CHAVE, JSON.stringify(b));
+    return b;
+  }
+  function descAplicarBackup(itensBackup, modo) {
+    descBackupAutomatico();
+    const itens = modo === 'substituir' ? {} : Object.assign({}, descLer().itens);
+    itensBackup.forEach((e) => { itens[e.id] = e; });
+    descGravar(itens);
+    return descPrevia(itensBackup);
+  }
+  function descUltimoBackup() {
+    const s = armLer(DESC_ULTIMO_CHAVE);
+    if (!s) return null;
+    const v = descValidarBackup(s);
+    return v.ok ? Object.assign(v, { texto: s }) : null;
+  }
+
+  // ---- "Enviar para a lista padrão": só o que difere do padrão (novos + alterados + excluídos) ----
+  function descTrechoCatalogo(entradas) {
+    const js = (s) => JSON.stringify(String(s == null ? '' : s));
+    return (entradas || []).filter((e) => !e.removido).map((e) => [
+      '    {',
+      '      id: ' + js(e.id.replace(/^x-/, '').replace(/-[a-z0-9]{4}$/, '') || e.id) + ',',
+      '      titulo: ' + js(e.titulo) + ',',
+      '      palavrasChave: [' + e.palavrasChave.map(js).join(', ') + '],',
+      e.incluirPadrao === false ? '      incluirPadrao: false,' : null,
+      '      investimento: ' + js(e.investimento) + ',',
+      '      texto: ' + js(e.texto),
+      '    }'
+    ].filter((l) => l != null).join('\n')).join(',\n');
+  }
+  function descPacoteEnvio() {
+    const itens = Object.keys(descLer().itens).map((k) => descLer().itens[k]);
+    const pacote = { tipo: DESC_TIPO, formato: DESC_FORMATO, script: VERSAO, geradoEm: new Date().toISOString(), finalidade: 'para-lista-padrao', itens };
+    return { pacote, trecho: descTrechoCatalogo(itens), qtd: itens.length };
+  }
+
+  // ---- lista de procedimentos do Feegow (colada/importada): linhas "ID - nome", "ID;nome", "ID<TAB>nome" ou só o nome ----
+  function descLerListaFeegow(texto) {
+    const out = [];
+    const vistos = new Set();
+    String(texto || '').replace(/^﻿/, '').split(/\r?\n/).forEach((ln) => {
+      ln = ln.trim();
+      if (!ln) return;
+      let id = '';
+      let nome = '';
+      const cols = ln.split(/\t|;/).map((c) => c.trim().replace(/^"|"$/g, '').trim()).filter((c) => c !== '');
+      if (cols.length >= 2) {
+        if (/^\d+$/.test(cols[0])) { id = cols[0]; nome = cols[1]; } else nome = cols[0];
+      } else {
+        const m = ln.match(/^\[?(\d+)\]?\s*[-–:,]\s*"?(.+?)"?$/);
+        if (m) { id = m[1]; nome = m[2]; } else nome = ln.replace(/^"|"$/g, '');
+      }
+      nome = limpa(nome);
+      const k = normalizar(nome);
+      if (!k || /^(procedimento|nome|id feegow|id)$/.test(k) || vistos.has(k)) return;
+      vistos.add(k);
+      out.push({ id, nome });
+    });
+    return out;
+  }
+  // procedimentos que NENHUMA entrada do catálogo (mesclado) reconhece
+  function descSemDescricao(lista) {
+    const cat = catalogo();
+    return (lista || []).filter((p) => !entradasDoItem({ descricao: p.nome, codigoFeegow: p.id || '' }, cat).length);
+  }
+
+  /* --------------------------------------------------------------------------
    * 2.2 DETECÇÃO DAS DESCRIÇÕES (catálogo × itens da proposta)
    * ------------------------------------------------------------------------ */
 
@@ -1460,7 +1762,7 @@ window.HOCDERMA_TIMBRADO = {
 
   function catalogo() {
     const vistos = new Set();
-    return DESCRICOES_PROCEDIMENTOS.filter((e) => e && e.id && !vistos.has(e.id) && vistos.add(e.id)).map((e) => ({
+    return catalogoMesclado().filter((e) => e && e.id && !vistos.has(e.id) && vistos.add(e.id)).map((e) => ({
       id: String(e.id),
       titulo: limpa(e.titulo) || String(e.id),
       texto: String(e.texto || '').replace(/\r/g, '').trim(),
@@ -2105,8 +2407,11 @@ window.HOCDERMA_TIMBRADO = {
   function injetarNoForm(form) {
     const barra = q(form, SEL.botoes);
     const existente = barra ? q(barra, '.' + CLASSE_BOTAO) : q(form, '.' + CLASSE_BOTAO);
-    if (!liberadoParaForm(form)) { if (existente) existente.remove(); return false; }
-    if (existente) return false; // idempotente
+    if (!liberadoParaForm(form)) { if (existente) existente.remove(); qa(form, '.' + CLASSE_BOTAO_GER).forEach((x) => x.remove()); return false; }
+    if (existente) { // idempotente (v1.4.0: garante também o botão "Gerenciar descrições" ao lado)
+      if (!q(barra || form, '.' + CLASSE_BOTAO_GER)) existente.insertAdjacentElement('beforebegin', criarBotaoGerenciar());
+      return false;
+    }
     if (!barra) return false;
     const btn = criarBotao(form);
     const grupo = acharGrupoImpressao(barra);
@@ -2116,6 +2421,7 @@ window.HOCDERMA_TIMBRADO = {
       if (salvar) salvar.insertAdjacentElement('beforebegin', btn); else barra.appendChild(btn);
       log('grupo de impressão padrão não encontrado; botão colocado antes do SALVAR.');
     }
+    btn.insertAdjacentElement('beforebegin', criarBotaoGerenciar()); // v1.4.0
     return true;
   }
 
@@ -2243,6 +2549,25 @@ window.HOCDERMA_TIMBRADO = {
     .cfg .cfg-corpo .dica{ font-size:11px; color:#888; font-weight:400; }
     .cfg .cfg-ops{ display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }
     .cfg .rodape .ok{ font-size:11px; color:#2e7d32; }
+    .cfg.ger{ width:min(1080px,100%); height:min(800px,100%); display:flex; flex-direction:column; overflow:hidden; }
+    .cfg.ger .ger-corpo{ flex:1; overflow:auto; padding:12px 16px; min-height:0; }
+    .cfg.ger .rodape .dica{ flex:1; font-size:11px; color:#888; }
+    .cfg.ger .rodape .esp{ flex:1; } .cfg.ger .rodape .esp.erro{ color:#b03a3a; font-size:12px; font-weight:600; }
+    .ger-bar{ display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; } .ger-bar input{ flex:1; min-width:200px; }
+    .ger-bar .b, .ger-tab .b{ padding:5px 11px; font-size:12px; }
+    .ger-bar2{ margin-bottom:4px; } .ger-bar .dica{ font-size:11px; color:#888; }
+    .ger-tab td.t small{ display:block; color:#888; font-weight:400; font-size:11px; margin-top:2px; }
+    .ger-tab td{ vertical-align:top; padding:6px 4px; } .ger-tab td.p{ font-size:11.5px; color:#555; } .ger-tab td.v{ white-space:nowrap; font-size:12px; }
+    .ger-tab td.acoes .b{ margin-bottom:3px; } .ger-tab .b.exc{ border-color:#e0b4b4; color:#b03a3a; }
+    .ger-tab tr.o-removido td{ opacity:.55; }
+    .ger-vazio{ text-align:center; color:#888; padding:18px 0 !important; font-size:12.5px; }
+    .tag{ font-size:10.5px; padding:1px 7px; border-radius:9px; border:1px solid #ddd; color:#666; background:#f6f6f6; white-space:nowrap; }
+    .tag.alterado{ border-color:#f1dcb8; background:#fdf5e8; color:#9a5b12; } .tag.personalizado{ border-color:#bcd9bf; background:#eef7ef; color:#2e7d32; } .tag.removido{ border-color:#e0b4b4; background:#fbeaea; color:#b03a3a; }
+    .ger-form{ padding:0 !important; } .ger-2col{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .ger-3col{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; font-size:12px; } .ger-3col ul{ margin:4px 0 0; padding-left:18px; max-height:260px; overflow:auto; }
+    .cfg.ger label.chk{ flex-direction:row; align-items:center; gap:6px; font-weight:500; } .cfg.ger label.chk input{ width:auto; }
+    .cfg.ger .ger-corpo > .dica{ font-size:11px; color:#888; margin-bottom:4px; }
+    .cfg.ger h3{ margin-top:0; }
   `;
 
   const S = { shadow: null, dados: null, form: null, fgOcupado: false, fgEscolha: null, fgOpcoes: null };
@@ -2291,6 +2616,7 @@ window.HOCDERMA_TIMBRADO = {
   }
   function teclaEsc(e) {
     if (e.key !== 'Escape' || !S.dados) return;
+    if (S.shadow && S.shadow.querySelector('[data-ger]')) return; // v1.4.0: o Esc fecha só a tela de descrições
     e.stopPropagation();
     if (S.shadow && S.shadow.querySelector('[data-config]')) fecharConfig(); else fecharEditor();
   }
@@ -2414,6 +2740,354 @@ window.HOCDERMA_TIMBRADO = {
     const ip = box.querySelector('[data-cfg="nomeFinal"]');
     if (ip) ip.focus();
     return box;
+  }
+
+  /* --------------------------------------------------------------------------
+   * 6.2 GERENCIAR DESCRIÇÕES (v1.4.0)
+   *     Botão "Gerenciar descrições" ao lado de "Imprimir HOC Derma" (e menu do Tampermonkey).
+   *     Lista, busca, adiciona, edita, exclui e restaura o padrão de cada procedimento; busca
+   *     procedimentos do Feegow sem descrição; backup/restauração em JSON; "Enviar para a lista
+   *     padrão" (só gera arquivo, não envia nada). Dados: ver 2.1.1.
+   * ------------------------------------------------------------------------ */
+
+  const CLASSE_BOTAO_GER = 'hocderma-ger-btn';
+  const GER = { view: 'lista', busca: '', form: null, volta: 'lista', msg: '', erro: false, feegow: { todos: [], origem: '', filtro: '', ocupado: false }, prev: null };
+  const ORIGEM_ROTULO = { padrao: 'padrão', alterado: 'alterado', personalizado: 'personalizado', removido: 'excluído' };
+
+  function baixarArquivo(nome, texto, tipo) {
+    const blob = new Blob([texto], { type: tipo || 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1500);
+  }
+  // lê arquivo como texto (UTF-8; se vier com caracteres quebrados, tenta Windows-1252, comum em CSV do Excel)
+  function lerArquivoTexto(file, cb) {
+    const ler = (cod, fim) => { const fr = new FileReader(); fr.onload = () => fim(String(fr.result || '')); fr.onerror = () => fim(null); fr.readAsText(file, cod); };
+    ler('utf-8', (t) => {
+      if (t != null && t.indexOf('�') >= 0) ler('windows-1252', (t2) => cb(t2 != null ? t2 : t)); else cb(t);
+    });
+  }
+
+  function gerMsg(texto, erro) { GER.msg = texto || ''; GER.erro = !!erro; const m = S.shadow && S.shadow.querySelector('[data-ger-msg]'); if (m) { m.textContent = GER.msg; m.className = 'esp ' + (GER.erro ? 'erro' : 'ok'); } }
+  function escGer(e) {
+    if (e.key === 'Escape' && S.shadow && S.shadow.querySelector('[data-ger]')) { e.stopPropagation(); fecharGerenciar(); }
+  }
+  function fecharGerenciar() {
+    const box = S.shadow && S.shadow.querySelector('[data-ger]');
+    if (box) box.remove();
+    document.removeEventListener('keydown', escGer, true);
+  }
+
+  function gerFiltrar(lista, busca) {
+    const b = normalizar(busca);
+    if (!b) return lista;
+    return lista.filter((e) => normalizar(e.titulo + ' ' + e.palavrasChave.join(' ') + ' ' + e.texto + ' ' + e.id).indexOf(b) >= 0);
+  }
+
+  function htmlLinhasLista() {
+    const todas = descLista();
+    const lista = gerFiltrar(todas, GER.busca);
+    const cont = S.shadow.querySelector('[data-ger-cont]');
+    if (cont) cont.textContent = lista.length + ' de ' + todas.length + ' procedimentos' + (todas.some((e) => e.origem !== 'padrao') ? ' · ' + todas.filter((e) => e.origem !== 'padrao').length + ' com personalização' : '');
+    if (!lista.length) return '<tr><td colspan="5" class="ger-vazio">Nenhum procedimento encontrado.</td></tr>';
+    return lista.map((e) => `<tr class="o-${e.origem}">
+        <td class="t"><b>${esc(e.titulo)}</b><small>${esc(e.texto.slice(0, 110))}${e.texto.length > 110 ? '…' : ''}</small></td>
+        <td class="p">${esc(e.palavrasChave.join(' · '))}</td>
+        <td><span class="tag ${e.origem}">${esc(ORIGEM_ROTULO[e.origem])}</span></td>
+        <td class="v">${esc(e.investimento)}</td>
+        <td class="acoes">${e.origem === 'removido' ? '' : `<button class="b" data-g="editar" data-id="${esc(e.id)}">Editar</button> `}${(e.origem === 'alterado' || e.origem === 'removido') ? `<button class="b" data-g="restaurar" data-id="${esc(e.id)}" title="Volta ao texto original do script">Restaurar o padrão</button> ` : ''}${e.origem === 'removido' ? '' : `<button class="b exc" data-g="excluir" data-id="${esc(e.id)}">Excluir</button>`}</td>
+      </tr>`).join('');
+  }
+
+  function gerRender() {
+    const sh = S.shadow;
+    const corpo = sh && sh.querySelector('[data-ger-corpo]');
+    const rod = sh && sh.querySelector('[data-ger-rodape]');
+    if (!corpo || !rod) return;
+    const msg = `<span class="esp ${GER.erro ? 'erro' : 'ok'}" data-ger-msg>${esc(GER.msg)}</span>`;
+    if (GER.view === 'lista') {
+      const ult = descUltimoBackup();
+      corpo.innerHTML = `
+        <div class="ger-bar">
+          <input data-g-busca placeholder="Buscar por título, palavras ou texto…" value="${esc(GER.busca)}">
+          <button class="b pri" data-g="novo">＋ Adicionar</button>
+        </div>
+        <div class="ger-bar ger-bar2">
+          <button class="b" data-g="feegow">Procedimentos do Feegow sem descrição</button>
+          <button class="b" data-g="fazer-backup">Fazer backup</button>
+          <button class="b" data-g="restaurar-backup">Restaurar backup</button>
+          <button class="b" data-g="enviar">Enviar para a lista padrão</button>
+          ${ult ? '<button class="b" data-g="desfazer" title="Volta ao estado de antes da última restauração de backup">Desfazer a última restauração</button>' : ''}
+        </div>
+        <div class="dica" data-ger-cont></div>
+        <table class="ger-tab"><thead><tr><th style="width:34%">Procedimento</th><th>Reconhece (palavras)</th><th>Origem</th><th>Investimento</th><th></th></tr></thead><tbody data-ger-linhas>${htmlLinhasLista()}</tbody></table>`;
+      rod.innerHTML = `${msg}<span class="dica">Fica gravado neste PC e vale por cima das descrições padrão do script.</span><button class="b" data-g="fechar">Fechar</button>`;
+    } else if (GER.view === 'form') {
+      const f = GER.form;
+      const padrao = f.id && descPadraoMapa().has(f.id);
+      corpo.innerHTML = `
+        <div class="cfg-corpo ger-form">
+          <h3>${f.id ? (padrao ? 'Editar procedimento padrão' : 'Editar procedimento personalizado') : 'Novo procedimento'}</h3>
+          <label>Título (como sai na folha; use "PROCEDIMENTO | DETALHE" para duas linhas)
+            <input data-gf="titulo" value="${esc(f.titulo)}"></label>
+          <label>Palavras para reconhecer (uma frase por linha)
+            <textarea data-gf="palavrasChave" rows="4" placeholder="ex.: lifting supercilio&#10;brow lift">${esc(f.palavrasChave)}</textarea>
+            <span class="dica">O procedimento do Feegow é reconhecido quando o nome tem TODAS as palavras de alguma linha, em qualquer ordem (sem acento nem maiúsculas). Use "peeling*" para qualquer palavra que comece com "peeling".</span></label>
+          <label>Descrição (texto que sai na proposta; linha em branco = novo parágrafo; "- " = lista; **negrito**)
+            <textarea data-gf="texto" rows="8">${esc(f.texto)}</textarea></label>
+          <div class="ger-2col">
+            <label>Investimento (opcional, ex.: R$ 1.700,00)<input data-gf="investimento" value="${esc(f.investimento)}"></label>
+            <label class="chk" style="align-self:end"><input type="checkbox" data-gf="incluirPadrao"${f.incluirPadrao ? ' checked' : ''}> Vem marcado na janela de impressão</label>
+          </div>
+          ${padrao ? '<div class="dica">Item padrão do script. "Restaurar o padrão" (na lista) volta ao texto original.</div>' : ''}
+        </div>`;
+      rod.innerHTML = `${msg}<button class="b" data-g="cancelar-form">Cancelar</button><button class="b pri" data-g="salvar-form">Salvar</button>`;
+    } else if (GER.view === 'feegow') {
+      corpo.innerHTML = `
+        <div class="ger-bar">
+          <button class="b pri" data-g="fg-buscar"${GER.feegow.ocupado ? ' disabled' : ''}>Buscar nesta página do Feegow</button>
+          <button class="b" data-g="fg-arquivo">Importar arquivo (CSV/TXT)</button>
+          <button class="b" data-g="fg-usar-colado">Usar o texto colado abaixo</button>
+        </div>
+        <textarea data-g-colar rows="3" placeholder="Ou cole aqui a lista de procedimentos do Feegow, um por linha (aceita &quot;ID - nome&quot;, &quot;ID;nome&quot; ou só o nome; no Excel, copie a coluna do nome e cole)."></textarea>
+        <div class="ger-bar"><input data-g-fgfiltro placeholder="Filtrar a lista abaixo…" value="${esc(GER.feegow.filtro)}"><span class="dica" data-ger-cont></span></div>
+        <table class="ger-tab"><thead><tr><th>Procedimento do Feegow sem descrição</th><th style="width:70px">ID</th><th style="width:130px"></th></tr></thead><tbody data-ger-linhas>${htmlLinhasFeegow()}</tbody></table>`;
+      rod.innerHTML = `${msg}<button class="b" data-g="voltar">Voltar à lista</button>`;
+    } else if (GER.view === 'previa') {
+      const p = GER.prev;
+      const ul = (arr, vazio) => arr.length ? '<ul>' + arr.slice(0, 40).map((x) => '<li>' + esc(x.titulo) + (x.removido ? ' (excluído)' : '') + '</li>').join('') + (arr.length > 40 ? '<li>… e mais ' + (arr.length - 40) + '</li>' : '') + '</ul>' : '<div class="dica">' + vazio + '</div>';
+      corpo.innerHTML = `
+        <div class="cfg-corpo">
+          <h3>Restaurar backup: prévia</h3>
+          <div class="dica">Arquivo: <b>${esc(p.nome)}</b>${p.script ? ' · script ' + esc(p.script) : ''}${p.geradoEm ? ' · gerado em ' + esc(new Date(p.geradoEm).toLocaleString('pt-BR')) : ''} · ${p.itens.length} item(ns)</div>
+          <div class="ger-3col">
+            <div><b>Novos (${p.previa.novos.length})</b>${ul(p.previa.novos, 'nenhum')}</div>
+            <div><b>Alterados (${p.previa.alterados.length})</b>${ul(p.previa.alterados, 'nenhum')}</div>
+            <div><b>Removidos (${p.previa.removidos.length})</b>${ul(p.previa.removidos, 'nenhum')}<div class="dica">Só somem se escolher "Substituir tudo". Itens iguais: ${p.previa.iguais}.</div></div>
+          </div>
+          <div class="dica">Antes de aplicar, o estado atual é guardado automaticamente (botão "Desfazer a última restauração" na lista).</div>
+        </div>`;
+      rod.innerHTML = `${msg}<button class="b" data-g="voltar">Cancelar</button><button class="b" data-g="aplicar-substituir">Substituir tudo</button><button class="b pri" data-g="aplicar-juntar">Juntar com o atual</button>`;
+    } else if (GER.view === 'enviar') {
+      const env = descPacoteEnvio();
+      corpo.innerHTML = `
+        <div class="cfg-corpo">
+          <h3>Enviar para a lista padrão</h3>
+          <div class="dica">Gera os arquivos para o coordenador incorporar ao script oficial. <b>Nada é enviado pela internet</b>: baixe e entregue o arquivo. ${env.qtd ? env.qtd + ' item(ns) personalizado(s)/alterado(s)/excluído(s) neste PC.' : 'Não há nada personalizado neste PC.'}</div>
+          <textarea readonly rows="14" data-g-trecho>${esc(env.trecho)}</textarea>
+          <div class="ger-bar">
+            <button class="b pri" data-g="env-json"${env.qtd ? '' : ' disabled'}>Baixar JSON</button>
+            <button class="b" data-g="env-js"${env.trecho ? '' : ' disabled'}>Baixar trecho (.js)</button>
+            <button class="b" data-g="env-copiar"${env.trecho ? '' : ' disabled'}>Copiar trecho</button>
+          </div>
+        </div>`;
+      rod.innerHTML = `${msg}<button class="b" data-g="voltar">Voltar à lista</button>`;
+    }
+  }
+
+  function htmlLinhasFeegow() {
+    const F = GER.feegow;
+    const sem = descSemDescricao(F.todos);
+    const filtro = normalizar(F.filtro);
+    const lista = filtro ? sem.filter((p) => normalizar(p.nome).indexOf(filtro) >= 0) : sem;
+    const info = F.todos.length ? F.todos.length + ' procedimentos lidos (' + F.origem + ') · ' + sem.length + ' sem descrição' + (filtro ? ' · ' + lista.length + ' no filtro' : '') : 'Nenhuma lista carregada ainda.';
+    setTimeout(() => { const c = S.shadow && S.shadow.querySelector('[data-ger] [data-ger-cont]'); if (c && GER.view === 'feegow') c.textContent = info; }, 0);
+    if (!lista.length) return '<tr><td colspan="3" class="ger-vazio">' + esc(F.todos.length ? 'Todos os procedimentos lidos já têm descrição.' : 'Clique em "Buscar nesta página do Feegow" (na tela de propostas) ou cole/importe a lista.') + '</td></tr>';
+    return lista.slice(0, 400).map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.id)}</td><td class="acoes"><button class="b" data-g="fg-criar" data-nome="${esc(p.nome)}" data-fid="${esc(p.id)}">Criar descrição</button></td></tr>`).join('') + (lista.length > 400 ? '<tr><td colspan="3" class="ger-vazio">… use o filtro para ver os demais (' + (lista.length - 400) + ').</td></tr>' : '');
+  }
+
+  function gerLerForm() {
+    const sh = S.shadow;
+    const v = (k) => { const el = sh.querySelector('[data-gf="' + k + '"]'); return el ? el.value : ''; };
+    const c = sh.querySelector('[data-gf="incluirPadrao"]');
+    return { id: GER.form.id || '', titulo: v('titulo'), palavrasChave: v('palavrasChave'), texto: v('texto'), investimento: v('investimento'), incluirPadrao: c ? c.checked : true };
+  }
+  function gerAbrirForm(f, volta) {
+    GER.form = Object.assign({ id: '', titulo: '', palavrasChave: '', texto: '', investimento: '', incluirPadrao: true }, f);
+    GER.volta = volta || 'lista';
+    GER.view = 'form';
+    gerMsg('');
+    gerRender();
+    const i = S.shadow.querySelector('[data-gf="titulo"]');
+    if (i) i.focus();
+  }
+
+  async function gerBuscarFeegow() {
+    const F = GER.feegow;
+    F.ocupado = true;
+    gerRender();
+    const mapa = new Map();
+    const add = (p) => { if (p && p.nome && !mapa.has(normalizar(p.nome))) mapa.set(normalizar(p.nome), p); };
+    try { procsConhecidosNoDom(document).forEach(add); } catch (e) { /* sem DOM de proposta */ }
+    let erro = null;
+    const termos = ['a', 'e', 'i', 'o', 'u', 'r', 's', 'l', 'c', 't', 'n', 'd', 'm'];
+    for (let i = 0; i < termos.length && GER.view === 'feegow'; i++) {
+      gerMsg('Buscando no Feegow… ' + (i + 1) + '/' + termos.length + ' (' + mapa.size + ' procedimentos)');
+      try { (await buscarProcsAjax(termos[i])).forEach(add); } catch (e) { erro = e; break; }
+    }
+    F.ocupado = false;
+    if (GER.view !== 'feegow') return;
+    F.todos = Array.from(mapa.values());
+    F.origem = 'lidos da página do Feegow';
+    gerRender();
+    if (!F.todos.length) gerMsg('Não consegui ler a lista do Feegow aqui' + (erro ? ' (' + erro.message + ')' : '') + '. Abra uma proposta no prontuário ou cole/importe a lista.', true);
+    else gerMsg(erro ? 'Lista parcial (' + erro.message + '). Para a lista completa, cole ou importe.' : 'Pronto. A busca do Feegow devolve só os primeiros resultados de cada termo: se faltar algum procedimento, cole ou importe a lista completa.', !!erro);
+  }
+
+  function abrirGerenciar(msg) {
+    const sh = garantirRoot();
+    if (!sh.querySelector('style')) {
+      const st = document.createElement('style');
+      st.textContent = CSS_MODAL;
+      sh.insertBefore(st, sh.firstChild);
+    }
+    fecharGerenciar();
+    GER.view = 'lista';
+    GER.busca = '';
+    GER.msg = msg || '';
+    GER.erro = false;
+    GER.feegow = { todos: [], origem: '', filtro: '', ocupado: false };
+    const box = document.createElement('div');
+    box.className = 'cfg-fundo';
+    box.setAttribute('data-ger', '');
+    box.innerHTML = `
+      <div class="cfg ger" role="dialog" aria-modal="true" aria-label="Gerenciar descrições dos procedimentos">
+        <div class="topo"><h2>Gerenciar descrições dos procedimentos (este PC)</h2><button class="x" data-g="fechar" title="Fechar (Esc)">×</button></div>
+        <div class="ger-corpo" data-ger-corpo></div>
+        <div class="rodape" data-ger-rodape></div>
+        <input type="file" data-g-arq hidden>
+      </div>`;
+    sh.appendChild(box);
+    document.addEventListener('keydown', escGer, true);
+    gerRender();
+
+    box.addEventListener('input', (e) => {
+      const t = e.target;
+      if (t.matches('[data-g-busca]')) { GER.busca = t.value; box.querySelector('[data-ger-linhas]').innerHTML = htmlLinhasLista(); }
+      else if (t.matches('[data-g-fgfiltro]')) { GER.feegow.filtro = t.value; box.querySelector('[data-ger-linhas]').innerHTML = htmlLinhasFeegow(); }
+    });
+    box.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!t.matches('[data-g-arq]') || !t.files || !t.files[0]) return;
+      const file = t.files[0];
+      const modo = t.getAttribute('data-modo');
+      t.value = '';
+      lerArquivoTexto(file, (texto) => {
+        if (texto == null) { gerMsg('Não consegui ler o arquivo.', true); return; }
+        if (modo === 'feegow') {
+          const lista = descLerListaFeegow(texto);
+          GER.feegow.todos = lista; GER.feegow.origem = 'arquivo ' + file.name;
+          gerRender();
+          gerMsg(lista.length ? lista.length + ' procedimentos importados.' : 'Nenhum procedimento encontrado no arquivo. Para planilha Excel, copie a coluna do nome e cole na caixa de texto.', !lista.length);
+          return;
+        }
+        const v = descValidarBackup(texto);
+        if (!v.ok) { gerMsg('Backup recusado: ' + v.erro, true); return; }
+        GER.prev = { itens: v.itens, previa: descPrevia(v.itens), nome: file.name, script: v.script, geradoEm: v.geradoEm };
+        GER.view = 'previa';
+        gerMsg('');
+        gerRender();
+      });
+    });
+    box.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-g]');
+      if (!b || b.disabled) return;
+      const a = b.getAttribute('data-g');
+      const id = b.getAttribute('data-id');
+      const arq = box.querySelector('[data-g-arq]');
+      const lista = () => { GER.view = 'lista'; gerRender(); };
+      if (a === 'fechar') fecharGerenciar();
+      else if (a === 'voltar') { lista(); }
+      else if (a === 'novo') gerAbrirForm({}, 'lista');
+      else if (a === 'editar') {
+        const e0 = descLista().find((x) => x.id === id);
+        if (e0) gerAbrirForm({ id: e0.id, titulo: e0.titulo, palavrasChave: e0.palavrasChave.join('\n'), texto: e0.texto, investimento: e0.investimento, incluirPadrao: e0.incluirPadrao }, 'lista');
+      } else if (a === 'excluir') {
+        const e0 = descLista().find((x) => x.id === id);
+        if (e0 && window.confirm('Excluir "' + e0.titulo + '"?' + (e0.origem === 'personalizado' ? ' Este item personalizado será apagado (faça um backup antes se quiser guardar).' : ' É um item padrão do script: ele só deixa de ser usado neste PC e volta com "Restaurar o padrão".'))) {
+          descExcluir(id); gerRender(); gerMsg('Excluído: ' + e0.titulo);
+        }
+      } else if (a === 'restaurar') {
+        const e0 = descLista().find((x) => x.id === id);
+        if (e0 && window.confirm('Restaurar "' + e0.titulo + '" ao texto original do script? Suas alterações neste item serão perdidas.')) {
+          descRestaurar(id); gerRender(); gerMsg('Restaurado ao padrão: ' + e0.titulo);
+        }
+      } else if (a === 'cancelar-form') { GER.view = GER.volta; gerRender(); }
+      else if (a === 'salvar-form') {
+        const r = descSalvarItem(gerLerForm());
+        if (!r.ok) { gerMsg(r.erro, true); return; }
+        GER.view = GER.volta;
+        gerRender();
+        gerMsg('Salvo.');
+      } else if (a === 'feegow') { GER.view = 'feegow'; gerMsg(''); gerRender(); }
+      else if (a === 'fg-buscar') gerBuscarFeegow();
+      else if (a === 'fg-arquivo') { arq.setAttribute('data-modo', 'feegow'); arq.accept = '.csv,.txt,.tsv,text/plain,text/csv'; arq.click(); }
+      else if (a === 'fg-usar-colado') {
+        const lst = descLerListaFeegow((box.querySelector('[data-g-colar]') || {}).value);
+        GER.feegow.todos = lst; GER.feegow.origem = 'texto colado';
+        const ta = (box.querySelector('[data-g-colar]') || {}).value;
+        gerRender();
+        const t2 = box.querySelector('[data-g-colar]'); if (t2) t2.value = ta;
+        gerMsg(lst.length ? lst.length + ' procedimentos lidos do texto colado.' : 'Nada para ler: cole um procedimento por linha.', !lst.length);
+      } else if (a === 'fg-criar') {
+        const nome = b.getAttribute('data-nome') || '';
+        const frase = normalizar(nome).split(' ').filter((t) => t && !LIGACAO.has(t)).join(' ');
+        gerAbrirForm({ titulo: nome.toUpperCase(), palavrasChave: frase }, 'feegow');
+      } else if (a === 'fazer-backup') {
+        const nome = descNomeBackup();
+        baixarArquivo(nome, JSON.stringify(descExportar(), null, 2));
+        gerMsg('Backup baixado: ' + nome);
+      } else if (a === 'restaurar-backup') { arq.setAttribute('data-modo', 'backup'); arq.accept = '.json,application/json'; arq.click(); }
+      else if (a === 'aplicar-juntar' || a === 'aplicar-substituir') {
+        const sub = a === 'aplicar-substituir';
+        if (sub && !window.confirm('Substituir TUDO? As personalizações atuais que não estão no backup serão removidas (o estado atual fica guardado para "Desfazer a última restauração").')) return;
+        const r = descAplicarBackup(GER.prev.itens, sub ? 'substituir' : 'juntar');
+        GER.view = 'lista';
+        gerRender();
+        gerMsg('Backup aplicado (' + (sub ? 'substituiu tudo' : 'juntou com o atual') + '): ' + r.novos.length + ' novo(s), ' + r.alterados.length + ' alterado(s)' + (sub ? ', ' + r.removidos.length + ' removido(s)' : '') + '.');
+      } else if (a === 'desfazer') {
+        const u = descUltimoBackup();
+        if (u && window.confirm('Voltar ao estado de antes da última restauração de backup?')) {
+          descAplicarBackup(u.itens, 'substituir'); gerRender(); gerMsg('Estado anterior restaurado.');
+        }
+      } else if (a === 'enviar') { GER.view = 'enviar'; gerMsg(''); gerRender(); }
+      else if (a === 'env-json') {
+        const env = descPacoteEnvio();
+        const nome = 'hoc-derma-para-lista-padrao-' + dataArquivo() + '.json';
+        baixarArquivo(nome, JSON.stringify(Object.assign({}, env.pacote, { trechoCatalogo: env.trecho }), null, 2));
+        gerMsg('Arquivo baixado: ' + nome + '. Entregue ao coordenador.');
+      } else if (a === 'env-js') {
+        const env = descPacoteEnvio();
+        const nome = 'hoc-derma-para-lista-padrao-' + dataArquivo() + '.js.txt';
+        baixarArquivo(nome, '// Trecho para colar dentro de DESCRICOES_PROCEDIMENTOS (hoc-derma-propostas.user.js)\n' + env.trecho + '\n', 'text/plain;charset=utf-8');
+        gerMsg('Arquivo baixado: ' + nome);
+      } else if (a === 'env-copiar') {
+        const ta = box.querySelector('[data-g-trecho]');
+        let ok = false;
+        try { ta.select(); ok = document.execCommand('copy'); } catch (er) { ok = false; }
+        gerMsg(ok ? 'Trecho copiado.' : 'Não consegui copiar: selecione o texto e use Ctrl+C.', !ok);
+      }
+    });
+    const bu = box.querySelector('[data-g-busca]');
+    if (bu) bu.focus();
+    return box;
+  }
+
+  function criarBotaoGerenciar() {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-sm btn-default ' + CLASSE_BOTAO_GER;
+    b.title = 'Adicionar, editar, excluir e fazer backup das descrições dos procedimentos usadas na proposta HOC Derma';
+    b.setAttribute('data-hocderma', VERSAO);
+    b.style.cssText = 'margin-right:4px;border-color:' + CONFIG.cores.botaoBorda + ';color:' + CONFIG.cores.botaoBorda + ';background:#fff;';
+    b.innerHTML = '<i class="far fa-edit"></i> Gerenciar descrições';
+    b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); abrirGerenciar(); });
+    return b;
   }
 
   // v1.3.8: aviso curto numa faixa própria abaixo da barra (texto completo na dica)
@@ -3897,7 +4571,7 @@ window.HOCDERMA_TIMBRADO = {
     if (t.id === ID_ROOT || (t.closest && t.closest('#' + ID_ROOT))) return true;
     const nos = Array.from(m.addedNodes).concat(Array.from(m.removedNodes));
     return nos.length > 0 && nos.every((n) => n.nodeType === 1 &&
-      (n.id === ID_ROOT || n.id === ID_IFRAME || (n.classList && n.classList.contains(CLASSE_BOTAO))));
+      (n.id === ID_ROOT || n.id === ID_IFRAME || (n.classList && (n.classList.contains(CLASSE_BOTAO) || n.classList.contains(CLASSE_BOTAO_GER)))));
   }
 
   function iniciar() {
@@ -3907,6 +4581,7 @@ window.HOCDERMA_TIMBRADO = {
       if (typeof GM_registerMenuCommand === 'function' && !window.__HOCDERMA_PROPOSTAS_MENU__) { // eslint-disable-line no-undef
         window.__HOCDERMA_PROPOSTAS_MENU__ = true;
         GM_registerMenuCommand('Configurações das propostas', () => abrirConfig()); // eslint-disable-line no-undef
+        GM_registerMenuCommand('Gerenciar descrições dos procedimentos', () => abrirGerenciar()); // eslint-disable-line no-undef
       }
     } catch (e) { /* sem menu: o botão do editor continua */ }
     varrer();
@@ -3925,7 +4600,8 @@ window.HOCDERMA_TIMBRADO = {
     if (observador) observador.disconnect();
     observador = null;
     fecharEditor();
-    qa(document, '.' + CLASSE_BOTAO).forEach((b) => b.remove());
+    qa(document, '.' + CLASSE_BOTAO + ', .' + CLASSE_BOTAO_GER).forEach((b) => b.remove());
+    fecharGerenciar();
   }
 
   window.HOCDERMA_PROPOSTAS = {
@@ -3961,6 +4637,8 @@ window.HOCDERMA_TIMBRADO = {
     prefs: { padrao: PREF_PADRAO, ler: lerPrefs, salvar: salvarPrefs, limpar: limparPrefs },
     // v1.3.0: configurações do PC (nome/cargo no fim) e tela de configurações
     config: { padrao: CFG_PADRAO, ler: lerConfig, salvar: salvarConfig, limpar: limparConfig, abrir: abrirConfig, fechar: fecharConfig },
+    // v1.4.0: gerenciar descrições (personalizações por cima do catálogo padrão)
+    descricoesGer: { abrir: abrirGerenciar, fechar: fecharGerenciar, lista: descLista, ler: descLer, salvarItem: descSalvarItem, excluir: descExcluir, restaurar: descRestaurar, mesclado: catalogoMesclado, exportar: descExportar, validarBackup: descValidarBackup, previa: descPrevia, aplicarBackup: descAplicarBackup, ultimoBackup: descUltimoBackup, pacoteEnvio: descPacoteEnvio, lerListaFeegow: descLerListaFeegow, semDescricao: descSemDescricao },
     // v1.3.7: tamanho das fontes da folha
     fontes: { blocos: FONTE_BLOCOS, familias: FAMILIAS, ler: lerFontes, salvar: salvarFontes, limpar: limparFontes, predefinicao: aplicarPredefinicaoFontes, css: cssComFontes, esperar: esperarFontes, modo: alternarModoFontes },
     // v1.3.6: adicionar no Feegow pela janela

@@ -9,7 +9,7 @@
 | Core | 1.1.7.0 |
 | Suite principal | 4.9.11.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.3.12 |
+| Propostas HOC Derma | 1.4.0 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.3.0 |
 
@@ -79,6 +79,14 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.4.0 (26/11/2026): Gerenciar descrições
+
+- Novo botão **Gerenciar descrições**, ao lado de "Imprimir HOC Derma" (e no menu do Tampermonkey). Lista todos os procedimentos (padrão e personalizados) com busca; permite **adicionar**, **editar**, **excluir** e **"Restaurar o padrão"** de cada item.
+- As personalizações ficam gravadas **neste PC** e valem por cima da lista padrão do script, sem se perder nas atualizações.
+- **Procedimentos do Feegow sem descrição**: lê a lista de procedimentos da própria página do Feegow (só leitura) e mostra os que nenhuma descrição reconhece, com **Criar descrição** já preenchendo o nome. Também aceita lista colada ou arquivo CSV/TXT.
+- **Backup**: "Fazer backup" baixa um JSON datado; "Restaurar backup" valida o arquivo, mostra a prévia (novos, alterados e removidos) e aplica com "Juntar com o atual" ou "Substituir tudo", guardando antes o estado atual ("Desfazer a última restauração").
+- **Enviar para a lista padrão**: gera o JSON e o trecho pronto no formato do catálogo para o coordenador incorporar ao script oficial. Não envia nada pela internet.
 
 ### Propostas 1.3.12 (26/11/2026)
 

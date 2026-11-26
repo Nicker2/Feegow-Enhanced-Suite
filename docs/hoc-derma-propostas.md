@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.3.12** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.4.0** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -144,6 +144,19 @@ A folha é repartida em páginas A4, cada uma com o cabeçalho e o rodapé do ti
 
 ---
 
+## 4.1 Gerenciar descrições (desde a 1.4.0)
+
+O botão **Gerenciar descrições** fica ao lado de "Imprimir HOC Derma" na proposta (e no menu do Tampermonkey: "Gerenciar descrições dos procedimentos").
+
+- **Lista e busca**: todos os procedimentos, padrão e personalizados, com a origem de cada um (padrão, alterado, personalizado, excluído). A busca olha título, palavras e texto.
+- **＋ Adicionar / Editar**: título, **palavras para reconhecer** (uma frase por linha; o procedimento do Feegow é reconhecido quando o nome tem todas as palavras de alguma linha, sem acento nem maiúsculas), descrição, investimento (opcional) e "vem marcado na janela de impressão".
+- **Excluir**: item personalizado é apagado; item padrão só deixa de ser usado neste PC. **Restaurar o padrão** volta o item ao texto original do script (também traz de volta um item padrão excluído).
+- **Procedimentos do Feegow sem descrição**: "Buscar nesta página do Feegow" lê a lista de procedimentos da própria tela (campo Procedimento, só leitura) e mostra os que nenhuma descrição reconhece; **Criar descrição** abre o formulário já com o nome. A busca do Feegow devolve só os primeiros resultados de cada termo, então a lista pode vir incompleta: para a lista completa, **cole** a lista (um procedimento por linha; no Excel, copie a coluna do nome) ou **importe um arquivo CSV/TXT** (planilha .xlsx: copie a coluna e cole).
+- **Fazer backup**: baixa `hoc-derma-descricoes-AAAA-MM-DD-HHMM.json` (com a versão do formato e do script). **Restaurar backup**: valida o arquivo (recusa arquivo que não é do HOC Derma ou com defeito, sem mudar nada), mostra a prévia (novos, alterados, removidos) e aplica com **Juntar com o atual** ou **Substituir tudo**. Antes de aplicar, o estado atual fica guardado automaticamente; **Desfazer a última restauração** volta a ele.
+- **Enviar para a lista padrão**: gera o JSON e o trecho já no formato do catálogo (`DESCRICOES_PROCEDIMENTOS`) com o que foi personalizado neste PC. **Não envia nada sozinho**: baixe e entregue ao coordenador, que cola o trecho no script oficial.
+
+**Onde fica gravado**: `GM_setValue` (Tampermonkey) e `localStorage` do navegador, chave `hoc_propostas_descricoes` (as personalizações) e `hoc_propostas_descricoes_ultimo_backup` (último backup automático). Valem por cima do catálogo do script, por `id`; ao atualizar o script, as personalizações continuam e os itens padrão novos entram normalmente. É por PC/navegador: use o backup para levar para outro computador.
+
 ## 5. Configurações das propostas
 
 Há dois jeitos de abrir:
@@ -255,6 +268,7 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
+| **1.4.0** | 26/11/2026 | **Gerenciar descrições**: botão ao lado de "Imprimir HOC Derma" (e menu do Tampermonkey) com lista e busca de todos os procedimentos, adicionar, editar, excluir e "Restaurar o padrão" por item; personalizações gravadas no PC (`GM_setValue`, ou `localStorage`) e mescladas por id sobre o catálogo padrão; "Procedimentos do Feegow sem descrição" (lê o select2 `#ProcedimentoID`, só leitura, ou lista colada/CSV/TXT); backup JSON datado, restauração com prévia e "Juntar"/"Substituir tudo" (com backup automático antes); "Enviar para a lista padrão" (JSON + trecho do catálogo, sem envio). |
 | **1.3.12** | 26/11/2026 | 16 descrições novas no catálogo (dacriocistorrinostomia, calázio, cisto de Moll, infiltração intralesional, ressecção de tumores palpebrais, peeling retinóico + Jessner 1 sessão, anatomopatológico 1 frasco / mais de 2 frascos, bioimpedância, biópsia por punch, blefaroplastia + ptose (2 combinações), cantopexia, cantoplastia tarsal strip, cauterização química, clipping ungueal); título/texto da ptose atualizados. A combinação mais específica vence. |
 | **1.3.11** | 26/11/2026 | "LIFTING DE SUPERCÍLIO - BROW LIFT - CASTANHARES" (e "CASTANHARES (LIFT DE SUPERCÍLIO)") usa a descrição de `lifting-de-supercilio`: palavras-chave novas `brow lift` e `castanhares supercilio`. |
 | **1.3.9** | 24/11/2026 | "Padrão Poppins" (e padrão inicial): **títulos dos procedimentos na fonte original** da 1.3.6 (Palatino 13,5 pt, peso e altura de linha originais); o resto continua em Poppins. Quem já tinha ajustes salvos só muda se o título estava no padrão Poppins (escolha manual de fonte ou tamanho do título é mantida). "Padrão original" e o seletor por parte não mudam. |
