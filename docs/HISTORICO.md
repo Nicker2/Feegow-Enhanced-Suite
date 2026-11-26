@@ -9,7 +9,7 @@
 | Core | 1.2.0.0 |
 | Suite principal | 4.9.14.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.4.6 |
+| Propostas HOC Derma | 1.4.7 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.6.0 |
 
@@ -105,6 +105,13 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.4.7 (26/11/2026): Investimento sem vazio
+
+- O "Investimento" saía vazio quando o item da proposta estava sem valor (valor unitário 0) e a descrição do catálogo também não tinha valor; item sem descrição e sem valor saía como "R$ 0,00".
+- Agora, **item sem valor na proposta usa o valor do procedimento no Feegow** (pelo ID do item ou pelo nome exato). O valor negociado da própria proposta continua valendo primeiro. Valor 0 no Feegow = sem valor (nada de "R$ 0,00"), e item de cortesia (100% de desconto) não ganha o valor do catálogo.
+- **46 entradas do catálogo** que estavam sem investimento receberam o valor da API; onde as variantes têm preços diferentes (sessões, frascos, complexidade) aparece "a partir de R$ X". Ficam sem valor 7 entradas, que não têm procedimento correspondente no Feegow ou têm valor 0.
+- Os valores vêm de uma tabela no script gerada da API em 26/11/2026; se os preços do Feegow mudarem, a tabela precisa ser regenerada (o valor da proposta sempre tem prioridade).
 
 ### Propostas 1.4.6 (26/11/2026)
 

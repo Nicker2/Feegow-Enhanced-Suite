@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.6
+// @version      1.4.7
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.6
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.7
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -213,6 +213,12 @@ window.HOCDERMA_TIMBRADO = {
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
  *
+ * v1.4.7 (26/11/2026)
+ *   - "Investimento" não sai mais vazio: item da proposta SEM valor usa o valor do procedimento no Feegow
+ *     (tabela VALORES_FEEGOW, por ID do item ou nome exato); o valor da própria proposta continua valendo
+ *     primeiro. As 46 entradas do catálogo sem valor ganharam o investimento da API ("a partir de R$ X"
+ *     quando as variantes têm valores diferentes). Valor 0 no Feegow = sem valor (não mostra R$ 0,00).
+ *
  * v1.4.6 (26/11/2026)
  *   - Grafia da marca: título "BACCIO LIP | REVITALIZAÇÃO LABIAL" (dois C); casa também com "BACCIO LÁBIOS".
  *     Conferido contra a lista atual da API depois dos renomes do Feegow: nenhuma descrição se perdeu.
@@ -376,7 +382,7 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "BLEFAROPLASTIA INFERIOR",
       palavrasChave: ["blefaro inferior"],
       excluir: ["tumor", "biopsia", "plasma"],
-      investimento: "",
+      investimento: "R$ 7.000,00",
       texto: "Cirurgia para tratar as bolsas de gordura e o excesso de pele abaixo dos olhos, suavizando o volume e melhorando o contorno das pálpebras inferiores."
     },
     {
@@ -385,7 +391,7 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "BLEFAROPLASTIA | SUPERIOR",
       palavrasChave: ["blefaro superior"],
       excluir: ["tumor", "biopsia", "plasma"],
-      investimento: "",
+      investimento: "R$ 7.000,00",
       texto: "Cirurgia para remover o excesso de pele das pálpebras superiores, suavizando o aspecto de cansaço e deixando o olhar mais leve e descansado."
     },
     {
@@ -394,7 +400,7 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "BLEFAROPLASTIA | SUPERIOR E INFERIOR",
       palavrasChave: ["blefaro superior inferior"],
       excluir: ["tumor", "biopsia", "plasma"],
-      investimento: "",
+      investimento: "R$ 11.000,00",
       texto: "Cirurgia para remover o excesso de pele e tratar as bolsas de gordura das pálpebras superiores e inferiores, suavizando o aspecto de cansaço e deixando o olhar mais leve e descansado."
     },
     {
@@ -402,7 +408,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 86,
       titulo: "TOXINA BOTULÍNICA | TERÇO SUPERIOR, INFERIOR E MASSETER",
       palavrasChave: ["toxina superior inferior masseter", "toxina masseter"],
-      investimento: "",
+      investimento: "R$ 2.000,00",
       texto: "Tratamento injetável que suaviza as linhas de expressão e melhora o contorno facial. No masseter, relaxa a musculatura e reduz seu volume gradualmente, afinando a parte inferior do rosto."
     },
     {
@@ -443,7 +449,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 93,
       titulo: "EXÉRESE DE CISTO | MÉDIA COMPLEXIDADE",
       palavrasChave: ["exerese cisto", "exerese cisto media complexidade"],
-      investimento: "",
+      investimento: "a partir de R$ 1.250,00",
       texto: "Cirurgia para retirar o cisto e a cápsula que o envolve, com cuidados específicos conforme o tamanho, a profundidade e a localização da lesão. A retirada completa ajuda a reduzir a chance de o cisto voltar no mesmo local."
     },
     {
@@ -460,7 +466,7 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "EXÉRESE DE LESÃO | MÉDIA COMPLEXIDADE",
       palavrasChave: ["exerese media complexidade", "exerese lesao media complexidade", "exerese corpo", "exerese rosto", "exerese face"],
       excluir: ["cisto", "lipoma"],
-      investimento: "",
+      investimento: "a partir de R$ 900,00",
       texto: "Cirurgia para retirar uma lesão da pele que exige cuidados adicionais pelo tamanho, profundidade ou localização, com atenção ao fechamento e à cicatrização da área."
     },
     {
@@ -524,7 +530,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 49,
       titulo: "LASER DE CO2",
       palavrasChave: ["laser co2"],
-      investimento: "",
+      investimento: "a partir de R$ 4.000,00",
       texto: "**CORTE CIRÚRGICO:** Utilização do laser de CO2 para realizar as incisões nas pálpebras, com precisão e controle do sangramento, podendo contribuir para maior conforto no pós-operatório.\n\n**RESURFACING | CORTESIA:** Aplicação do laser de CO2 para renovar a pele e estimular a produção de colágeno, melhorando a textura e suavizando linhas finas e rugas na região tratada."
     },
     {
@@ -548,7 +554,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 79,
       titulo: "LASER ÉRBIUM | ÁREA DOS OLHOS",
       palavrasChave: ["laser olhos", "laser erbium"],
-      investimento: "",
+      investimento: "a partir de R$ 650,00",
       texto: "Tratamento que promove a renovação da pele e estimula a produção de colágeno, suavizando linhas finas e rugas ao redor dos olhos e melhorando a textura da região."
     },
     {
@@ -580,7 +586,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 69,
       titulo: "LIFTERA | ROSTO E PESCOÇO",
       palavrasChave: ["liftera rosto pescoco"],
-      investimento: "",
+      investimento: "R$ 7.700,00",
       texto: "Tecnologia com exclusividade médica, que promove efeito lifting sem cirurgia, estimula o colágeno e melhora a flacidez do rosto e do pescoço. Também auxilia na redução de gordura localizada, valorizando o contorno do rosto e a região da papada."
     },
     {
@@ -588,7 +594,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 82,
       titulo: "LIFTERA | PESCOÇO",
       palavrasChave: ["liftera pescoco"],
-      investimento: "",
+      investimento: "R$ 3.000,00",
       texto: "Tecnologia de uso exclusivo médico que utiliza ultrassom microfocado para um efeito lifting sem cirurgia. Estimula a produção de colágeno para dar mais firmeza à pele do pescoço e pode ajudar a reduzir a gordura localizada na papada, definindo melhor o contorno abaixo do queixo."
     },
     {
@@ -596,7 +602,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 68,
       titulo: "LIFTERA | ROSTO",
       palavrasChave: ["liftera rosto"],
-      investimento: "",
+      investimento: "R$ 4.700,00",
       texto: "Tecnologia com exclusividade médica, que promove efeito lifting sem cirurgia, estimula o colágeno e melhora a firmeza da pele. Também auxilia na redução de gordura localizada, deixando o contorno facial mais definido."
     },
     {
@@ -612,7 +618,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 70,
       titulo: "LIFTERA | ÁREA DOS OLHOS",
       palavrasChave: ["liftera olhos"],
-      investimento: "",
+      investimento: "R$ 1.500,00",
       texto: "Tecnologia que promove efeito lifting sem cirurgia e estimula a produção de colágeno, melhorando a firmeza da pele e suavizando linhas finas ao redor dos olhos, para um olhar mais aberto e descansado."
     },
     {
@@ -628,7 +634,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 60,
       titulo: "LIFTING DE SUPERCÍLIOS | TÉCNICA DE CASTANHARES",
       palavrasChave: ["lifting supercilio", "lifting sobrancelha", "brow lift", "castanhares supercilio"],
-      investimento: "",
+      investimento: "a partir de R$ 6.000,00",
       texto: "Cirurgia que eleva e reposiciona as sobrancelhas, proporcionando um olhar mais aberto e uma expressão mais leve."
     },
     {
@@ -645,7 +651,7 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "LUZ INTENSA PULSADA (LIP) | VERMELHIDÃO E VASINHOS",
       palavrasChave: ["lip"],
       excluir: ["oftalmo", "glow"],
-      investimento: "",
+      investimento: "R$ 1.200,00",
       texto: "Tratamento com pulsos de luz que atua nos pequenos vasos sanguíneos da pele, ajudando a reduzir a vermelhidão e os vasinhos aparentes, deixando o tom da pele mais uniforme."
     },
     {
@@ -678,7 +684,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 72,
       titulo: "MMP CAPILAR | 01 SESSÃO",
       palavrasChave: ["mmp capilar", "mmp capilar 1 sessoes"],
-      investimento: "",
+      investimento: "R$ 680,00",
       texto: "Tratamento que aplica medicamentos diretamente no couro cabeludo por meio de microagulhas, auxiliando no controle da queda, no fortalecimento dos fios e no estímulo ao crescimento capilar.\n\n## FOTOBIOMODULAÇÃO CAPILAR | CORTESIA\n\nAplicação de luz no couro cabeludo que auxilia na saúde dos folículos e no crescimento capilar, complementando o tratamento com MMP."
     },
     {
@@ -686,7 +692,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 91,
       titulo: "MMP FACIAL | CICATRIZES DE ACNE",
       palavrasChave: ["mmp face", "mmp facial", "mmp acne"],
-      investimento: "",
+      investimento: "R$ 570,00",
       texto: "Tratamento com microagulhas e aplicação de ativos na pele, que estimula a produção de colágeno e auxilia na melhora das cicatrizes de acne, suavizando irregularidades e deixando a textura mais uniforme."
     },
     {
@@ -702,7 +708,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 77,
       titulo: "NCTF | REVITALIZAÇÃO DA PELE",
       palavrasChave: ["nctf"],
-      investimento: "",
+      investimento: "R$ 1.800,00",
       texto: "Tratamento injetável com ácido hialurônico e uma combinação de vitaminas, minerais e aminoácidos que ajuda a melhorar a hidratação, a luminosidade e a textura da pele, suavizando linhas finas."
     },
     {
@@ -710,7 +716,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 78,
       titulo: "NCTF CAPILAR | ASSOCIADO AO MMP",
       palavrasChave: ["nctf couro cabeludo", "nctf capilar"],
-      investimento: "",
+      investimento: "R$ 1.800,00",
       texto: "Combinação de ácido hialurônico, vitaminas, aminoácidos, minerais e antioxidantes aplicada no couro cabeludo por meio do MMP. Esses componentes ajudam na hidratação e nos cuidados com o couro cabeludo, complementando o tratamento capilar."
     },
     {
@@ -726,7 +732,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 40,
       titulo: "PEELING SUPERFICIAL",
       palavrasChave: ["peeling superficial", "peeling quimico"],
-      investimento: "",
+      investimento: "a partir de R$ 366,17",
       incluirPadrao: false,
       texto: "**Cuidados essenciais após o peeling químico**\n\n- Lavar o rosto 6 horas após a aplicação do peeling, com água fria e sabonete suave.\n- Manter uso de filtro solar pela manhã e à tarde e aplicar (Epidrat Calm, Cicalfate Avène, Nutrel Balm Suavizante) creme à noite durante uma semana (suspender a fórmula com ácido).\n- Não puxar a pele, deixar que a descamação ocorra naturalmente.\n- Não se expor ao sol.\n- Não se expor ao frio ou calor excessivos (próximo ao forno ou freezer por exemplo).\n- Não usar maquiagens ou cosméticos, além dos prescritos, durante uma semana.\n- Evitar banhos muito quentes. Sensações de ardência e secura nas áreas aplicadas são normais e costumam durar poucos dias.\n- Devido à evaporação do peeling pode ocorrer descamação em áreas não aplicadas como orelhas, pálpebras, pescoço, porém com menor intensidade.\n- Caso a irritação seja maior, entrar em contato com a clínica."
     },
@@ -762,7 +768,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 109,
       titulo: "PROFHILO | ROSTO",
       palavrasChave: ["profhilo"],
-      investimento: "",
+      investimento: "R$ 2.300,00",
       texto: "Tratamento injetável à base de ácido hialurônico de alta pureza, que promove hidratação profunda, estimula a produção de colágeno e elastina e melhora a firmeza e a qualidade da pele. Auxilia na redução da flacidez e das linhas finas, proporcionando uma aparência mais viçosa, revitalizada e natural."
     },
     {
@@ -770,7 +776,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 94,
       titulo: "PRX | REVITALIZAÇÃO DA PELE",
       palavrasChave: ["prx"],
-      investimento: "",
+      investimento: "R$ 2.000,00",
       texto: "Tratamento com aplicação de uma solução de ácidos que ajuda a melhorar a firmeza, a textura e a luminosidade da pele, suavizando linhas finas e contribuindo para uma aparência mais uniforme."
     },
     {
@@ -778,7 +784,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 66,
       titulo: "CORREÇÃO DE PTOSE PALPEBRAL",
       palavrasChave: ["ptose"],
-      investimento: "",
+      investimento: "a partir de R$ 3.138,60",
       texto: "Cirurgia para elevar a pálpebra superior caída, melhorando a abertura dos olhos e a posição da pálpebra."
     },
     {
@@ -786,7 +792,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 92,
       titulo: "SKINBOOSTER",
       palavrasChave: ["skin booster"],
-      investimento: "",
+      investimento: "a partir de R$ 990,00",
       texto: "Tratamento injetável com ácido hialurônico para melhorar a hidratação e a textura da pele, suavizando linhas finas e proporcionando mais maciez e luminosidade."
     },
     {
@@ -834,7 +840,7 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "DACRIOCISTORRINOSTOMIA",
       palavrasChave: ["dacriocistorrinostomia"],
       excluir: ["anestesista", "auxiliar"],
-      investimento: "",
+      investimento: "R$ 10.000,00",
       texto: "Cirurgia que cria uma nova passagem para a drenagem das lágrimas até o nariz, ajudando a aliviar o lacrimejamento causado pela obstrução do canal lacrimal."
     },
     {
@@ -842,21 +848,21 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "EXÉRESE DE CALÁZIO",
       palavrasChave: ["calazio"],
       excluir: ["anestesista", "auxiliar"],
-      investimento: "",
+      investimento: "R$ 1.300,00",
       texto: "Pequena cirurgia para remover o conteúdo do nódulo formado pela obstrução de uma glândula da pálpebra, ajudando a reduzir o volume e o desconforto local."
     },
     {
       id: "exerese-de-cisto-de-moll",
       titulo: "EXÉRESE DE CISTO DE MOLL",
       palavrasChave: ["exerese cisto moll", "cisto moll"],
-      investimento: "",
+      investimento: "R$ 2.994,22",
       texto: "Procedimento para retirar um pequeno cisto com líquido que se forma próximo à borda da pálpebra."
     },
     {
       id: "infiltracao-intralesional",
       titulo: "INFILTRAÇÃO INTRALESIONAL",
       palavrasChave: ["infiltracao intralesional"],
-      investimento: "",
+      investimento: "a partir de R$ 550,00",
       texto: "Aplicação de medicamento diretamente na lesão para agir na área tratada, auxiliando no controle da inflamação ou na redução do seu volume."
     },
     {
@@ -864,7 +870,7 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "RESSECÇÃO DE TUMORES PALPEBRAIS",
       palavrasChave: ["reseccao tumores palpebrais", "reseccao tumor palpebral"],
       excluir: ["anestesista", "auxiliar", "reconstrucao"],
-      investimento: "",
+      investimento: "R$ 2.824,74",
       texto: "Cirurgia para retirar lesões das pálpebras, com cuidado para preservar o formato e a função da região na proteção dos olhos."
     },
     {
@@ -872,42 +878,42 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "PEELING ÁCIDO RETINÓICO COM JESSNER | 01 SESSÃO",
       palavrasChave: ["peeling jessner 1 sessoes", "peeling retinoico 1 sessoes", "peeling retinoico sessoes"],
       excluir: ["3 sessoes", "salicilico"],
-      investimento: "",
+      investimento: "a partir de R$ 366,17",
       texto: "Associação de ácidos que promove a renovação da pele, ajudando a suavizar manchas e a melhorar a textura e a luminosidade."
     },
     {
       id: "anatomopatologico-01-frasco",
       titulo: "ANATOMOPATOLÓGICO | 01 FRASCO",
       palavrasChave: ["anatomopatologico 1 frasco"],
-      investimento: "",
+      investimento: "R$ 240,00",
       texto: "Análise em laboratório do tecido retirado durante o procedimento e enviado em um frasco, para identificar a natureza da lesão e auxiliar no diagnóstico."
     },
     {
       id: "anatomopatologico-mais-de-02-frascos",
       titulo: "ANATOMOPATOLÓGICO | MAIS DE 02 FRASCOS",
       palavrasChave: ["anatomopatologico 2 frascos", "anatomopatologico mais 2 frascos", "anatomopatologico acima 2 frascos"],
-      investimento: "",
+      investimento: "R$ 210,00",
       texto: "Análise em laboratório dos tecidos retirados durante o procedimento e enviados em mais de dois frascos, para identificar a natureza das lesões e auxiliar no diagnóstico."
     },
     {
       id: "bioimpedancia",
       titulo: "BIOIMPEDÂNCIA",
       palavrasChave: ["bioimpedancia", "bioimpedanciometria"],
-      investimento: "",
+      investimento: "a partir de R$ 100,00",
       texto: "Exame que estima a composição corporal, incluindo a quantidade de gordura, massa muscular e água no organismo, auxiliando no acompanhamento nutricional."
     },
     {
       id: "biopsia-por-punch",
       titulo: "BIÓPSIA POR PUNCH | 01 PONTO",
       palavrasChave: ["biopsia punch"],
-      investimento: "",
+      investimento: "a partir de R$ 580,00",
       texto: "Retirada de uma pequena amostra da pele com um instrumento circular, para análise em laboratório e esclarecimento do diagnóstico."
     },
     {
       id: "blefaro-superior-inferior-ptose",
       titulo: "BLEFAROPLASTIA SUPERIOR E INFERIOR + CORREÇÃO DE PTOSE BILATERAL",
       palavrasChave: ["blefaro superior inferior ptose"],
-      investimento: "",
+      investimento: "R$ 17.600,00",
       texto: "Cirurgia que trata o excesso de pele e as bolsas de gordura das pálpebras, associada à correção da queda das pálpebras superiores dos dois olhos, melhorando a abertura e o contorno do olhar."
     },
     {
@@ -915,21 +921,21 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "BLEFAROPLASTIA SUPERIOR BILATERAL + CORREÇÃO DE PTOSE BILATERAL",
       palavrasChave: ["blefaro superior ptose"],
       excluir: ["inferior"],
-      investimento: "",
+      investimento: "a partir de R$ 9.000,00",
       texto: "Cirurgia que remove o excesso de pele das pálpebras superiores e corrige sua queda nos dois olhos, proporcionando uma abertura maior do olhar."
     },
     {
       id: "cantopexia",
       titulo: "CANTOPEXIA | MONOCULAR",
       palavrasChave: ["cantopexia"],
-      investimento: "",
+      investimento: "R$ 1.110,00",
       texto: "Cirurgia para reforçar a sustentação do canto externo da pálpebra de um olho, melhorando sua firmeza e posição."
     },
     {
       id: "cantoplastia-tarsal-strip",
       titulo: "CANTOPLASTIA TARSAL STRIP | MONOCULAR",
       palavrasChave: ["cantoplastia tarsal strip"],
-      investimento: "",
+      investimento: "R$ 4.000,00",
       texto: "Cirurgia que ajusta e reforça a sustentação da pálpebra inferior de um olho, corrigindo a flacidez e melhorando seu contato com a superfície ocular."
     },
     {
@@ -937,14 +943,14 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "CAUTERIZAÇÃO QUÍMICA",
       palavrasChave: ["cauterizacao quimica"],
       excluir: ["uterino"],
-      investimento: "",
+      investimento: "a partir de R$ 500,00",
       texto: "Aplicação de uma substância química diretamente sobre a lesão para tratar e remover o tecido alterado."
     },
     {
       id: "clipping-ungueal",
       titulo: "CLIPPING UNGUEAL",
       palavrasChave: ["clipping ungueal"],
-      investimento: "",
+      investimento: "R$ 200,00",
       texto: "Coleta de um pequeno fragmento da unha para análise em laboratório, auxiliando na investigação de micose e de outras alterações das unhas."
     },
     {
@@ -952,7 +958,7 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "CRIOTERAPIA",
       palavrasChave: ["crioterapia"],
       excluir: ["conjuntival"],
-      investimento: "",
+      investimento: "a partir de R$ 380,00",
       texto: "Tratamento que utiliza o frio intenso para congelar e eliminar lesões da pele, como verrugas e algumas queratoses."
     },
     {
@@ -960,14 +966,14 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "CURETAGEM COM OU SEM ELETROCAUTERIZAÇÃO",
       palavrasChave: ["curetagem", "curetagem eletrocoagulacao", "curetagem eletrocoagulacao lesao"],
       excluir: ["uterina", "uterino", "ginecologica", "molusco", "mucosas"],
-      investimento: "",
+      investimento: "a partir de R$ 400,00",
       texto: "Remoção da lesão por raspagem com um instrumento específico, podendo ser associada à cauterização para complementar o tratamento e controlar pequenos sangramentos."
     },
     {
       id: "curetagem-de-molusco",
       titulo: "CURETAGEM DE MOLUSCO",
       palavrasChave: ["curetagem molusco"],
-      investimento: "",
+      investimento: "a partir de R$ 450,00",
       texto: "Procedimento para retirar as pequenas lesões do molusco contagioso, uma infecção viral que provoca bolinhas na pele."
     },
     {
@@ -975,30 +981,568 @@ window.HOCDERMA_TIMBRADO = {
       titulo: "CORREÇÃO DE ECTRÓPIO OU ENTRÓPIO",
       palavrasChave: ["ectropio", "entropio", "ectropico"],
       excluir: ["anestesista", "auxiliar"],
-      investimento: "",
+      investimento: "a partir de R$ 500,00",
       texto: "Cirurgia para corrigir a pálpebra que está virada para fora ou para dentro, melhorando sua posição e ajudando a aliviar a irritação e proteger os olhos."
     },
     {
       id: "fios-lisos-glabela",
       titulo: "FIOS LISOS | GLABELA",
       palavrasChave: ["fios lisos glabela"],
-      investimento: "",
+      investimento: "R$ 2.500,00",
       texto: "Aplicação de fios absorvíveis na região entre as sobrancelhas, com o objetivo de estimular o colágeno e suavizar as linhas marcadas na pele."
     },
     {
       id: "fios-lisos-palpebras-inferiores",
       titulo: "FIOS LISOS | PÁLPEBRAS INFERIORES",
       palavrasChave: ["fios lisos palpebra inferior", "fios lisos palpebras inferiores"],
-      investimento: "",
+      investimento: "R$ 2.500,00",
       texto: "Aplicação de fios absorvíveis abaixo dos olhos, com o objetivo de estimular o colágeno e melhorar a firmeza e as linhas finas da região."
     },
     {
       id: "harmonyca",
       titulo: "HARMONYCA",
       palavrasChave: ["harmonyca"],
-      investimento: "",
+      investimento: "R$ 2.800,00",
       texto: "Tratamento injetável que combina ácido hialurônico e hidroxiapatita de cálcio para dar sustentação ao rosto e estimular a produção de colágeno, melhorando a firmeza e o contorno facial."
     }
+  ];
+
+  /* ==========================================================================
+   * ★ VALORES DOS PROCEDIMENTOS NO FEEGOW (v1.4.7) ★
+   *
+   * [ID do procedimento, valor em CENTAVOS, nome normalizado]. Gerado da API do Feegow
+   * (GET /procedures/list, campo "valor") em 26/11/2026; procedimento sem valor (0) não entra.
+   * Serve só de RESERVA do "Investimento": o valor do item da própria proposta (o negociado)
+   * sempre tem prioridade; quando o item está sem valor, vale o do procedimento (pelo ID do
+   * item, ou pelo nome exato normalizado) e, por fim, o "investimento" da entrada do catálogo.
+   * ======================================================================== */
+
+  const VALORES_FEEGOW = [
+    [11, 24000, "biometria ultra sonica monocular"],
+    [22, 12000, "avaliacao de vias lacrimais teste de schirmer monocular"],
+    [24, 28000, "curva tensional diaria binocular"],
+    [28, 18000, "exame de motilidade ocular teste ortoptico binocular"],
+    [29, 11000, "fundoscopia sob midriases binocular"],
+    [31, 18000, "mapeamento de retina oftalmoscopia indireta monocular"],
+    [32, 22000, "microscopia especular de cornea monocular"],
+    [34, 16000, "paquimetria ultra sonica monocular"],
+    [45, 9416, "curativo oftalmologico"],
+    [54, 104620, "sutura de conjuntiva"],
+    [58, 20924, "retirada de corpo estranho da cornea"],
+    [61, 993890, "implante de anel intra estromal"],
+    [65, 889270, "sutura de cornea com ou sem hernia de iris"],
+    [68, 125629, "paracentese da camara anterior"],
+    [70, 366170, "remocao de hifema"],
+    [71, 575410, "retirada de corpo estranho da camara anterior"],
+    [72, 44000, "capsulotomia yag ou cirurgica monocular"],
+    [82, 1098510, "endolaser endodiatermia"],
+    [87, 993890, "retirada de oleo de silicone via pars plana cirurgiao"],
+    [89, 659106, "troca fluido gasosa cirurgiao"],
+    [92, 980000, "vitrectomia via pars plana posterior cirurgiao"],
+    [96, 732340, "enucleacao ou evisceracao com ou sem implante"],
+    [108, 42000, "iridectomia laser ou cirurgica monocular"],
+    [116, 209240, "injecao de toxina botulinica monocular"],
+    [125, 418480, "tumor de orbita exerese"],
+    [128, 700000, "blefaroplastia superior binocular"],
+    [136, 313860, "ptose palpebral correcao cirurgica unilateral cirurgiao"],
+    [138, 700000, "retracao palpebral monocular"],
+    [139, 700000, "simblefaro com ou sem enxerto correcao cirurgica"],
+    [143, 600000, "triquiase cirurgico monocular"],
+    [152, 606796, "retinopexia pneumatica"],
+    [159, 400000, "sondagem das vias lacrimais com ou sem lavagem"],
+    [165, 35000, "retossigmoidoscopia flexivel c biopsia e ou citologia"],
+    [166, 28000, "retossigmoidoscopia rigida c biopsia e ou citologia"],
+    [201, 21000, "cerumen remocao"],
+    [203, 48000, "corpos estranhos polipos ou biopsia em consultorio"],
+    [205, 21970, "curativo de ouvido cada"],
+    [206, 31386, "corpos estranhos retirada em consultorio nariz"],
+    [210, 50000, "cauterizacao quimica ate 05 lesoes"],
+    [212, 80000, "biopsia de pele tumores superficiais tecido celular subcutaneo linfonodo superficial etc"],
+    [213, 40000, "curetagem simples de lesoes de pele por grupo de ate 05 lesoes"],
+    [236, 22000, "gonioscopia binocular"],
+    [246, 50000, "consulta de urgencia"],
+    [269, 384370, "remocao de oleo de silicone"],
+    [274, 357825, "transplante de cornea vitrectomia anterior com fixacao ou reposicao de lio"],
+    [283, 20000, "tonometria binocular"],
+    [285, 10000, "teste de sensibilidade de contraste ou de cores monocular"],
+    [286, 18000, "ceratoscopia computadorizada monocular"],
+    [287, 18000, "potencial de acuidade visual monocular"],
+    [318, 25500, "tomografia de coerencia optica monocular"],
+    [321, 21000, "teste de lente esclera semi escleral e rigida"],
+    [324, 8500, "teste de lente externo"],
+    [330, 828000, "tratamento ocular quimioterapico com antiangiogenico lucents"],
+    [332, 188316, "pterigio transplante conjuntival"],
+    [336, 550000, "vitrectomia anterior"],
+    [338, 261550, "implante de silicone dr rogerio ghedin"],
+    [340, 600000, "ectropio entropio monocular"],
+    [342, 77000, "anestesista cirurgia de catarata"],
+    [344, 900000, "tumor palpebral com reconstrucao total"],
+    [348, 1528000, "facectomia com implante de lio panoptix"],
+    [349, 559717, "facectomia com implante de lio ma60ac"],
+    [350, 559717, "facectomia com implante de lio sa60at"],
+    [351, 559717, "facectomia com implante de lio sn60wf"],
+    [352, 1525500, "facectomia com implante de lio vivit"],
+    [353, 1801500, "facectomia com implante de lio vivity torica"],
+    [354, 856252, "facectomia com implante de lio tecnis multifocal"],
+    [355, 960000, "facectomia com implante de lio symfony"],
+    [357, 551562, "diferenca de lio eyhance"],
+    [358, 250626, "diferenca de lio sensar"],
+    [359, 1234780, "diferenca de lio symfony"],
+    [361, 1346200, "diferenca de lio symfony torica"],
+    [362, 1112360, "diferenca de lio sinergy"],
+    [363, 642189, "diferenca de lio tecnis multifocal"],
+    [364, 250626, "diferenca de lio tecnis mono"],
+    [365, 850045, "diferenca de lio tecnis multifocal torica"],
+    [366, 291053, "diferenca de lio clareon autonome"],
+    [367, 250626, "diferenca de lio ma60ac"],
+    [368, 1259000, "diferenca de lio panoptix"],
+    [370, 64000, "angiofluoresceinografia monocular"],
+    [371, 38000, "teste provocativo para glaucoma binocular"],
+    [372, 250626, "diferenca de lio sa60at"],
+    [373, 250626, "diferenca de lio sn60wf"],
+    [374, 1251000, "diferenca de lio vivity"],
+    [375, 250626, "diferenca de lio type 7b"],
+    [377, 1435500, "diferenca lio vivity torica"],
+    [379, 1435500, "diferenca de lio panoptix torica"],
+    [381, 48000, "fotocoagulacao laser por sessao monocular"],
+    [382, 55000, "pentacan binocular"],
+    [386, 300000, "xantelasma monocular"],
+    [387, 77419, "epilacao por eletrolise por sessao"],
+    [388, 31400, "auto transplante conjuntival"],
+    [394, 755416, "facectomia com implante de lio eyhance"],
+    [395, 559717, "facectomia com implante de lio sensar"],
+    [396, 1380000, "facectomia com implante de lio sinergy"],
+    [397, 559717, "facectomia com implante de lio tecnis mono"],
+    [399, 615689, "facectomia com implante de lio clareon autonome"],
+    [400, 559717, "facectomia com implante de lio type 7b"],
+    [403, 2197020, "implante de lente facica artisan"],
+    [404, 1801500, "facectomia com implante de lio panoptix torica"],
+    [405, 710893, "facectomia com implante de lio monofocal torica sn6at"],
+    [406, 1043750, "facectomia com implante de lio multifocal torica"],
+    [408, 1060000, "facectomia com implante de lio symfony torica"],
+    [421, 640274, "palpebra reconstrucao parcial com ou sem resseccao de tumor cirurgiao"],
+    [427, 32000, "ultra sonografia diagnostica monocular"],
+    [431, 21000, "biomicroscopia de fundo"],
+    [455, 260, "exercicios de pleoptica"],
+    [475, 48000, "exerese tangencial shaving por grupo de ate 05 lesoes"],
+    [477, 121500, "cantoplastia"],
+    [479, 420000, "exerese de tumor maligno de pele"],
+    [488, 250000, "aplicacao intravitrea avastin"],
+    [495, 156930, "pterigio exerese"],
+    [504, 3200, "pacote mat med retinografia fluorescente"],
+    [505, 2600, "pacote mat med retinografia"],
+    [514, 26000, "escleroterapia de veias por sessao sem insumos"],
+    [515, 8000, "ecg convencional de ate 12 derivacoes"],
+    [527, 44000, "endoscopia digestiva alta"],
+    [541, 35500, "pacote de consulta oftalmologica"],
+    [546, 73200, "anel intra estromal excedente 140 e 210 graus"],
+    [547, 41800, "anel intra estromal excedente 90 120 e 160 graus"],
+    [557, 550000, "recobrimento conjuntival"],
+    [566, 70000, "diferenca pterigio cola"],
+    [573, 500000, "diferenca refrativa femtolasik"],
+    [585, 800000, "delaminacao corneana com fotoablacao estromal femtolasik"],
+    [586, 450000, "fotoablacao de superficie convencional prk"],
+    [611, 270000, "olho seco ilux"],
+    [612, 19000, "campimetria computadorizada monocular"],
+    [613, 1654170, "facectomia com implante de lio sinergy torica"],
+    [614, 1240500, "diferenca de lio sinergy torica"],
+    [619, 12600, "pacote consulta oftalmologica"],
+    [624, 38000, "pacote ceratoscopia paquimetria microscopia mapeamento"],
+    [631, 22000, "retinografia so honorario monocular"],
+    [644, 142341, "facectomia pacote petrobras"],
+    [664, 789000, "tratamento ocular quimioterapico com antiangiogenico ozurdex"],
+    [676, 130000, "calazio unilateral"],
+    [680, 700000, "blefaroplastia inferior binocular"],
+    [683, 99300, "agulhamento"],
+    [684, 938441, "cirurgias fistulizantes antiglaucomatosas"],
+    [685, 282474, "resseccao de tumores palpebrais cirurgiao"],
+    [687, 850632, "facectomia com implante de lio eyhance torica"],
+    [688, 680333, "diferenca de lio eyhance torica"],
+    [695, 22000, "teste ergometrico computadorizado inclui ecg basal convencional"],
+    [696, 32000, "ecocardiograma"],
+    [697, 24000, "monitorizacao ambulatorial da pressao arterial mapa 24 horas"],
+    [698, 24000, "holter de 24 horas 3 canais digital"],
+    [699, 167392, "epilacao"],
+    [703, 299213, "tumor de conjuntiva exerese"],
+    [704, 54000, "peeling quimico facial superficial 01 sessao"],
+    [705, 58000, "peeling quimico corporal 01 sessao"],
+    [706, 146500, "toxina botulinica terco superior feminino"],
+    [707, 167392, "toxina botulinica terco superior masculino"],
+    [708, 156930, "masseter bruxismo"],
+    [709, 230000, "toxina botulinica hiperidrose axilas maos pes"],
+    [710, 150000, "preenchimento com acido hialuronico 01 seringa"],
+    [711, 270000, "bioestimulador de colageno facial sculptra 01 seringa"],
+    [712, 56000, "mesoterapia 01 sessao"],
+    [713, 57000, "mmp facial melasma"],
+    [715, 45000, "curetagem de molusco ate 05 lesoes"],
+    [716, 120000, "curetagem de molusco de 11 a 20 lesoes"],
+    [717, 70000, "curetagem de molusco de 06 a 10 lesoes"],
+    [722, 84000, "microagulhamento 01 sessao"],
+    [723, 38000, "crioterapia de 01 a 04 lesoes"],
+    [724, 56000, "crioterapia de 01 a 06 lesoes"],
+    [726, 99000, "skinvive ou skin booster 01 seringa"],
+    [727, 41848, "microagulhamento para cicatriz de acne 01 sessao"],
+    [728, 141237, "masseter terco inferior"],
+    [734, 45000, "intradermoterapia gordura corporal"],
+    [735, 58000, "intradermoterapia gordura de papada"],
+    [736, 20000, "milium"],
+    [739, 80000, "pacote consulta ecg teste ergometrico ecodopplercardiograma transtoracico"],
+    [742, 73234, "zz"],
+    [743, 94158, "zzz"],
+    [744, 125544, "mmp facial melasma 03 sessoes"],
+    [745, 156930, "mmp corporal estrias 03 sessoes"],
+    [746, 188316, "mmp capilar 03 sessoes"],
+    [747, 177854, "peeling microagulhamento 03 sessoes"],
+    [748, 55000, "eletrocoagulacao de lesoes de pele e mucosas com ou sem curetagem ate 05 lesoes"],
+    [749, 68000, "mmp capilar"],
+    [750, 65000, "mmp corporal estrias"],
+    [751, 55000, "infiltracao intralesional cicatriz pequena"],
+    [752, 68000, "infiltracao intralesional cicatriz media"],
+    [753, 80000, "infiltracao intralesional cicatriz grande"],
+    [755, 36617, "peeling acido retinoico 01 sessao"],
+    [756, 52310, "peeling acido retinoico com jessner 01 sessao"],
+    [765, 1000000, "dacriocistorrinostomia monocular"],
+    [766, 52310, "zzzzz"],
+    [768, 40000, "em consultorio no horario normal ou preestabelecido"],
+    [771, 143000, "anestesista vitrectomia"],
+    [782, 397556, "radiacao para cross linking corneano monocular"],
+    [784, 828000, "tratamento ocular quimioterapico com antiangiogenico eylia"],
+    [795, 200000, "toxina botulinica terco superior inferior masseter"],
+    [799, 210000, "preenchimento olheira ou labial 01 seringa"],
+    [800, 640000, "preenchimento com acido hialuronico 05 seringas"],
+    [801, 768000, "preenchimento com acido hialuronico 06 seringas"],
+    [802, 136000, "skin booster"],
+    [804, 240000, "bioestimulador corporal 01 seringa"],
+    [805, 36617, "peeling superficial retinoico"],
+    [806, 36617, "peeling superficial salicilico facial"],
+    [807, 62772, "peeling superficial salicilico corporal"],
+    [808, 52310, "peeling superficial acido tricloroacetico ata"],
+    [809, 80000, "peeling superficial cross ata 90 01 sessao"],
+    [810, 57541, "peeling superficial jessner retinoico 01 sessao"],
+    [811, 148000, "peeling superficial jessner retinoico 03 sessoes"],
+    [812, 57541, "peeling superficial face salicilico retinoico 01 sessao"],
+    [813, 88927, "peeling superficial gluteo salicilico retinoico 01 sessao"],
+    [814, 188316, "peeling superficial gluteo salicilico retinoico 03 sessoes"],
+    [815, 136006, "peeling superficial face salicilico retinoico 03 sessoes"],
+    [817, 36617, "eletrocauterizacao ate 10 lesoes"],
+    [818, 42800, "crioterapia queratose actinica ate 05 lesoes"],
+    [819, 42800, "crioterapia queratose seborreica ate 05 lesoes"],
+    [820, 100000, "verruga viral 01 lesao 03 sessoes"],
+    [821, 58000, "biopsia por punch 01 ponto"],
+    [822, 90000, "exerese corpo baixa complexidade"],
+    [823, 170000, "exerese corpo media complexidade"],
+    [824, 300000, "exerese corpo alta complexidade"],
+    [825, 125000, "exerese rosto baixa complexidade"],
+    [826, 240000, "zzzzzz"],
+    [827, 55000, "milium ate 05 lesoes"],
+    [828, 52310, "z"],
+    [829, 41848, "desbastamento de verruga plantar 01 lesao grande"],
+    [830, 41848, "desbastamento de verruga plantar ate 03 lesoes pequenas"],
+    [831, 36617, "zzzzzzzzzzzzzz"],
+    [832, 100000, "lobuloplastia orelha fendida cirurgia ou ata 03 sessoes"],
+    [833, 83696, "cirurgia de queloide ate 05 cm 01 lesao"],
+    [834, 104620, "cirurgia de queloide de 05 a 10 cm 01 lesao"],
+    [835, 136006, "cirurgia de queloide maior de 10 cm 01 lesao"],
+    [836, 104620, "cirurgia de unha"],
+    [837, 120000, "infiltracao intralesional cicatriz pequena 03 sessoes"],
+    [838, 165000, "infiltracao intralesional cicatriz media 03 sessoes"],
+    [839, 75000, "curetagem com ou sem eletrocauterizacao ate 05 lesoes"],
+    [842, 104620, "shaving siringoma ate 05 lesoes"],
+    [843, 128000, "exerese de hidrocistoma ate 05 lesoes"],
+    [844, 48000, "estereo foto de papila monocular"],
+    [845, 418480, "reconstrucao de palpebra unilateral"],
+    [847, 299422, "exerese cisto de moll"],
+    [848, 500000, "puntoplastia oclusao pontos monocular"],
+    [849, 8500, "titimus teste de estereopsia"],
+    [850, 60000, "anestesista entropio"],
+    [851, 111000, "cantopexia unilateral"],
+    [852, 700000, "brow lift bilateral"],
+    [858, 165000, "anestesista vitrectomia facectomia"],
+    [863, 90708, "dermatocalaze ou blefarocalaze unilateral"],
+    [864, 300000, "blefaroplastia dr rogerio"],
+    [865, 165000, "anestesista dacriocistorrinostomia"],
+    [866, 1042000, "palpebra reconstrucao total com ou sem resseccao de tumor por estagio"],
+    [867, 80000, "anestesista reconstrucao total de palpebra"],
+    [874, 993890, "facectomia com implante de lio tecnis mono trabeculotomia monocular"],
+    [878, 176000, "anestesista bleflaroplastia superior e inferior"],
+    [879, 80000, "anestesista xantelasma"],
+    [882, 390000, "preenchimento com acido hialuronico 04 seringas"],
+    [883, 156930, "drenagem de cisto sebaceo"],
+    [887, 55000, "anestesista ptose"],
+    [888, 143000, "anestesista bleflaroplastia superior"],
+    [889, 143000, "anestesista bleflaroplastia inferior"],
+    [891, 143000, "anestesista cirurgias fistulizantes antiglaucomatosas"],
+    [897, 55500, "pct 1 paquimetria microscopia ceratoscopia"],
+    [898, 107500, "pct 2 paquimetria microscopia ceratoscopia mepeamento retinografia"],
+    [899, 169000, "pct 3 paquimetria microscopia ceratoscopia mapeamento retinografia oct pentacam"],
+    [900, 120000, "anestesista retirada de oleo de silicone"],
+    [903, 83700, "injecao retrobulbar"],
+    [906, 120000, "anestesista implante de silicone"],
+    [909, 204009, "pterigio lente escleral"],
+    [910, 200000, "exerese rosto media complexidade"],
+    [911, 800343, "facectomia com implante de lio fullranger"],
+    [912, 1046200, "facectomia com implante de lio intensity"],
+    [913, 546239, "diferenca de lio fullranger"],
+    [914, 1072270, "diferenca de lio intensity"],
+    [916, 500000, "diferenca femto anel estromal"],
+    [920, 27000, "avaliacao anestesica"],
+    [921, 31386, "eletrocauterizacao dr rogerio"],
+    [922, 38000, "consulta cardiologica eletrocardiograma no horario normal ou preestabelecido"],
+    [923, 58000, "teste de teller binocular"],
+    [924, 559717, "facectomia com implante de lio isert 255"],
+    [925, 250626, "diferenca de lio isert 255"],
+    [926, 710893, "facectomia com implante de lio vivinex torica"],
+    [927, 584172, "diferenca de lio vivinex torica"],
+    [933, 120000, "anestesista reabordagem bleflaroplastia"],
+    [934, 546239, "diferenca de lio zeiss at lisa 809"],
+    [937, 755416, "facectomia com implante de lio vivinex impress"],
+    [938, 1937500, "facectomia com implante de lio vivinex gemetric trifocal"],
+    [939, 2372500, "facectomia com implante de lio vivinex gemetric trifocal torica"],
+    [940, 551562, "diferenca lio vivinex impress"],
+    [941, 1623500, "diferenca lio vivinex gemetric trifocal"],
+    [942, 1898000, "diferenca lio vivinex gemetric trifocal torica"],
+    [943, 30000, "consulta obstetricia"],
+    [944, 35000, "consulta ginecologia"],
+    [945, 20924, "aspiracao auricular"],
+    [949, 8000, "procedimento diagnostico em citopatologia cervico vaginal oncotica"],
+    [950, 900000, "blefaroplastia superior bilateral com ptose unilateral"],
+    [951, 1200000, "exerese de carcinoma com retalho"],
+    [952, 100000, "anestesista exerese de carcinoma com retalho"],
+    [953, 190000, "peeling yellow peel 03 sessoes"],
+    [954, 75000, "peeling yellow peel"],
+    [955, 250000, "implante de diu kyleena"],
+    [956, 250000, "implante de diu mirena"],
+    [957, 150180, "implante de diu cobre"],
+    [958, 182040, "implante de diu cobre prata"],
+    [959, 161980, "implante de mini diu cobre prata"],
+    [962, 5774, "consulta medica reavaliacao cirurgica"],
+    [965, 50000, "drenagem escafa"],
+    [967, 264530, "implanon"],
+    [969, 450000, "laser co2 cirurgia"],
+    [970, 22000, "avaliacao oftalmologica para enquadramento de pcd"],
+    [971, 200000, "enxerto de membrana amniotica"],
+    [972, 12000, "avaliacao da composicao corporal por bioimpedanciometria"],
+    [973, 55000, "anestesista pterigio"],
+    [974, 551562, "diferenca de lio ma60ma"],
+    [975, 559717, "facectomia com implante de lio ma60ma"],
+    [979, 77000, "anestesista calazio"],
+    [982, 48000, "biopsia de conjuntiva"],
+    [983, 995000, "injecao de tirzapatida bimestral"],
+    [985, 2200000, "presbyonde binocular"],
+    [986, 1287350, "facectomia com implante de lio rayone trifocal torica"],
+    [987, 1195410, "diferenca lio rayone trifocal torica"],
+    [988, 1100000, "presbyonde monocular"],
+    [991, 7149, "zzzzz"],
+    [992, 7149, "zzzzzzzzzzzz"],
+    [993, 7149, "zzzzzzzzzz"],
+    [994, 35131, "exerese de tumor palpebral pacote"],
+    [996, 48000, "microcirurgia para resseccao de papiloma"],
+    [997, 150000, "infiltracao com acido hialuronico quadril"],
+    [998, 1680000, "diferenca de xen"],
+    [999, 240000, "tunel do carpo descompressao centro cirurgico"],
+    [1000, 800000, "femto anel estromal"],
+    [1001, 10000, "bioimpedanciometria ambulatorial exame"],
+    [1002, 2200000, "smile pro binocular"],
+    [1003, 1100000, "smile pro monocular"],
+    [1004, 47000, "taxa de sala cauterizacao qualquer tecnica por sessao"],
+    [1011, 5000, "aplicacao de medicacao"],
+    [1012, 60000, "anestesista diu"],
+    [1013, 100000, "anestesista mapeamento de retina infantil"],
+    [1017, 50000, "consulta psiquiatrica infantil"],
+    [1018, 140000, "pacote implante de dispositivo intra uterino diu hormonal"],
+    [1019, 80000, "corpos estranhos polipos ou biopsia em consultorio acima de 2"],
+    [1020, 70000, "cauterizacao quimica de 06 a 10 lesoes"],
+    [1021, 99000, "curetagem com ou sem eletrocauterizacao de 06 a 10 lesoes"],
+    [1022, 68000, "criocirurgia de neoplasias cutaneas nitrogenio liquido pequena"],
+    [1023, 94000, "criocirurgia de neoplasias cutaneas nitrogenio liquido media"],
+    [1024, 128000, "criocirurgia de neoplasias cutaneas nitrogenio liquido grande"],
+    [1025, 90000, "shaving de 06 a 10 lesoes"],
+    [1026, 80000, "shaving ate 05 lesoes"],
+    [1027, 380000, "exerese rosto alta complexidade"],
+    [1028, 198000, "toxina botulinica terco superior inferior feminino"],
+    [1029, 253000, "microagulhamento peeling pacote"],
+    [1030, 74000, "crioterapia de 06 a 10 lesoes"],
+    [1031, 84000, "eletrocoagulacao de lesoes de pele e mucosas com ou sem curetagem de 06 a 10 lesoes"],
+    [1032, 100000, "biopsia por punch 02 pontos"],
+    [1033, 68000, "biopsia couro cabeludo"],
+    [1034, 125000, "exerese cisto baixa complexidade"],
+    [1035, 200000, "exerese cisto alta complexidade"],
+    [1036, 155000, "exerese cisto media complexidade"],
+    [1037, 158000, "peeling quimico facial superficial 03 sessoes"],
+    [1038, 98000, "peeling quimico facial medio 01 sessao"],
+    [1039, 80000, "peeling quimico facial areas menores 01 sessao"],
+    [1040, 156000, "peeling quimico corporal 03 sessoes"],
+    [1041, 248000, "microagulhamento 03 sessoes"],
+    [1042, 224000, "peeling superficial cross ata 90 03 sessoes"],
+    [1043, 280000, "bioestimulador harmonyca"],
+    [1044, 25500, "tomografia de coerencia optica de nervo monocular"],
+    [1045, 25500, "tomografia de coerencia optica de macula monocular"],
+    [1047, 1112360, "facectomia com implante de lio at lara 829mp"],
+    [1048, 851540, "diferenca de lio at lara 829mp"],
+    [1049, 1458340, "facectomia com implante de lio at lara 929mp torica"],
+    [1050, 1293750, "diferenca de lio at lara 929mp torica"],
+    [1051, 1560800, "facectomia com implante de lio at lisa tri 839mp"],
+    [1052, 1945600, "facectomia com implante de lio at lisa tri toric 939mp"],
+    [1053, 1459200, "diferenca de lio at lisa tri toric 939mp"],
+    [1054, 648520, "facectomia com implante de lio ct lucia 621p"],
+    [1055, 551242, "diferenca de lio ct lucia 621p"],
+    [1056, 1170600, "diferenca de lio at lisa tri 839mp"],
+    [1057, 44000, "aberrometria binocular"],
+    [1058, 40000, "colposcopia cervice uterina e vagina"],
+    [1059, 100000, "locacao centro cirurgico implante de diu"],
+    [1063, 1358340, "facectomia com implante de lio puresee"],
+    [1064, 1193750, "diferenca de lio puresee"],
+    [1065, 1458000, "facectomia com implante de lio puresee torica"],
+    [1066, 1293750, "diferenca de lio puresee torica"],
+    [1067, 5500, "infusao de manitol"],
+    [1071, 653800, "pacote cirurgia de retina e ou corpo vitreo"],
+    [1072, 48000, "drenagem de cisto sebaceo dr rogerio"],
+    [1078, 350000, "laser luz intensa pulsada 03 sessoes"],
+    [1080, 559717, "facectomia com implante de lio una5 mono"],
+    [1081, 24000, "anatomopatologico 01 frasco"],
+    [1082, 21000, "anatomopatologico 02 frascos"],
+    [1083, 50000, "reabordagem ectropio"],
+    [1084, 99000, "aplicacao de anti inflamatorio"],
+    [1086, 800000, "estrabismo ciclo vertical transposicao monocular"],
+    [1087, 1380000, "facectomia com implante de lio finevision trifocal"],
+    [1088, 700000, "facectomia com implante de lio finivision"],
+    [1089, 1112360, "diferenca de lio finevision trifocal"],
+    [1090, 1654170, "facectomia com implante de lio finevisio trifocal torica"],
+    [1091, 1240530, "diferenca de lio finevision trifocal toric"],
+    [1092, 655000, "facectomia com implante de lio ankoris mono toric"],
+    [1093, 480000, "diferenca de lio ankoris mono toric"],
+    [1094, 690000, "facectomia com implante de lio isopure mono plus"],
+    [1095, 440000, "diferenca de lio isopure mono plus"],
+    [1097, 800000, "estrabismo horizontal monocular tratamento ciurgico"],
+    [1098, 176000, "anestesista cirurgia de estrabismo horizontal vertical"],
+    [1103, 13350, "pacote consulta oftalmologica beone"],
+    [1155, 150000, "aplicacao intravitrea triancinolona"],
+    [1156, 100000, "gancho de iris"],
+    [1157, 60000, "viscoalt"],
+    [1161, 470000, "liftera rosto"],
+    [1162, 220000, "liftera terco medio inferior"],
+    [1163, 150000, "zzzzzzzzzzzzzzzzzzz"],
+    [1164, 300000, "liftera pescoco e papada"],
+    [1165, 150000, "liftera area dos olhos"],
+    [1166, 60000, "enzimas 01 sessao"],
+    [1168, 150000, "plasma iq palpebra superior"],
+    [1169, 150000, "plasma iq palpebra inferior"],
+    [1170, 250000, "plasma iq palpebra superior e inferior"],
+    [1171, 1300000, "blefaroplastia superior bilateral com ptose bilateral"],
+    [1172, 1100000, "blefaroplastia superior e inferior binocular"],
+    [1173, 600000, "triquiase laser monocular"],
+    [1174, 550000, "ptose palpebral monocular"],
+    [1175, 400000, "cantoplastia tarsal strip monocular"],
+    [1176, 550000, "lagoftalmo monocular"],
+    [1177, 900000, "evisceracao ou enucleacao com enxerto monocular"],
+    [1178, 700000, "evisceracao ou enucleacao sem enxerto monocular"],
+    [1179, 600000, "intubacao via lacrimal crianca monocular"],
+    [1180, 99000, "laser para manchas 01 sessao"],
+    [1181, 287000, "laser para manchas 03 sessoes"],
+    [1182, 450000, "laser para manchas 05 sessoes"],
+    [1183, 170000, "hialuronidase"],
+    [1184, 136000, "lip glow preenchedor skin booster"],
+    [1185, 230000, "profhilo revitalizacao da pele"],
+    [1186, 120000, "laser luz intensa pulsada 01 sessao"],
+    [1187, 150000, "biopsia por punch 03 pontos"],
+    [1188, 250000, "laser slt trabeculoplastia seletiva a laser monocular"],
+    [1189, 50000, "consulta de urgencia"],
+    [1190, 800000, "endolaser vvpp"],
+    [1191, 100000, "triancinolona vvpp"],
+    [1192, 250000, "anti vegf vvpp"],
+    [1193, 800000, "peeling de mer membrana epirretiniana azul de trypan vvpp"],
+    [1194, 800000, "peeling mli membrana limitante interna da retina azul brilhante vvpp"],
+    [1195, 500000, "gas c3f8 vvpp"],
+    [1196, 800000, "oleo de silicone vvpp"],
+    [1200, 150000, "verruga viral ate 03 lesoes 03 sessoes"],
+    [1201, 210000, "infiltracao intralesional cicatriz grande 03 sessoes"],
+    [1202, 25000, "micologico direto"],
+    [1203, 20000, "clipping ungueal"],
+    [1206, 50000, "consulta dermatologica"],
+    [1208, 50000, "sondagem das vias lacrimais com ou sem lavagem consultorio"],
+    [1209, 620000, "laser co2 rosto e pescoco"],
+    [1210, 600000, "lifting de supercilio castanhares monocular"],
+    [1211, 90000, "drug delivery ativos regeneradores"],
+    [1212, 60000, "anel capsular"],
+    [1213, 680000, "liftera abdome"],
+    [1219, 309000, "pacote de lucentis monocular"],
+    [1221, 800000, "lipofilling"],
+    [1222, 400000, "transposicao de gordura bilateral"],
+    [1223, 200000, "cisto palpebral"],
+    [1225, 71127, "cirurgia de ectropio"],
+    [1226, 173548, "lente fluocarbonada"],
+    [1227, 266998, "lente escleral"],
+    [1229, 150000, "consulta mapeamento corporal total"],
+    [1230, 75000, "mapeamento corporal revisao"],
+    [1231, 16000, "teste de but binocular"],
+    [1232, 770000, "liftera rosto e pescoco"],
+    [1233, 27500, "sala de procedimentos ubarana"],
+    [1234, 1760000, "blefaroplastia superior e inferior com ptose bilateral"],
+    [1237, 25000, "manobra vppb"],
+    [1238, 40000, "nasofibrolaringoscopia para diagnostico e ou biopsia"],
+    [1241, 70000, "diferenca estrabismo cola"],
+    [1242, 50000, "mitomicina"],
+    [1249, 380000, "lip oftalmo 4 sessoes"],
+    [1250, 140000, "lip oftalmo sessao"],
+    [1252, 180000, "nctf revitalizacao da pele"],
+    [1253, 12000, "teste de lissamina verde"],
+    [1258, 900000, "lifting aptos 01 fio rosto"],
+    [1259, 1400000, "lifting aptos 02 fios rosto"],
+    [1260, 15000, "retirada de faixa"],
+    [1263, 1200000, "lifting aptos fio hammock"],
+    [1267, 160000, "baccio lip revitalizacao labial"],
+    [1276, 584172, "diferenca de lio tecnis mono torica"],
+    [1277, 710893, "facectomia com implante de lio tecnis mono torica"],
+    [1283, 920000, "injecao de vabysmo"],
+    [1284, 9275, "consulta medica oftalmo"],
+    [1286, 190000, "facofragmentacao vvpp"],
+    [1290, 1180000, "implante tubo de ahmed enxerto de esclera"],
+    [1291, 150000, "transplante escleral"],
+    [1292, 120000, "sinequiolise associada"],
+    [1293, 420000, "sinequiolise isolada"],
+    [1296, 1460000, "facectomia com implante de lio luxsmart torica"],
+    [1297, 1300000, "diferenca de lio luxsmart torica"],
+    [1298, 1650000, "diferenca de lio panoptix pro"],
+    [1299, 2380000, "facectomia com implante de lio panoptix pro torica"],
+    [1300, 1900000, "diferenca de lio panoptix pro torica"],
+    [1301, 50000, "taxa de infiltracao de ouvido medio"],
+    [1306, 75000, "usg lipedema"],
+    [1307, 75000, "usg hidradenite supurativa"],
+    [1308, 75000, "usg mapeamento facial"],
+    [1309, 75000, "usg mapeamento gluteo"],
+    [1310, 75000, "usg mapeamento parede abdominal cirurgia plastica"],
+    [1311, 50000, "usg com doppler tumores cutaneos"],
+    [1312, 50000, "usg com doppler ungueal onicopatias tumores"],
+    [1313, 35000, "usg de lesao com doppler"],
+    [1314, 25000, "usg de lesao sem doppler"],
+    [1320, 100000, "raspagem de cornea para cultura e antibiograma"],
+    [1323, 65000, "laser area dos olhos 01 sessao"],
+    [1324, 194000, "laser area dos olhos 03 sessoes"],
+    [1325, 180000, "protocolo laser 01 sessao"],
+    [1326, 220000, "implante subdermico hormonal para contracepcao insercao"],
+    [1332, 320000, "protocolo laser 02 sessoes"],
+    [1333, 450000, "protocolo laser 03 sessoes"],
+    [1334, 600000, "protocolo laser 05 sessoes"],
+    [1335, 160000, "protocolo laser cicatrizes pequena 03 sessoes"],
+    [1336, 210000, "protocolo laser cicatrizes media 03 sessoes"],
+    [1337, 270000, "protocolo laser cicatrizes grande 03 sessoes"],
+    [1345, 800000, "mini lifting"],
+    [1346, 50000, "desbridamento com motor broca diamantada"],
+    [1350, 65000, "laser para cicatriz pequena"],
+    [1351, 300000, "tumor palpebral sem reconstrucao"],
+    [1352, 130000, "mmp facial cicatriz de acne 03 sessoes"],
+    [1354, 80000, "anestesista rinofima"],
+    [1357, 660000, "facoemulsificacao com implante de lio akreos"],
+    [1358, 260000, "diferenca de lio akreos"],
+    [1359, 200000, "prx 03 sessoes"],
+    [1367, 176000, "anestesista lipoaspiracao"],
+    [1371, 180000, "nctf couro cabeludo"],
+    [1372, 250000, "fio liso glabela"],
+    [1373, 250000, "fio liso palpebra inferior"],
+    [1374, 175000, "enzimas 03 sessoes"],
+    [1375, 355000, "enzimas 06 sessoes"],
+    [1377, 400000, "laser co2 ressurfacing"],
+    [1379, 376600, "mmp facial melasma 06 sessoes"]
   ];
 
   /* ==========================================================================
@@ -1049,7 +1593,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.4.6';
+  const VERSAO = '1.4.7';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -2030,6 +2574,34 @@ window.HOCDERMA_TIMBRADO = {
     } catch (e) { /* noop */ }
   }
 
+  // v1.4.7: valor do procedimento no Feegow (tabela VALORES_FEEGOW) quando o item da proposta está sem valor.
+  // ID do item (só se o nome não foi trocado no editor) ou nome exato normalizado; 0 = sem valor.
+  let valoresPorId = null;
+  let valoresPorNome = null;
+  function valorTabelaFeegow(it) {
+    if (!it) return 0;
+    if (!valoresPorId) {
+      valoresPorId = new Map();
+      valoresPorNome = new Map();
+      VALORES_FEEGOW.forEach(([id, cent, nome]) => {
+        valoresPorId.set(String(id), cent);
+        valoresPorNome.set(nome, valoresPorNome.has(nome) && valoresPorNome.get(nome) !== cent ? -1 : cent);
+      });
+    }
+    const mesmo = it.descricaoOriginal == null || limpa(it.descricaoOriginal) === limpa(it.descricao);
+    const id = mesmo && it.codigoFeegow && it.codigoFeegow !== '0' ? String(Number(it.codigoFeegow)) : '';
+    let cent = id ? valoresPorId.get(id) : 0;
+    if (!cent) cent = valoresPorNome.get(normalizar(it.descricao)) || 0;
+    return cent > 0 ? cent / 100 : 0;
+  }
+  // total do item; item SEM valor unitário na proposta usa o valor do procedimento no Feegow × quantidade
+  // (item com valor, inclusive cortesia com desconto de 100%, mantém o da proposta)
+  function totalEfetivoItem(it, total) {
+    if (total > 0 || num(it.unitario) > 0) return total;
+    const v = valorTabelaFeegow(it);
+    return v ? arred(v * (num(it.qtd) || 1)) : total;
+  }
+
   // Quem é "dono" de cada item: o 1º bloco impresso que casou com ele (o valor do item
   // aparece só ali, para a soma dos blocos bater com o total). Retorna
   // { blocosImp, dono: Map(iItem → bloco), info: Map(bloco → { meus, total, qtd, unit, incluidoEm }) }.
@@ -2045,10 +2617,11 @@ window.HOCDERMA_TIMBRADO = {
       const idx = (b.idx || []).filter((i, k, arr) => arr.indexOf(i) === k && d.itens[i]);
       const impresso = blocosImp.indexOf(b) >= 0;
       const meus = impresso ? idx.filter((i) => dono.get(i) === b) : idx.filter((i) => !dono.has(i));
-      const total = arred(meus.reduce((s, i) => s + c.linhas[i].total, 0));
+      const total = arred(meus.reduce((s, i) => s + totalEfetivoItem(d.itens[i], c.linhas[i].total), 0));
       const qtd = meus.length === 1 ? num(d.itens[meus[0]].qtd) : 0;
       const outro = meus.length ? null : idx.map((i) => dono.get(i)).find((x) => x && x !== b);
-      info.set(b, { meus, total, qtd, unit: qtd ? arred(total / qtd) : 0, incluidoEm: outro || null });
+      const zerado = meus.length > 0 && !(total > 0) && meus.some((i) => num(d.itens[i].unitario) > 0);
+      info.set(b, { meus, total, qtd, unit: qtd ? arred(total / qtd) : 0, incluidoEm: outro || null, zerado });
     });
     return { blocosImp, dono, info };
   }
@@ -2061,8 +2634,10 @@ window.HOCDERMA_TIMBRADO = {
     const feegowOk = temFeegow && inf.total > 0;
     const pedida = FONTES_INVEST.indexOf(b.fonte) >= 0 ? b.fonte : 'auto';
     let fonte = pedida;
-    if (pedida === 'auto') fonte = feegowOk ? 'feegow' : (inf && inf.incluidoEm ? 'incluido' : (limpa(b.investModelo) ? 'modelo' : 'nenhum'));
-    else if (pedida === 'feegow' && !temFeegow) fonte = inf && inf.incluidoEm ? 'incluido' : 'nenhum';
+    // v1.4.7: item com valor na proposta mas total 0 (cortesia / 100% de desconto) não ganha o valor do modelo
+    const zerado = !!(inf && inf.zerado);
+    if (pedida === 'auto') fonte = feegowOk ? 'feegow' : (inf && inf.incluidoEm ? 'incluido' : (!zerado && limpa(b.investModelo) ? 'modelo' : 'nenhum'));
+    else if (pedida === 'feegow' && !feegowOk) fonte = inf && inf.incluidoEm ? 'incluido' : 'nenhum'; // v1.4.7: total 0 não mostra R$ 0,00
     else if (pedida === 'modelo' && !limpa(b.investModelo)) fonte = 'nenhum';
     else if (pedida === 'manual' && !limpa(b.manual)) fonte = 'nenhum';
     let html = '';
@@ -4241,8 +4816,9 @@ window.HOCDERMA_TIMBRADO = {
     const imprimeBlocosDoItem = (i) => blocosImp.filter((b) => (b.idx || []).indexOf(i) >= 0 && b.itens.indexOf(limpa(d.itens[i].descricao)) >= 0);
     const infoDoItem = (i) => {
       const q1 = num(d.itens[i].qtd);
-      const total = c.linhas[i].total;
-      return { meus: [i], total, qtd: q1, unit: q1 ? arred(total / q1) : 0, incluidoEm: null };
+      const total = totalEfetivoItem(d.itens[i], c.linhas[i].total);
+      const zerado = !(total > 0) && num(d.itens[i].unitario) > 0;
+      return { meus: [i], total, qtd: q1, unit: q1 ? arred(total / q1) : 0, incluidoEm: null, zerado };
     };
     const itemBlocoHtml = (i, comTexto) => {
       const it = d.itens[i];
@@ -4724,6 +5300,7 @@ window.HOCDERMA_TIMBRADO = {
     // v1.2.0: apelidos, busca tolerante e investimento
     apelidos: APELIDOS,
     normalizarBusca,
+    valorTabelaFeegow,
     investimentoDoBloco,
     distribuirItens,
     invest: { ler: investLembrado, salvar: salvarInvest, limpar: limparInvest },
