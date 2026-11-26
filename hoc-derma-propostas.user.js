@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.10
+// @version      1.3.11
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.10
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.11
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -213,6 +213,9 @@ window.HOCDERMA_TIMBRADO = {
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
  *
+ * v1.3.11 (26/11/2026)
+ *   - "LIFTING DE SUPERCÍLIO - BROW LIFT - CASTANHARES" e "CASTANHARES (LIFT DE SUPERCÍLIO)" usam a descrição de
+ *     "lifting-de-supercilio" (palavras-chave novas: "brow lift", "castanhares supercilio").
  *
  * v1.3.10 (26/11/2026)
  *   - Procedimentos como no Feegow: a folha passa a ter UM bloco por item da proposta, na ORDEM do
@@ -576,7 +579,7 @@ window.HOCDERMA_TIMBRADO = {
       id: "lifting-de-supercilio",
       modeloFeegow: 60,
       titulo: "LIFTING DE SUPERCÍLIOS | TÉCNICA DE CASTANHARES",
-      palavrasChave: ["lifting supercilio", "lifting sobrancelha"],
+      palavrasChave: ["lifting supercilio", "lifting sobrancelha", "brow lift", "castanhares supercilio"],
       investimento: "",
       texto: "Cirurgia que eleva e reposiciona as sobrancelhas, proporcionando um olhar mais aberto e uma expressão mais leve."
     },
@@ -823,7 +826,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.10';
+  const VERSAO = '1.3.11';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';

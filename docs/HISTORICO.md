@@ -9,7 +9,7 @@
 | Core | 1.1.7.0 |
 | Suite principal | 4.9.11.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.3.10 |
+| Propostas HOC Derma | 1.3.11 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.3.0 |
 
@@ -79,6 +79,10 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.3.11 (26/11/2026)
+
+- O procedimento do Feegow **"LIFTING DE SUPERCÍLIO - BROW LIFT - CASTANHARES"** (e o "CASTANHARES (LIFT DE SUPERCÍLIO) - BILATERAL") usa a mesma descrição de "LIFTING DE SUPERCÍLIOS | TÉCNICA DE CASTANHARES". Palavras novas: "brow lift" e "castanhares supercílio".
 
 ### Propostas 1.3.10 (26/11/2026)
 

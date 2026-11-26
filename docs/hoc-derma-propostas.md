@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.3.10** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.3.11** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -255,6 +255,7 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
+| **1.3.11** | 26/11/2026 | "LIFTING DE SUPERCÍLIO - BROW LIFT - CASTANHARES" (e "CASTANHARES (LIFT DE SUPERCÍLIO)") usa a descrição de `lifting-de-supercilio`: palavras-chave novas `brow lift` e `castanhares supercilio`. |
 | **1.3.9** | 24/11/2026 | "Padrão Poppins" (e padrão inicial): **títulos dos procedimentos na fonte original** da 1.3.6 (Palatino 13,5 pt, peso e altura de linha originais); o resto continua em Poppins. Quem já tinha ajustes salvos só muda se o título estava no padrão Poppins (escolha manual de fonte ou tamanho do título é mantida). "Padrão original" e o seletor por parte não mudam. |
 | **1.3.8** | 24/11/2026 | Aviso do topo da janela curto ("Itens, valores e descontos são salvos no Feegow · Descrições e textos valem só para a impressão") numa faixa fina própria, em uma linha (texto completo na dica). A barra superior volta à altura da 1.3.6. |
 | **1.3.7** | 24/11/2026 | **Edições dos itens vão para o Feegow**: quantidade, valor unitário, desconto (R$/%) e acréscimo de itens vinculados a uma linha real são gravados na linha (`Quantidade`/`ValorUnitario`/`Desconto`/`DescontoTipo`/`Acrescimo` + `recalc`) junto com o desconto total, e a proposta é salva (debounce de 1,5 s ou ao sair do campo), com conferência do total e erro claro se a linha real não existir. Remover na janela não remove no Feegow. "Seleção Rápida" não é clicada. **Fontes**: Poppins passa a ser a fonte da janela e da folha (Google Fonts oficial, SIL OFL, subconjunto latino em woff2 embutido; licenças em `assets/fontes/`). **"Aa Tamanho das fontes"**: por parte da folha (título/dados, títulos dos procedimentos, descrições, investimento, tabela, totais, pagamento/textos, assinatura, rodapé legal), seletor de fonte (Poppins, Montserrat, Open Sans, Roboto, Lato, Arial, Times New Roman, Original) e [−] N pt [+] (passo 0,5; 6 a 28 pt; "padrão"), na hora na prévia e na impressão/PDF, salvo na hora neste PC. Botões **"Padrão Poppins"** e **"Padrão original"** (= 1.3.6, CSS intacto), com confirmação. A prévia e a impressão esperam as fontes carregarem antes de paginar. |
