@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.4
+// @version      1.4.5
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.4
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.5
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -213,6 +213,13 @@ window.HOCDERMA_TIMBRADO = {
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
  *
+ * v1.4.5 (26/11/2026)
+ *   - Falsos positivos corrigidos: "ECG" só vale como eletrocoagulação junto de lesão/pele/mucosa/curetagem
+ *     (e nunca com derivações, eletrocardiograma, ergométrico, cardio, ecodoppler, basal, consulta); linhas de
+ *     ANESTESISTA / AUXILIAR não recebem descrição em nenhum procedimento; blefaroplastia não pega tumor/
+ *     biópsia/plasma; LIP não pega oftalmo/glow; ácido hialurônico não pega quadril; exérese de cisto/lipoma
+ *     não cai na de lesão de baixa complexidade.
+ *
  * v1.4.4 (26/11/2026)
  *   - "FIOS APTOS | ROSTO" vira "APTOS ROSTO" (mesmo texto) e reconhece também "aptos rosto" (ex.: "LIFTING APTOS | FIO ROSTO").
  *     Não pega "fios lisos" (precisa da palavra "aptos").
@@ -364,6 +371,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 97,
       titulo: "BLEFAROPLASTIA INFERIOR",
       palavrasChave: ["blefaro inferior"],
+      excluir: ["tumor", "biopsia", "plasma"],
       investimento: "",
       texto: "Cirurgia para tratar as bolsas de gordura e o excesso de pele abaixo dos olhos, suavizando o volume e melhorando o contorno das pálpebras inferiores."
     },
@@ -372,6 +380,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 48,
       titulo: "BLEFAROPLASTIA | SUPERIOR",
       palavrasChave: ["blefaro superior"],
+      excluir: ["tumor", "biopsia", "plasma"],
       investimento: "",
       texto: "Cirurgia para remover o excesso de pele das pálpebras superiores, suavizando o aspecto de cansaço e deixando o olhar mais leve e descansado."
     },
@@ -380,6 +389,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 47,
       titulo: "BLEFAROPLASTIA | SUPERIOR E INFERIOR",
       palavrasChave: ["blefaro superior inferior"],
+      excluir: ["tumor", "biopsia", "plasma"],
       investimento: "",
       texto: "Cirurgia para remover o excesso de pele e tratar as bolsas de gordura das pálpebras superiores e inferiores, suavizando o aspecto de cansaço e deixando o olhar mais leve e descansado."
     },
@@ -403,7 +413,8 @@ window.HOCDERMA_TIMBRADO = {
       id: "ecg-ate-05-lesoes",
       modeloFeegow: 102,
       titulo: "ELETROCOAGULAÇÃO (ECG) DE LESÃO | ATÉ 05 LESÕES",
-      palavrasChave: ["ecg", "ecg lesao"],
+      palavrasChave: ["ecg lesao", "ecg lesoes", "ecg pele", "ecg mucosa", "ecg cutanea", "ecg curetagem"],
+      excluir: ["derivacoes", "eletrocardiograma", "ergometrico", "cardio*", "ecodoppler*", "basal", "consulta"],
       investimento: "R$ 750,00",
       texto: "Procedimento que utiliza o calor gerado por uma corrente elétrica para cauterizar a lesão na pele."
     },
@@ -420,7 +431,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 98,
       titulo: "EXÉRESE DE LESÃO | BAIXA COMPLEXIDADE",
       palavrasChave: ["exerese baixa complexidade"],
-      excluir: ["corpo", "rosto", "face"],
+      excluir: ["corpo", "rosto", "face", "cisto", "lipoma"],
       investimento: "",
       texto: "Procedimento cirúrgico de menor porte para retirar uma lesão da pele, com cuidados para favorecer a cicatrização da região."
     },
@@ -630,6 +641,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 88,
       titulo: "LUZ INTENSA PULSADA (LIP) | VERMELHIDÃO E VASINHOS",
       palavrasChave: ["lip"],
+      excluir: ["oftalmo", "glow"],
       investimento: "",
       texto: "Tratamento com pulsos de luz que atua nos pequenos vasos sanguíneos da pele, ajudando a reduzir a vermelhidão e os vasinhos aparentes, deixando o tom da pele mais uniforme."
     },
@@ -638,6 +650,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 101,
       titulo: "LUZ INTENSA PULSADA | 3 SESSÕES",
       palavrasChave: ["lip 3 sessoes"],
+      excluir: ["oftalmo", "glow"],
       investimento: "R$ 3.600,00",
       texto: "Tratamento com pulsos de luz que ajudam a clarear manchas de sol e a suavizar a vermelhidão e os vasinhos aparentes, deixando o tom da pele mais uniforme."
     },
@@ -719,7 +732,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 61,
       titulo: "ÁCIDO HIALURÔNICO",
       palavrasChave: ["preenchimento", "acido hialuronico", "preenchimento 1 sessoes"],
-      excluir: ["harmonyca"],
+      excluir: ["harmonyca", "quadril"],
       investimento: "R$ 1.500,00",
       texto: "Tratamento injetável para dar volume, definir contornos e realçar a região tratada."
     },
@@ -728,7 +741,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 62,
       titulo: "ÁCIDO HIALURÔNICO",
       palavrasChave: ["preenchimento 2 sessoes"],
-      excluir: ["harmonyca"],
+      excluir: ["harmonyca", "quadril"],
       investimento: "R$ 1.300,00 cada",
       texto: "Tratamento injetável para dar volume, definir contornos e realçar a região tratada."
     },
@@ -737,7 +750,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 63,
       titulo: "ÁCIDO HIALURÔNICO",
       palavrasChave: ["preenchimento 3"],
-      excluir: ["harmonyca"],
+      excluir: ["harmonyca", "quadril"],
       investimento: "R$ 1.200,00 cada",
       texto: "Tratamento injetável para dar volume, definir contornos e realçar a região tratada."
     },
@@ -1033,7 +1046,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.4.4';
+  const VERSAO = '1.4.5';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -1834,6 +1847,9 @@ window.HOCDERMA_TIMBRADO = {
     return frase.length > 0 && frase.every((f) => tokensNome.some((n) => palavraCasa(f, n)));
   }
 
+  // v1.4.5: linhas de equipe (honorário de anestesista / 1º auxiliar) nunca recebem descrição de procedimento
+  const EXCLUIR_EQUIPE = ['anestesista', 'auxiliar'];
+
   function catalogo() {
     const vistos = new Set();
     return catalogoMesclado().filter((e) => e && e.id && !vistos.has(e.id) && vistos.add(e.id)).map((e) => ({
@@ -1846,7 +1862,7 @@ window.HOCDERMA_TIMBRADO = {
       investimento: limpa(e.investimento),
       valorModelo: valorDoInvestimento(e.investimento),
       frases: (e.palavrasChave || []).map(compilarFrase).filter((f) => f.length),
-      excluir: (e.excluir || []).map(compilarFrase).filter((f) => f.length),
+      excluir: (e.excluir || []).concat(EXCLUIR_EQUIPE).map(compilarFrase).filter((f) => f.length),
       codigos: (e.codigos || []).map(normCodigo).filter(Boolean)
     }));
   }

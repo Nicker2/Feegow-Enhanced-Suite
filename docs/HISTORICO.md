@@ -9,7 +9,7 @@
 | Core | 1.1.8.0 |
 | Suite principal | 4.9.12.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.4.4 |
+| Propostas HOC Derma | 1.4.5 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.4.0 |
 
@@ -86,6 +86,12 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.4.5 (26/11/2026): falsos positivos
+
+- **ECG** só vale como eletrocoagulação junto de lesão, pele, mucosa ou curetagem. Eletrocardiograma, teste ergométrico e o pacote de consulta com ECG não recebem mais a descrição de eletrocoagulação.
+- **Anestesista e 1º auxiliar**: linhas de equipe não recebem descrição de nenhum procedimento (valia só para alguns).
+- Blefaroplastia não pega mais tumor/biópsia nem Plasma IQ; "LIP" não pega LIP oftalmo nem LIP Glow; ácido hialurônico não pega a infiltração de quadril; exérese de cisto não cai mais na de lesão de baixa complexidade.
 
 ### Propostas 1.4.4 (26/11/2026)
 
