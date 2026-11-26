@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.7.0
+// @version      4.9.8.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -26,6 +26,180 @@
     const featureGastosExcelAtiva = GM_getValue('gastos_excel', true);
     // Botão que reaplica a regra de permissões atual no cadastro de funcionário (vem ON por padrão).
     const featureReaplicarPermissoesAtiva = GM_getValue('reaplicar_permissoes', true);
+
+    // =========================================================================
+    // OCULTAR PEDIDO DE NOTIFICAÇÕES DO FEEGOW (vem ON por padrão)
+    // =========================================================================
+    // O aviso "Gostaríamos de te notificar para ver nossas últimas atualizações"
+    // é o pop-up de push do Beamer (#beamerPushModal.pushModal, botões
+    // #pushConfirmation = Permitir e #pushActionRefuse = Agora não).
+    //  1) CSS já no início: o aviso nunca chega a aparecer na tela.
+    //  2) Quando ele surge, clica em "Agora não" (o Beamer grava a recusa e para
+    //     de perguntar) e remove. NUNCA clica em "Permitir".
+    //  3) Reserva por texto ("gostaríamos de te notificar") e seletores do
+    //     OneSignal, caso o Feegow troque de fornecedor.
+    const featureOcultarPedidoNotificacoes = GM_getValue('ocultar_pedido_notificacoes', true);
+
+    const SEL_PEDIDO_NOTIF = [
+        '#beamerPushModal', '.pushModal',
+        '#onesignal-slidedown-container', '#onesignal-popover-container',
+        '.onesignal-slidedown-container', '.onesignal-popover-container'
+    ].join(',');
+    const SEL_RECUSAR_NOTIF = [
+        '#pushActionRefuse', '#onesignal-slidedown-cancel-button',
+        '#onesignal-popover-cancel-button', '.onesignal-slidedown-cancel-button',
+        '.onesignal-popover-cancel-button'
+    ].join(',');
+    const RE_TEXTO_PEDIDO_NOTIF = /gostar[ií]amos\s+de\s+(te\s+|lhe\s+)?notificar/i;
+    const RE_BOTAO_RECUSAR = /agora\s+n[aã]o|n[aã]o,?\s+obrigad|mais\s+tarde|depois|recusar|dispensar|fechar|no\s+thanks|not\s+now|later/i;
+    const RE_BOTAO_PERMITIR = /permitir|aceitar|allow|ativar|subscribe|inscrever|^\s*sim\b|^\s*ok\b/i;
+
+    function injetarCssPedidoNotificacoes() {
+        if (document.getElementById('hoc-css-pedido-notif')) return;
+        const st = document.createElement('style');
+        st.id = 'hoc-css-pedido-notif';
+        st.textContent = SEL_PEDIDO_NOTIF + ',.hoc-pedido-notif-oculto{display:none!important;visibility:hidden!important;pointer-events:none!important;}';
+        (document.head || document.documentElement).appendChild(st);
+    }
+
+    // Sobe do texto até o bloco flutuante (fixed/absolute) que forma o aviso.
+    function containerDoAvisoNotif(el) {
+        const conhecido = el.closest(SEL_PEDIDO_NOTIF);
+        if (conhecido) return conhecido;
+        let alvo = null;
+        for (let p = el; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+            const pos = getComputedStyle(p).position;
+            if (pos === 'fixed' || pos === 'absolute' || pos === 'sticky') alvo = p;
+        }
+        return alvo;
+    }
+
+    function recusarEOcultarAvisoNotif(caixa) {
+        if (!caixa || caixa.dataset.hocPedidoNotif === '1') return;
+        caixa.dataset.hocPedidoNotif = '1';
+        caixa.classList.add('hoc-pedido-notif-oculto');
+        let recusar = caixa.querySelector(SEL_RECUSAR_NOTIF);
+        if (!recusar) {
+            recusar = Array.from(caixa.querySelectorAll('a,button,[role="button"]')).find(b => {
+                const t = (b.textContent || b.getAttribute('aria-label') || '').trim();
+                return t && RE_BOTAO_RECUSAR.test(t) && !RE_BOTAO_PERMITIR.test(t);
+            });
+        }
+        const txtBotao = recusar ? (recusar.textContent || '').trim() : '';
+        if (recusar && !RE_BOTAO_PERMITIR.test(txtBotao) && recusar.id !== 'pushConfirmation') {
+            try { recusar.click(); log('Pedido de notificações: clicado em "' + (txtBotao || recusar.id) + '".'); } catch (e) { /* segue e remove */ }
+        }
+        // Dá tempo do handler do Beamer/OneSignal gravar a recusa antes de remover.
+        setTimeout(() => { if (caixa.isConnected) caixa.remove(); }, 800);
+        log('Pedido de notificações do Feegow ocultado.');
+    }
+
+    function varrerPedidoNotificacoes(raiz) {
+        const base = raiz && raiz.querySelectorAll ? raiz : document;
+        if (raiz && raiz.matches && raiz.matches(SEL_PEDIDO_NOTIF)) recusarEOcultarAvisoNotif(raiz);
+        base.querySelectorAll(SEL_PEDIDO_NOTIF).forEach(recusarEOcultarAvisoNotif);
+        // Reserva por texto: só olha nós pequenos (o aviso tem uma frase curta).
+        const txt = raiz && raiz.textContent;
+        if (raiz && raiz !== document && txt && txt.length < 2000 && RE_TEXTO_PEDIDO_NOTIF.test(txt)) {
+            const folhas = [raiz, ...raiz.querySelectorAll('*')].filter(e => RE_TEXTO_PEDIDO_NOTIF.test(e.textContent || '') &&
+                !Array.from(e.children).some(c => RE_TEXTO_PEDIDO_NOTIF.test(c.textContent || '')));
+            folhas.forEach(f => recusarEOcultarAvisoNotif(containerDoAvisoNotif(f)));
+        }
+    }
+
+    function iniciarOcultarPedidoNotificacoes() {
+        if (!featureOcultarPedidoNotificacoes) return;
+        injetarCssPedidoNotificacoes();
+        const iniciarVigia = () => {
+            varrerPedidoNotificacoes(document);
+            if (document.body) {
+                Array.from(document.body.children).forEach(varrerPedidoNotificacoes);
+            }
+            // Vigia leve: só olha os nós ADICIONADOS (sem polling).
+            new MutationObserver(muts => {
+                for (const m of muts) {
+                    for (const n of m.addedNodes) {
+                        if (n.nodeType === 1) varrerPedidoNotificacoes(n);
+                        else if (n.nodeType === 3 && n.parentElement && RE_TEXTO_PEDIDO_NOTIF.test(n.textContent || '')) {
+                            varrerPedidoNotificacoes(n.parentElement);
+                        }
+                    }
+                }
+            }).observe(document.documentElement, { childList: true, subtree: true });
+        };
+        if (document.body) iniciarVigia();
+        else document.addEventListener('DOMContentLoaded', iniciarVigia, { once: true });
+    }
+    iniciarOcultarPedidoNotificacoes();
+
+    // =========================================================================
+    // OCULTAR PROPAGANDAS E NOVIDADES DO FEEGOW EM POPUP (vem ON por padrão)
+    // =========================================================================
+    // Popups do Amplitude Engagement (ex.: "Liberado: teste ... grátis"):
+    //   #engagement-toast-responsive-inner-div[role=dialog]
+    //     .amplitude-engagement-popover-container  (título, conteúdo, CTA)
+    //     [data-testid=nudge-step-close-button]     (X de fechar)
+    // As classes engagement-toplevel-xxxx são geradas: usa só id/data-testid/amplitude-*.
+    // Ao surgir: clica no X (o Amplitude registra como dispensado) e remove.
+    // NUNCA clica no CTA (.amplitude-engagement-cta-button).
+    const featureOcultarPropagandasPopups = GM_getValue('ocultar_propagandas_popups', true);
+
+    const SEL_POPUP_PROPAGANDA = [
+        '#engagement-toast-responsive-inner-div',
+        '.amplitude-engagement-popover-container',
+        '[id^="engagement-"] [role="dialog"]',
+        '[class*="amplitude-engagement-overlay"]', '[class*="amplitude-engagement-backdrop"]',
+        '[class*="amplitude-engagement-modal"]'
+    ].join(',');
+    // Em ordem de prioridade (o botão real antes do div que o envolve).
+    const SEL_FECHAR_PROPAGANDA = [
+        '[data-testid="nudge-step-close-button"]',
+        '[data-testid="dismiss"] button', '.amplitude-engagement-close button',
+        'button[aria-label="Close popover"]', '[data-testid="dismiss"]', '.amplitude-engagement-close'
+    ];
+
+    function injetarCssPropagandas() {
+        if (document.getElementById('hoc-css-propagandas')) return;
+        const st = document.createElement('style');
+        st.id = 'hoc-css-propagandas';
+        st.textContent = SEL_POPUP_PROPAGANDA + ',.hoc-propaganda-oculta{display:none!important;visibility:hidden!important;pointer-events:none!important;}';
+        (document.head || document.documentElement).appendChild(st);
+    }
+
+    function fecharEOcultarPropaganda(el) {
+        // Sobe até o diálogo externo para fechar o popup inteiro de uma vez.
+        const caixa = el.closest('#engagement-toast-responsive-inner-div') || el.closest('[role="dialog"]') || el;
+        if (caixa.dataset.hocPropaganda === '1') return;
+        caixa.dataset.hocPropaganda = '1';
+        caixa.classList.add('hoc-propaganda-oculta');
+        let fechar = null;
+        for (const sel of SEL_FECHAR_PROPAGANDA) { fechar = caixa.querySelector(sel); if (fechar) break; }
+        if (fechar && !fechar.closest('.amplitude-engagement-cta-button') && !fechar.matches('.amplitude-engagement-cta-button')) {
+            try { fechar.click(); log('Popup de propaganda do Feegow: clicado em fechar.'); } catch (e) { /* segue e remove */ }
+        }
+        setTimeout(() => { if (caixa.isConnected) caixa.remove(); }, 800);
+        log('Popup de propaganda do Feegow ocultado.');
+    }
+
+    function varrerPropagandas(raiz) {
+        if (!raiz || !raiz.querySelectorAll) return;
+        if (raiz.matches && raiz.matches(SEL_POPUP_PROPAGANDA)) fecharEOcultarPropaganda(raiz);
+        raiz.querySelectorAll(SEL_POPUP_PROPAGANDA).forEach(fecharEOcultarPropaganda);
+    }
+
+    function iniciarOcultarPropagandas() {
+        if (!featureOcultarPropagandasPopups) return;
+        injetarCssPropagandas();
+        const iniciarVigia = () => {
+            varrerPropagandas(document);
+            new MutationObserver(muts => {
+                for (const m of muts) for (const n of m.addedNodes) if (n.nodeType === 1) varrerPropagandas(n);
+            }).observe(document.documentElement, { childList: true, subtree: true });
+        };
+        if (document.body) iniciarVigia();
+        else document.addEventListener('DOMContentLoaded', iniciarVigia, { once: true });
+    }
+    iniciarOcultarPropagandas();
 
     // =========================================================================
     // PDF HOC DERMA v3 — CASCATA: o VERIFICAR baixa e executa o timbrador
@@ -1191,12 +1365,10 @@ const protocolosDilatacao = {
                 log('Removido: Anúncio Beamer'); 
             });
         }
-        // Modal de Permissão de Notificação Push
-        if (GM_getValue('remove_beamer_push', true)) {
-            document.querySelectorAll('#beamerPushModal, .pushModal').forEach(el => { 
-                el.remove(); 
-                log('Removido: Modal Push Beamer'); 
-            });
+        // Pedido de permissão de notificações ("Gostaríamos de te notificar..."):
+        // clica em "Agora não" e remove (ver iniciarOcultarPedidoNotificacoes).
+        if (featureOcultarPedidoNotificacoes) {
+            varrerPedidoNotificacoes(document);
         }
     }
 
@@ -1312,7 +1484,7 @@ const protocolosDilatacao = {
             const dpSpacesAtivo = GM_getValue('remove_dp_spaces', true);
             const aiAtivo = GM_getValue('remove_ai_assistant', true);
             const beamerAtivo = GM_getValue('remove_beamer', true);
-            const pushAtivo = GM_getValue('remove_beamer_push', true);
+            const pushAtivo = featureOcultarPedidoNotificacoes;
 
             btn.innerHTML = `
               <div class="navbar-btn btn-group">
@@ -1340,8 +1512,11 @@ const protocolosDilatacao = {
                     <li class="toggle-remover" data-key="remove_beamer" style="padding: 5px 10px; cursor: pointer; color: ${beamerAtivo ? 'green' : 'red'};">
                         Anúncios Feegow: ${beamerAtivo ? 'ON' : 'OFF'}
                     </li>
-                    <li class="toggle-remover" data-key="remove_beamer_push" style="padding: 5px 10px; cursor: pointer; color: ${pushAtivo ? 'green' : 'red'};">
-                        Pedir Notificações: ${pushAtivo ? 'ON' : 'OFF'}
+                    <li class="toggle-remover" data-key="ocultar_pedido_notificacoes" style="padding: 5px 10px; cursor: pointer; color: ${pushAtivo ? 'green' : 'red'};" title="Esconde o aviso 'Gostaríamos de te notificar...' (clica em 'Agora não'; nunca em 'Permitir')">
+                        Ocultar pedido de notificações do Feegow: ${pushAtivo ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="ocultar_propagandas_popups" style="padding: 5px 10px; cursor: pointer; color: ${featureOcultarPropagandasPopups ? 'green' : 'red'};" title="Fecha os popups de propaganda/novidades (Amplitude) pelo X; nunca clica no botão da oferta">
+                        Ocultar propagandas e novidades do Feegow (popups): ${featureOcultarPropagandasPopups ? 'ON' : 'OFF'}
                     </li>
                     <li class="toggle-remover" data-key="pdf_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePdfHocAtiva ? 'green' : 'red'}; border-top: 1px solid #eee; margin-top: 5px;" title="Mostra o atalho vermelho 'PDF HOC Derma' à esquerda de Configurações">
                         PDF HOC Derma (v3): ${featurePdfHocAtiva ? 'ON' : 'OFF'}

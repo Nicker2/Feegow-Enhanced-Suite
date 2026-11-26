@@ -13,7 +13,7 @@
   <img alt="Userscript Tampermonkey" src="https://img.shields.io/badge/userscript-Tampermonkey-00485B?logo=tampermonkey&logoColor=white">
   <img alt="Chrome | Edge" src="https://img.shields.io/badge/navegador-Chrome%20%7C%20Edge-4285F4?logo=googlechrome&logoColor=white">
   <img alt="Plataforma Feegow" src="https://img.shields.io/badge/plataforma-Feegow-2ea44f">
-  <img alt="Suite 4.9.7.0" src="https://img.shields.io/badge/suite-4.9.7.0-blue">
+  <img alt="Suite 4.9.8.0" src="https://img.shields.io/badge/suite-4.9.8.0-blue">
   <a href="LICENSE"><img alt="Licença MIT" src="https://img.shields.io/github/license/Nicker2/Feegow-Enhanced-Suite?label=licen%C3%A7a"></a>
   <img alt="Último commit" src="https://img.shields.io/github/last-commit/Nicker2/Feegow-Enhanced-Suite?label=%C3%BAltima%20atualiza%C3%A7%C3%A3o">
 </p>
@@ -58,7 +58,7 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 | 🩺 | **Especialidade e dilatação** | Etiqueta com a especialidade ao lado do nome do médico e selo laranja **Dilatar (clique aqui)** quando o protocolo de dilatação do médico vale para a idade do paciente. |
 | 📄 | **Sempre 30 por página** | A Lista de Espera fica sempre com 30 itens por página. |
 | 🗂️ | **Prontuário a um clique** | Na agenda, um botão ao lado do paciente abre o prontuário em nova aba, sem sair da agenda. |
-| 🧹 | **Tela mais limpa** | Esconde avisos amarelos, notificações flutuantes, barra DP Spaces/Doctoralia, assistente de IA, anúncios e o pedido de notificações. |
+| 🧹 | **Tela mais limpa** | Esconde avisos amarelos, notificações flutuantes, barra DP Spaces/Doctoralia, assistente de IA, anúncios, o pedido de notificações ("Gostaríamos de te notificar...") e os popups de propaganda/novidades. |
 | 🔑 | **Entrada sem dor de cabeça** | Quando o Feegow diz que o usuário *já está conectado em outra máquina*, a Suite mostra uma tela de espera e tenta entrar sozinha por cerca de 1 minuto. Senha errada é avisada na hora. |
 | ⚙️ | **Engrenagem de configurações** | Um botão na barra superior liga e desliga cada função, por computador. |
 | 🖨️ | **PDF HOC Derma (Timbrador)** | Aplica o cabeçalho e o rodapé HOC Derma em **qualquer PDF**, encaixa o conteúdo sozinho e exporta um PDF com texto selecionável. O arquivo não sai do computador. |
@@ -78,8 +78,8 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 
 | Script | Para que serve | Versão | Instalar |
 | :--- | :--- | :---: | :--- |
-| 🚀 **Core** (`core.user.js`) | Injetor: baixa a Suite do GitHub, guarda em cache e executa. É o **único** que você precisa instalar para ter a Suite, o Timbrador, as Propostas, o Gastos para Excel e o Reaplicar Permissões. | 1.1.3.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js) |
-| 🧩 **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Contador do DR. EXAMES, especialidade e dilatação, engrenagem, limpeza da tela, atalho para o prontuário e entrada com sessão ocupada. | 4.9.7.0 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
+| 🚀 **Core** (`core.user.js`) | Injetor: baixa a Suite do GitHub, guarda em cache e executa. É o **único** que você precisa instalar para ter a Suite, o Timbrador, as Propostas, o Gastos para Excel e o Reaplicar Permissões. | 1.1.4.0 | [instalar](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js) |
+| 🧩 **Suite principal** (`VERIFICAR-DR-EXAMES.user.js`) | Contador do DR. EXAMES, especialidade e dilatação, engrenagem, limpeza da tela, atalho para o prontuário e entrada com sessão ocupada. | 4.9.8.0 | carregada pelo Core ([avulsa](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/VERIFICAR-DR-EXAMES.user.js)) |
 | 🖨️ **PDF HOC Derma** (`hoc-derma-stamping-tool.user.js`) | Janela que aplica o timbrado HOC Derma em qualquer PDF, ajusta o encaixe e exporta ou imprime. | 3.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js)) |
 | 💼 **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário, com editor e folha A4 timbrada. | 1.3.9 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
 | 📋 **HOC Gastos para Excel** (`hoc-gastos-excel.user.js`) | Botão **📋 Copiar para Excel** nos registros de gasto da linha do tempo do prontuário. | 1.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js)) |
@@ -160,7 +160,8 @@ Clique na **engrenagem** da barra superior. Cada clique liga ou desliga o item e
 | Barra DP Spaces | Esconde a barra DP Spaces / Doctoralia | ON |
 | IA Feegow | Esconde o assistente de IA | ON |
 | Anúncios Feegow | Esconde os anúncios de novidades | ON |
-| Pedir Notificações | Esconde o pedido de permissão de notificações | ON |
+| Ocultar pedido de notificações do Feegow | Esconde o aviso "Gostaríamos de te notificar..." (clica em "Agora não", nunca em "Permitir") | ON |
+| Ocultar propagandas e novidades do Feegow (popups) | Fecha pelo X os popups de propaganda/novidades (ex.: "teste grátis"), sem clicar na oferta | ON |
 | PDF HOC Derma (v3) | Carrega o Timbrador e mostra o botão vermelho **PDF HOC Derma** | ON |
 | Imprimir HOC Derma (Propostas) | Carrega o módulo de Propostas | ON |
 | Gastos para Excel | Botão **📋 Copiar para Excel** nos registros de gasto do prontuário | ON |

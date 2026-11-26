@@ -6,14 +6,21 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.1.3.0 |
-| Suite principal | 4.9.7.0 |
+| Core | 1.1.4.0 |
+| Suite principal | 4.9.8.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.3.9 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.0.1 |
 
 ---
+
+### Core 1.1.4.0 e Suite 4.9.8.0 (25/11/2026): sem pedido de notificações e sem popups de propaganda
+
+- Novo item **Ocultar pedido de notificações do Feegow** (ON por padrão): o aviso "Gostaríamos de te notificar para ver nossas últimas atualizações" não aparece mais. A Suite clica em **Agora não** por você (o Feegow/Beamer grava a recusa) e remove o aviso; nunca clica em **Permitir**. Substitui o antigo "Pedir Notificações", com chave nova, então volta ligado para todos.
+- Novo item **Ocultar propagandas e novidades do Feegow (popups)** (ON por padrão): popups como "Liberado: teste ... grátis" são fechados pelo **X** e removidos, sem clicar no botão da oferta.
+- Os dois agem assim que o popup surge (CSS desde o carregamento + vigia leve dos elementos novos, sem polling).
+- Core 1.1.4.0: só a versão muda, para o Tampermonkey atualizar e a Suite nova ser baixada na hora.
 
 ### Reaplicar Permissões 1.0.1 (25/11/2026): texto no botão
 

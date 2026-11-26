@@ -18,7 +18,8 @@ Um botão de engrenagem (`#btn-controle-feegow`) é inserido na barra superior, 
 | Barra DP Spaces | Remove a barra DP Spaces / Doctoralia | `remove_dp_spaces` |
 | IA Feegow | Remove o plugin do assistente de IA | `remove_ai_assistant` |
 | Anúncios Feegow | Remove os anúncios do Beamer (novidades, promoções) | `remove_beamer` |
-| Pedir Notificações | Remove o modal que pede permissão para notificações push | `remove_beamer_push` |
+| Ocultar pedido de notificações do Feegow | Esconde o aviso "Gostaríamos de te notificar..." (pop-up de push do Beamer, `#beamerPushModal`): CSS desde o início, clique em "Agora não" (`#pushActionRefuse`) para o Beamer gravar a recusa e remoção. Nunca clica em "Permitir" (`#pushConfirmation`). Reserva por texto e seletores do OneSignal. Substitui o antigo "Pedir Notificações" (`remove_beamer_push`). | `ocultar_pedido_notificacoes` |
+| Ocultar propagandas e novidades do Feegow (popups) | Fecha os popups do Amplitude Engagement (`#engagement-toast-responsive-inner-div`, `.amplitude-engagement-popover-container`) clicando no X (`[data-testid="nudge-step-close-button"]`) e remove; CSS esconde antes de aparecer. Nunca clica no botão da oferta (`.amplitude-engagement-cta-button`). | `ocultar_propagandas_popups` |
 | PDF HOC Derma (v3) | Carrega o Timbrador e mostra o botão vermelho **PDF HOC Derma** | `pdf_hoc_derma` |
 | Imprimir HOC Derma (Propostas) | Carrega o módulo de Propostas | `propostas_hoc_derma` |
 | Gastos para Excel | Carrega o módulo HOC Gastos para Excel | `gastos_excel` |

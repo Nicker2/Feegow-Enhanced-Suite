@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced Core Injector Agent
 // @namespace    https://github.com/Nicker2
-// @version      1.1.3.0
+// @version      1.1.4.0
 // @description  Puxa o código fonte do GitHub de forma inteligente usando Cache. Inclui a Suite, o PDF HOC Derma, as Propostas HOC Derma, o HOC Gastos para Excel e o HOC Reaplicar Permissões.
 // @author       Nicolas Bonza Cavalari Borges
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js
@@ -26,7 +26,7 @@
 
     // Core atualizado pelo Tampermonkey (versão diferente da última que rodou):
     // baixa a Suite na hora, sem esperar o cache vencer, para os módulos novos
-    // (ex.: Gastos para Excel no Core 1.1.2.0, Reaplicar Permissões no 1.1.3.0) chegarem logo.
+    // (ex.: Gastos para Excel no Core 1.1.2.0, Reaplicar Permissões no 1.1.3.0, ocultar pedido de notificações e popups no 1.1.4.0) chegarem logo.
     const versaoCore = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '';
     const coreAtualizado = !!versaoCore && GM_getValue('core_versao', '') !== versaoCore;
 
