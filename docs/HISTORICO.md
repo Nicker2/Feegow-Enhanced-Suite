@@ -9,7 +9,7 @@
 | Core | 1.1.6.0 |
 | Suite principal | 4.9.10.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.3.9 |
+| Propostas HOC Derma | 1.3.10 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.3.0 |
 
@@ -74,6 +74,10 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.3.10 (26/11/2026)
+
+- **Procedimentos como no Feegow.** A folha mostrava o título do modelo de texto (por exemplo "TERÇO SUPERIOR" para o item "TERÇO SUPERIOR + INFERIOR FEMININO") e juntava itens repetidos num bloco só, na ordem do catálogo. Agora sai **um bloco por item da proposta, na ordem do Feegow**, com o **nome do item como está no Feegow**, a descrição do modelo (texto intacto) e o **Investimento daquele item** (quantidade, valor, desconto e acréscimo). Item sem descrição, com a tabela oculta, sai na mesma ordem com nome e valor, e não mais agrupado em "Outros itens".
 
 ### Propostas 1.3.9 (24/11/2026)
 

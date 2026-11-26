@@ -1,13 +1,13 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.3.9** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.3.10** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
 O script coloca o botão **"Imprimir HOC Derma"** na tela de proposta do prontuário do Feegow. Ele gera uma proposta de tratamento com o timbrado da HOC Derma, que pode ser impressa ou salva em PDF. A proposta inclui:
 
 - os dados do paciente, a data e o profissional, lidos da própria proposta;
-- uma **descrição de cada procedimento dermatológico** da proposta (toxina, preenchimento, laser, Liftera, MMP, peelings etc.), tirada dos modelos de texto da clínica;
+- **cada procedimento na ordem e com o nome do Feegow** (desde a 1.3.10, um bloco por item, inclusive repetidos), com a **descrição** dermatológica (toxina, preenchimento, laser, Liftera, MMP, peelings etc.), tirada dos modelos de texto da clínica;
 - o **investimento** de cada procedimento. Por padrão é o valor que está na proposta do Feegow, e dá para trocar só para aquela impressão;
 - o **total**, as formas de pagamento, as outras despesas e o texto complementar da proposta;
 - a **validade** da proposta, se você quiser;

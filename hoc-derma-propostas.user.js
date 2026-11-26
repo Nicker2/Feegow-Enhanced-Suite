@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.3.9
+// @version      1.3.10
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.9
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.3.10
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -213,6 +213,13 @@ window.HOCDERMA_TIMBRADO = {
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
  *
+ *
+ * v1.3.10 (26/11/2026)
+ *   - Procedimentos como no Feegow: a folha passa a ter UM bloco por item da proposta, na ORDEM do
+ *     Feegow, com o NOME do item como está lá (antes saía o título do modelo, ex.: "TERÇO SUPERIOR"
+ *     no lugar de "TERÇO SUPERIOR + INFERIOR FEMININO") e o Investimento de cada item (qtd, valor,
+ *     desconto, acréscimo). Itens repetidos não são mais fundidos num só. Itens sem descrição,
+ *     com a tabela oculta, saem na mesma ordem (nome e valor). Textos das descrições intactos.
  *
  * v1.3.9 (24/11/2026)
  *   - "Padrão Poppins" (e padrão inicial): títulos dos procedimentos na fonte ORIGINAL da 1.3.6
@@ -816,7 +823,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.3.9';
+  const VERSAO = '1.3.10';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -3331,15 +3338,46 @@ window.HOCDERMA_TIMBRADO = {
       const nItens = (r.fonte === 'feegow' && inf.meus.length > 1) ? ` <small>(${inf.meus.length} itens)</small>` : '';
       return `<div class="val" data-valor-bloco data-fonte="${r.fonte}"><div class="inv" data-investimento><span class="inv-rot">Investimento</span><span class="inv-lin"></span><span class="inv-v">${r.html}${nItens}</span></div></div>`;
     };
-    const blocoHtml = (b) => `<div class="proc" data-proc="${esc(b.id)}">${tituloHtml(b.titulo || '', 'h3', 'tit')}<div class="txt">${textoParaHtml(b.texto)}</div>${valorBlocoHtml(b)}</div>`;
+    // v1.3.10: UM bloco por item da proposta, NA ORDEM do Feegow, com o NOME do item como está
+    // no Feegow (não o título do modelo), a descrição do modelo logo abaixo (texto intacto) e o
+    // Investimento DAQUELE item (qtd × unitário, desconto e acréscimo). Itens repetidos
+    // (ex.: dois "NCTF COURO CABELUDO") saem cada um no seu bloco; antes eram fundidos num só.
+    // Item sem descrição, com a tabela oculta, sai na mesma ordem só com nome e valor.
+    const imprimeBlocosDoItem = (i) => blocosImp.filter((b) => (b.idx || []).indexOf(i) >= 0 && b.itens.indexOf(limpa(d.itens[i].descricao)) >= 0);
+    const infoDoItem = (i) => {
+      const q1 = num(d.itens[i].qtd);
+      const total = c.linhas[i].total;
+      return { meus: [i], total, qtd: q1, unit: q1 ? arred(total / q1) : 0, incluidoEm: null };
+    };
+    const itemBlocoHtml = (i, comTexto) => {
+      const it = d.itens[i];
+      const bs = comTexto ? imprimeBlocosDoItem(i) : [];
+      const b0 = bs[0];
+      const nome = limpa(it.descricao);
+      // título editado no modal vale; senão o nome original do item no Feegow
+      const editado = b0 && limpa(b0.titulo) !== limpa(b0.tituloOriginal || b0.titulo);
+      const tit = editado ? b0.titulo : (nome || (b0 ? b0.titulo : '—'));
+      const cort = !editado && bs.some((b) => /cortesia/i.test(b.titulo || '')) && !/cortesia/i.test(tit) ? ' | Cortesia' : '';
+      const textos = bs.map((b) => limpa(b.texto) ? `<div class="txt">${textoParaHtml(b.texto)}</div>` : '').join('');
+      let val = '';
+      if (comInvest) {
+        const r = investimentoDoBloco(b0 || { fonte: 'feegow', manual: '', investModelo: '' }, infoDoItem(i));
+        if (r.fonte !== 'nenhum' && r.fonte !== 'incluido') {
+          val = `<div class="val" data-valor-bloco data-fonte="${r.fonte}"><div class="inv" data-investimento><span class="inv-rot">Investimento</span><span class="inv-lin"></span><span class="inv-v">${r.html}</span></div></div>`;
+        }
+      }
+      return `<div class="proc" data-proc="${esc(b0 ? b0.id : 'item')}" data-item="${i}">${tituloHtml(tit + cort, 'h3', 'tit')}${textos}${val}</div>`;
+    };
+    const idxImpressos = d.itens.map((it, i) => i).filter((i) => {
+      if (!limpa(d.itens[i].descricao) && !num(d.itens[i].unitario) && !c.linhas[i].total) return false;
+      return imprimeBlocosDoItem(i).length > 0 || !comTabela;
+    });
     // data-pg="dividir": a paginação pode repartir a seção entre folhas (bloco a bloco)
-    const descricoesHtml = blocosImp.length ? `<div class="desc-sec" data-pg="dividir" data-descricoes-hocderma>
-            <div class="desc-ini">${limpa(d.tituloDescricoes) ? `<h2 class="desc-tit"><span>${esc(d.tituloDescricoes)}</span></h2>` : ''}${blocoHtml(blocosImp[0])}</div>
-            ${blocosImp.slice(1).map(blocoHtml).join('')}
+    const descricoesHtml = idxImpressos.length ? `<div class="desc-sec" data-pg="dividir" data-descricoes-hocderma>
+            <div class="desc-ini">${limpa(d.tituloDescricoes) ? `<h2 class="desc-tit"><span>${esc(d.tituloDescricoes)}</span></h2>` : ''}${itemBlocoHtml(idxImpressos[0], d.incluirDescricoes)}</div>
+            ${idxImpressos.slice(1).map((i) => itemBlocoHtml(i, d.incluirDescricoes)).join('')}
           </div>` : '';
-    // tabela oculta: itens sem descrição impressa não podem sumir
-    const semBloco = comTabela ? [] : d.itens.map((it, i) => i).filter((i) => !donoDoItem.has(i) &&
-      (limpa(d.itens[i].descricao) || num(d.itens[i].unitario) || c.linhas[i].total));
+    const semBloco = [];
     // "Outros itens": só os NOMES (lista corrida) + UM Investimento com a soma deles,
     // para a soma dos blocos continuar batendo com o total.
     const somaOutros = arred(semBloco.reduce((s, i) => s + c.linhas[i].total, 0));
