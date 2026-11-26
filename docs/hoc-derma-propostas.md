@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.4.3** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.4.4** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -268,6 +268,7 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
+| **1.4.4** | 26/11/2026 | "FIOS APTOS \| ROSTO" renomeada para "APTOS ROSTO" (mesmo texto) e reconhece "aptos rosto" (ex.: "LIFTING APTOS \| FIO ROSTO"); não pega "fios lisos". |
 | **1.4.3** | 26/11/2026 | 7 descrições novas: crioterapia, curetagem (genérica e de molusco), ectrópio/entrópio, fios lisos (glabela, pálpebras inferiores) e Harmonyca; Harmonyca excluída do preenchimento genérico. |
 | **1.4.2** | 26/11/2026 | Exérese de corpo e de rosto (baixa, média e alta complexidade) usam a mesma descrição (a de média complexidade); frases `exerese corpo/rosto/face`. |
 | **1.4.1** | 26/11/2026 | "ANATOMOPATOLÓGICO (2 FRASCO)" usa a descrição de "MAIS DE 02 FRASCOS" (2 frascos e mais de 2); 1 frasco continua na própria. |

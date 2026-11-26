@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.3
+// @version      1.4.4
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.3
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.4
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -212,6 +212,10 @@ window.HOCDERMA_TIMBRADO = {
  *     "Substituir os ajustes atuais?". Fontes do Google Fonts oficial (SIL OFL; licenças em
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
+ *
+ * v1.4.4 (26/11/2026)
+ *   - "FIOS APTOS | ROSTO" vira "APTOS ROSTO" (mesmo texto) e reconhece também "aptos rosto" (ex.: "LIFTING APTOS | FIO ROSTO").
+ *     Não pega "fios lisos" (precisa da palavra "aptos").
  *
  * v1.4.3 (26/11/2026)
  *   - Catálogo: 7 descrições novas (crioterapia, curetagem com ou sem eletrocauterização, curetagem de
@@ -456,8 +460,8 @@ window.HOCDERMA_TIMBRADO = {
     {
       id: "fios-aptos-rosto",
       modeloFeegow: 55,
-      titulo: "FIOS APTOS | ROSTO",
-      palavrasChave: ["fios aptos", "fios aptos rosto"],
+      titulo: "APTOS ROSTO",
+      palavrasChave: ["fios aptos", "fios aptos rosto", "aptos rosto"],
       investimento: "R$ 8.000,00",
       texto: "Tratamento com fios de sustentação que ajudam a reposicionar os tecidos do rosto, suavizar a flacidez e melhorar a definição do contorno facial. Os fios também estimulam a produção de colágeno, contribuindo para a firmeza e a qualidade da pele ao longo do tempo."
     },
@@ -1029,7 +1033,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.4.3';
+  const VERSAO = '1.4.4';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
