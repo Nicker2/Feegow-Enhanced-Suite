@@ -1,0 +1,4 @@
+# Backups de regras de permissão do Feegow: ficam só no PC, nunca no repositório
+feegow-regras-*.json
+feegow-regras-*.txt
+backups_regras/

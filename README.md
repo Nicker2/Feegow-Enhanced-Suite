@@ -64,7 +64,7 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 | 🖨️ | **PDF HOC Derma (Timbrador)** | Aplica o cabeçalho e o rodapé HOC Derma em **qualquer PDF**, encaixa o conteúdo sozinho e exporta um PDF com texto selecionável. O arquivo não sai do computador. |
 | 💼 | **Propostas HOC Derma** | Botão **Imprimir HOC Derma** na proposta do prontuário: editor com prévia A4, descrição de cada procedimento, valores editáveis só para a impressão e timbrado HOC Derma. |
 | 📋 | **Gastos para Excel** | Na linha do tempo do prontuário, botão **Copiar para Excel** em cada registro de gasto: copia só os itens com quantidade (Item e Qtde), sem dados do paciente. Já vem com o Core. |
-| 🔁 | **Reaplicar Permissões** | No cadastro de funcionário (aba Permissões), botão ao lado do histórico de permissões que **reaplica a regra que a pessoa já tem** (a do check verde), com confirmação. Já vem com o Core. |
+| 🔁 | **Reaplicar Permissões** | No cadastro de funcionário (aba Permissões), botão ao lado do histórico de permissões que **reaplica a regra que a pessoa já tem** (a do check verde), com confirmação. Também faz **backup, comparação e restauração dos modelos de permissão** (regras predefinidas), com prévia e conferência. Já vem com o Core. |
 | 🔄 | **Atualiza sozinho** | Instalando só o Core, uma versão nova chega a todos os computadores em até cerca de 1 hora. Sem internet, roda a última cópia guardada. |
 
 <p align="center">
@@ -83,7 +83,7 @@ São **userscripts** para a extensão Tampermonkey. Eles rodam **no seu navegado
 | 🖨️ **PDF HOC Derma** (`hoc-derma-stamping-tool.user.js`) | Janela que aplica o timbrado HOC Derma em qualquer PDF, ajusta o encaixe e exporta ou imprime. | 3.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-stamping-tool.user.js)) |
 | 💼 **Propostas HOC Derma** (`hoc-derma-propostas.user.js`) | Botão **Imprimir HOC Derma** na proposta do prontuário, com editor e folha A4 timbrada. | 1.3.9 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)) |
 | 📋 **HOC Gastos para Excel** (`hoc-gastos-excel.user.js`) | Botão **📋 Copiar para Excel** nos registros de gasto da linha do tempo do prontuário. | 1.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-gastos-excel.user.js)) |
-| 🔁 **HOC Reaplicar Permissões** (`hoc-reaplicar-permissoes.user.js`) | Botão que reaplica a regra de permissões atual no cadastro de funcionário. | 1.0.1 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-reaplicar-permissoes.user.js)) |
+| 🔁 **HOC Reaplicar Permissões** (`hoc-reaplicar-permissoes.user.js`) | Botão que reaplica a regra de permissões atual no cadastro de funcionário, mais backup/comparar/restaurar dos modelos de permissão. | 1.1.0 | carregado pela Suite ([avulso](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-reaplicar-permissoes.user.js)) |
 
 A versão vigente de cada script é a do `@version` no respectivo `.meta.js`.
 
@@ -110,7 +110,7 @@ flowchart TD
     S -->|Reaplicar Permissões ON| RP[🔁 Reaplicar Permissões]
 ```
 
-A Suite carrega o Timbrador, as Propostas, o Gastos para Excel e o Reaplicar Permissões do mesmo jeito (cópia guardada por até 60 min), mas só quando o item está **ON** na engrenagem. Nenhum dos scripts grava no Feegow por conta própria: eles leem a tela e acrescentam botões e informações. Exceções: as **Propostas** o Imprimir HOC Derma clica no SALVAR da proposta antes de abrir o editor (desde a 1.3.5), e no editor o "＋ Feegow" de uma linha nova, as quantidades, valores, descontos e acréscimos dos itens e o desconto total gravam na proposta real, seguidos de SALVAR (1.3.6 e 1.3.7). O **Reaplicar Permissões** também grava, mas só depois da confirmação: ele clica no próprio botão **Aplicar** da regra que o funcionário já tem.
+A Suite carrega o Timbrador, as Propostas, o Gastos para Excel e o Reaplicar Permissões do mesmo jeito (cópia guardada por até 60 min), mas só quando o item está **ON** na engrenagem. Nenhum dos scripts grava no Feegow por conta própria: eles leem a tela e acrescentam botões e informações. Exceções: as **Propostas** o Imprimir HOC Derma clica no SALVAR da proposta antes de abrir o editor (desde a 1.3.5), e no editor o "＋ Feegow" de uma linha nova, as quantidades, valores, descontos e acréscimos dos itens e o desconto total gravam na proposta real, seguidos de SALVAR (1.3.6 e 1.3.7). O **Reaplicar Permissões** também grava, mas só depois da confirmação: ele clica no próprio botão **Aplicar** da regra que o funcionário já tem. Desde a 1.1.0, o **Restaurar uma regra** / **Restaurar todas** gravam nos modelos de permissão (nunca no funcionário), só depois da prévia e da confirmação, e conferem relendo a regra; o Backup e o Comparar só leem.
 
 ---
 
@@ -192,6 +192,7 @@ O Timbrador lembra o encaixe de cada PDF sozinho. Modo de impressão e diagnóst
 | Imprimir uma proposta da HOC Derma | Prontuário → aba **Propostas** → abra a proposta → **Imprimir HOC Derma** → ajuste no editor → **Imprimir** (ou `Ctrl + Enter`). Para PDF, escolha **Salvar como PDF**. |
 | Passar os itens de um gasto para o Excel | Prontuário → linha do tempo → no registro de gasto, **📋 Copiar para Excel** → Ctrl+V no Excel (item **Gastos para Excel** ON na engrenagem; detalhes em [docs/hoc-gastos-excel.md](docs/hoc-gastos-excel.md)). |
 | Reaplicar a regra de permissões de um funcionário | Cadastro do funcionário → aba **Permissões** → botão **🔁 Reaplicar regra atual** ao lado do histórico (a dica mostra a regra atual) → **Reaplicar** (item **Reaplicar Permissões** ON na engrenagem; detalhes em [docs/hoc-reaplicar-permissoes.md](docs/hoc-reaplicar-permissoes.md)). |
+| Fazer backup / restaurar os modelos de permissão (regras predefinidas) | Cadastro de qualquer funcionário → aba **Permissões** → **Backup das regras** (baixa um JSON datado), **Comparar com backup**, **Restaurar uma regra** (prévia, só repõe o que falta) ou **Restaurar todas 🔒** (travado até haver backup revisado e 10 restaurações conferidas). Regras de desconto ficam de fora. |
 | Desligar uma função neste computador | Engrenagem → clique no item (vira OFF e a página recarrega). |
 
 ---

@@ -11,9 +11,19 @@
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.3.9 |
 | HOC Gastos para Excel | 1.1.0 |
-| HOC Reaplicar Permissões | 1.0.1 |
+| HOC Reaplicar Permissões | 1.1.0 |
 
 ---
+
+### Reaplicar Permissões 1.1.0 (26/11/2026): backup e restauração dos modelos de permissão
+
+- Quatro botões novos à esquerda do **Reaplicar regra atual** (que não muda): **Backup das regras**, **Comparar com backup**, **Restaurar uma regra** e **Restaurar todas 🔒**. Mexem só nos MODELOS (regras predefinidas), nunca nas permissões do funcionário.
+- **Backup** (só leitura): arquivo JSON datado no PC com todas as regras (marcadas e desmarcadas com rótulo, limites financeiros, "ocultar lançamento"); sai INCOMPLETO se não fechar N/N.
+- **Comparar**: o que cada regra perdeu, ganhou e as permissões novas do Feegow.
+- **Restaurar uma regra**: prévia, padrão "só repor o que falta", backup pré-restauração automático, releitura e conferência (vermelho se não bater).
+- **Restaurar todas**: travado até haver backup completo e revisado e 10 restaurações individuais conferidas; pede `RESTAURAR TODAS` e para no 1º erro.
+- Regras de desconto ficam fora (aviso nas janelas). Detalhes em [hoc-reaplicar-permissoes.md](hoc-reaplicar-permissoes.md).
+- Chega pela Suite em até ~60 min (cache do módulo); não precisa atualizar o Core.
 
 ### Core 1.1.4.0 e Suite 4.9.8.0 (25/11/2026): sem pedido de notificações e sem popups de propaganda
 
