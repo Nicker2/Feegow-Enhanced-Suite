@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.2
+// @version      1.4.3
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.2
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.3
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -212,6 +212,11 @@ window.HOCDERMA_TIMBRADO = {
  *     "Substituir os ajustes atuais?". Fontes do Google Fonts oficial (SIL OFL; licenças em
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
+ *
+ * v1.4.3 (26/11/2026)
+ *   - Catálogo: 7 descrições novas (crioterapia, curetagem com ou sem eletrocauterização, curetagem de
+ *     molusco, ectrópio/entrópio, fios lisos glabela e pálpebras inferiores, Harmonyca). Hialuronidase já
+ *     existia com o mesmo texto. Harmonyca fica fora do preenchimento genérico.
  *
  * v1.4.2 (26/11/2026)
  *   - Exérese de CORPO e de ROSTO (baixa, média e alta complexidade) usam a mesma descrição,
@@ -710,6 +715,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 61,
       titulo: "ÁCIDO HIALURÔNICO",
       palavrasChave: ["preenchimento", "acido hialuronico", "preenchimento 1 sessoes"],
+      excluir: ["harmonyca"],
       investimento: "R$ 1.500,00",
       texto: "Tratamento injetável para dar volume, definir contornos e realçar a região tratada."
     },
@@ -718,6 +724,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 62,
       titulo: "ÁCIDO HIALURÔNICO",
       palavrasChave: ["preenchimento 2 sessoes"],
+      excluir: ["harmonyca"],
       investimento: "R$ 1.300,00 cada",
       texto: "Tratamento injetável para dar volume, definir contornos e realçar a região tratada."
     },
@@ -726,6 +733,7 @@ window.HOCDERMA_TIMBRADO = {
       modeloFeegow: 63,
       titulo: "ÁCIDO HIALURÔNICO",
       palavrasChave: ["preenchimento 3"],
+      excluir: ["harmonyca"],
       investimento: "R$ 1.200,00 cada",
       texto: "Tratamento injetável para dar volume, definir contornos e realçar a região tratada."
     },
@@ -918,6 +926,58 @@ window.HOCDERMA_TIMBRADO = {
       palavrasChave: ["clipping ungueal"],
       investimento: "",
       texto: "Coleta de um pequeno fragmento da unha para análise em laboratório, auxiliando na investigação de micose e de outras alterações das unhas."
+    },
+    {
+      id: "crioterapia",
+      titulo: "CRIOTERAPIA",
+      palavrasChave: ["crioterapia"],
+      excluir: ["conjuntival"],
+      investimento: "",
+      texto: "Tratamento que utiliza o frio intenso para congelar e eliminar lesões da pele, como verrugas e algumas queratoses."
+    },
+    {
+      id: "curetagem-com-ou-sem-eletrocauterizacao",
+      titulo: "CURETAGEM COM OU SEM ELETROCAUTERIZAÇÃO",
+      palavrasChave: ["curetagem", "curetagem ecg", "curetagem ecg lesao"],
+      excluir: ["uterina", "uterino", "ginecologica", "molusco", "mucosas"],
+      investimento: "",
+      texto: "Remoção da lesão por raspagem com um instrumento específico, podendo ser associada à cauterização para complementar o tratamento e controlar pequenos sangramentos."
+    },
+    {
+      id: "curetagem-de-molusco",
+      titulo: "CURETAGEM DE MOLUSCO",
+      palavrasChave: ["curetagem molusco"],
+      investimento: "",
+      texto: "Procedimento para retirar as pequenas lesões do molusco contagioso, uma infecção viral que provoca bolinhas na pele."
+    },
+    {
+      id: "correcao-de-ectropio-ou-entropio",
+      titulo: "CORREÇÃO DE ECTRÓPIO OU ENTRÓPIO",
+      palavrasChave: ["ectropio", "entropio", "ectropico"],
+      excluir: ["anestesista", "auxiliar"],
+      investimento: "",
+      texto: "Cirurgia para corrigir a pálpebra que está virada para fora ou para dentro, melhorando sua posição e ajudando a aliviar a irritação e proteger os olhos."
+    },
+    {
+      id: "fios-lisos-glabela",
+      titulo: "FIOS LISOS | GLABELA",
+      palavrasChave: ["fios lisos glabela"],
+      investimento: "",
+      texto: "Aplicação de fios absorvíveis na região entre as sobrancelhas, com o objetivo de estimular o colágeno e suavizar as linhas marcadas na pele."
+    },
+    {
+      id: "fios-lisos-palpebras-inferiores",
+      titulo: "FIOS LISOS | PÁLPEBRAS INFERIORES",
+      palavrasChave: ["fios lisos palpebra inferior", "fios lisos palpebras inferiores"],
+      investimento: "",
+      texto: "Aplicação de fios absorvíveis abaixo dos olhos, com o objetivo de estimular o colágeno e melhorar a firmeza e as linhas finas da região."
+    },
+    {
+      id: "harmonyca",
+      titulo: "HARMONYCA",
+      palavrasChave: ["harmonyca"],
+      investimento: "",
+      texto: "Tratamento injetável que combina ácido hialurônico e hidroxiapatita de cálcio para dar sustentação ao rosto e estimular a produção de colágeno, melhorando a firmeza e o contorno facial."
     }
   ];
 
@@ -969,7 +1029,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.4.2';
+  const VERSAO = '1.4.3';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';

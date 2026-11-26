@@ -9,7 +9,7 @@
 | Core | 1.1.8.0 |
 | Suite principal | 4.9.12.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.4.2 |
+| Propostas HOC Derma | 1.4.3 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.4.0 |
 
@@ -86,6 +86,10 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.4.3 (26/11/2026)
+
+- **7 descrições novas**: crioterapia, curetagem com ou sem eletrocauterização, curetagem de molusco (vence a genérica), correção de ectrópio ou entrópio, fios lisos (glabela e pálpebras inferiores) e Harmonyca. A hialuronidase já existia com o mesmo texto. Curetagem uterina/ginecológica e crioterapia conjuntival ficam de fora; Harmonyca não cai no preenchimento com ácido hialurônico genérico.
 
 ### Propostas 1.4.2 (26/11/2026)
 
