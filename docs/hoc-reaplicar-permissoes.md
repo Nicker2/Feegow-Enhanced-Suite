@@ -2,7 +2,7 @@
 
 [Voltar ao README](../README.md)
 
-**Versão atual: 1.1.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
+**Versão atual: 1.2.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
 
 ## Instalação
 
@@ -19,6 +19,15 @@ No cadastro de funcionário (`?P=Funcionarios&Pers=1&I=<número>`, com `P` em qu
 - **Reaplicar**: o script clica no próprio botão **Aplicar** da regra na tabela *"Você também pode aplicar uma das regras predefinidas abaixo"*. É o mesmo caminho do clique manual (`permissoesAcao` e o token da própria página); o script não monta pedido nem copia token.
 - **Aviso**: mostra "Reaplicando..." e, quando o Feegow recarrega as permissões, "✔ Regra '<regra>' reaplicada." (a Suite costuma esconder o aviso flutuante "Regra aplicada." do Feegow, por isso há um aviso próprio).
 - **Sem regra marcada** (nenhuma linha com o check verde): o botão fica desabilitado (mesmo texto, esmaecido), com a dica "Nenhuma regra aplicada a este funcionário".
+
+## Link direto para a aba (1.2.0)
+
+Cole `https://app.feegow.com/main/?P=Funcionarios&Pers=1&I=<número>&Aba=Permissoes` (ou termine com `#divPermissoes`) e a aba **Permissões** abre sozinha. Valores aceitos em `Aba`: `Permissoes` (também `Permissao`, `divPermissoes`), `Acesso` (`divAcesso`) e `Cadastro` (`divCadastroFuncionario`), sem diferenciar maiúsculas nem acentos. Funciona em `P=Funcionarios` e `P=Profissionais`.
+
+- Espera a aba existir (observador de mudanças + verificação a cada 250 ms, no máximo 15 s) e clica **uma vez**. Não clica se a aba já estiver ativa nem se a pessoa clicar em outra aba antes.
+- Lê também a URL original da navegação, porque o Feegow reescreve o endereço e perde o `&Aba`.
+- O botão **🔗 Copiar link das permissões** (perto do título) copia esse link para a área de transferência.
+- Engrenagem: **Abrir aba pelo link (&Aba=Permissoes)**, ON por padrão. A Suite passa as opções pelos atributos `data-hoc-cfg-aba-link` e `data-hoc-cfg-reaplicar` do `<html>`; no avulso, ficam ligadas.
 
 ## Como acha a regra atual
 

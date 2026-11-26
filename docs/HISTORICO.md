@@ -6,14 +6,21 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.1.4.0 |
-| Suite principal | 4.9.8.0 |
+| Core | 1.1.5.0 |
+| Suite principal | 4.9.9.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.3.9 |
 | HOC Gastos para Excel | 1.1.0 |
-| HOC Reaplicar Permissões | 1.1.0 |
+| HOC Reaplicar Permissões | 1.2.0 |
 
 ---
+
+### Core 1.1.5.0, Suite 4.9.9.0 e Reaplicar Permissões 1.2.0 (26/11/2026): link direto para as abas do funcionário
+
+- O Feegow passou a ignorar o `&Aba=...` do endereço. Agora o módulo lê `&Aba=Permissoes` (ou `#divPermissoes`) ao abrir `?P=Funcionarios` / `?P=Profissionais`, espera a aba aparecer (até 15 s) e clica nela **uma única vez** (o clique dispara o carregamento do próprio Feegow). Aceita `Permissoes`/`Permissao`/`divPermissoes`, `Acesso`/`divAcesso` e `Cadastro`/`divCadastroFuncionario`, sem diferenciar maiúsculas e acentos. Se a pessoa clicar em outra aba antes, o link perde a vez.
+- Botão **🔗 Copiar link das permissões** ao lado do título da página: copia `https://app.feegow.com/main/?P=Funcionarios&Pers=1&I=<número>&Aba=Permissoes`.
+- Novo item **Abrir aba pelo link (&Aba=Permissoes)** na engrenagem, ON por padrão. A Suite passa as opções ao módulo e agora baixa o módulo também em Profissionais.
+- Core 1.1.5.0 só força o download imediato da Suite nova.
 
 ### Reaplicar Permissões 1.1.0 (26/11/2026): backup e restauração dos modelos de permissão
 

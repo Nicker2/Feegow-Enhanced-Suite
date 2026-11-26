@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.8.0
+// @version      4.9.9.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -26,6 +26,8 @@
     const featureGastosExcelAtiva = GM_getValue('gastos_excel', true);
     // Botão que reaplica a regra de permissões atual no cadastro de funcionário (vem ON por padrão).
     const featureReaplicarPermissoesAtiva = GM_getValue('reaplicar_permissoes', true);
+    // Abrir a aba do cadastro de funcionário/profissional pelo link (&Aba=Permissoes) e botão de copiar o link (vem ON por padrão).
+    const featureAbaLinkAtiva = GM_getValue('aba_link', true);
 
     // =========================================================================
     // OCULTAR PEDIDO DE NOTIFICAÇÕES DO FEEGOW (vem ON por padrão)
@@ -591,8 +593,11 @@
     }
 
     function iniciarModuloReaplicarPermissoes() {
-        if (!featureReaplicarPermissoesAtiva) return;    // OFF na engrenagem: nem baixa
-        if (!/[?&]P=funcionarios(?:&|#|$)/i.test(location.search + location.hash)) return;   // só no cadastro de funcionário
+        if (!featureReaplicarPermissoesAtiva && !featureAbaLinkAtiva) return;    // os dois OFF na engrenagem: nem baixa
+        if (!/[?&]P=(?:funcionarios|profissionais)(?:&|#|$)/i.test(location.search + location.hash)) return;   // só no cadastro de funcionário/profissional
+        // O módulo lê estas opções do <html> (ele não tem acesso ao GM_getValue).
+        document.documentElement.setAttribute('data-hoc-cfg-reaplicar', featureReaplicarPermissoesAtiva ? '1' : '0');
+        document.documentElement.setAttribute('data-hoc-cfg-aba-link', featureAbaLinkAtiva ? '1' : '0');
         carregarReaplicarPermissoes(false);              // o módulo tem o próprio vigia (MutationObserver)
     }
 
@@ -1529,6 +1534,9 @@ const protocolosDilatacao = {
                     </li>
                     <li class="toggle-remover" data-key="reaplicar_permissoes" style="padding: 5px 10px; cursor: pointer; color: ${featureReaplicarPermissoesAtiva ? 'green' : 'red'};" title="Botão que reaplica a regra de permissões atual no cadastro de funcionário (aba Permissões)">
                         Reaplicar Permissões: ${featureReaplicarPermissoesAtiva ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="aba_link" style="padding: 5px 10px; cursor: pointer; color: ${featureAbaLinkAtiva ? 'green' : 'red'};" title="Abre a aba pelo link (&Aba=Permissoes) no cadastro de funcionário e mostra o botão 'Copiar link das permissões'">
+                        Abrir aba pelo link (&amp;Aba=Permissoes): ${featureAbaLinkAtiva ? 'ON' : 'OFF'}
                     </li>
                 </ul>
               </div>

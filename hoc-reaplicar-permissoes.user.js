@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HOC Reaplicar Permissões (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.1.0
-// @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
+// @version      1.2.0
+// @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Também abre a aba pelo link (&Aba=Permissoes) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
 // @match        https://feegow.com/*
@@ -18,14 +18,17 @@
 (function () {
     'use strict';
 
-    var VERSAO = '1.1.0';
+    var VERSAO = '1.2.0';
     var PREFIXO = '[HOC Reaplicar Permissões]';
 
-    // Só na tela de cadastro de funcionário (?P=Funcionarios, com ou sem maiúscula).
+    // Telas tratadas: cadastro de funcionário e (só o link de aba) de profissional.
     function telaDeFuncionario() {
         return /[?&]P=funcionarios(?:&|#|$)/i.test(location.search + location.hash);
     }
-    if (!telaDeFuncionario()) return;
+    function telaDePessoal() {
+        return /[?&]P=(?:funcionarios|profissionais)(?:&|#|$)/i.test(location.search + location.hash);
+    }
+    if (!telaDePessoal()) return;
 
     // Roda uma vez só por página: o módulo pode vir do Core (cascata da Suite) e
     // também do script avulso. Quem chegar primeiro marca o <html>; o outro sai.
@@ -36,6 +39,208 @@
         return;
     }
     raizDoc.setAttribute(ATIVO, VERSAO);
+
+    // Opções da engrenagem da Suite (atributos do <html>; sem o atributo = ligado, como no avulso).
+    var ligadoReaplicar = raizDoc.getAttribute('data-hoc-cfg-reaplicar') !== '0';
+    var ligadoAbaLink = raizDoc.getAttribute('data-hoc-cfg-aba-link') !== '0';
+
+    // ---------- LINK DIRETO PARA ABA (&Aba=Permissoes ou #divPermissoes) ----------
+
+    // Nome do link (sem acento, minúsculo) -> como reconhecer a aba na página.
+    // Cada aba é um <a href="#div..."> do menu lateral; o clique dispara o carregamento do próprio Feegow.
+    var ABAS_LINK = {
+        permissoes: { hrefs: ['#divpermissoes'], id: 'gtPermissoes', texto: /^permiss/ },
+        permissao: 'permissoes',
+        divpermissoes: 'permissoes',
+        acesso: { hrefs: ['#divacesso'], texto: /acesso/ },
+        divacesso: 'acesso',
+        cadastro: { hrefs: ['#divcadastrofuncionario', '#divcadastroprofissional', '#divcadastro'], texto: /^cadastro/ },
+        divcadastrofuncionario: 'cadastro',
+        divcadastroprofissional: 'cadastro'
+    };
+
+    function semAcento(t) {
+        return String(t == null ? '' : t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
+    // URL original da navegação (o Feegow pode reescrever a barra de endereço e perder o &Aba).
+    function urlsDaPagina() {
+        var urls = [location.href];
+        try {
+            var nav = performance.getEntriesByType('navigation')[0];
+            if (nav && nav.name && urls.indexOf(nav.name) < 0) urls.push(nav.name);
+        } catch (e) { /* sem Performance API */ }
+        return urls;
+    }
+
+    // Devolve o nome pedido (já sem acento/minúsculo) ou ''.
+    function abaPedida() {
+        var urls = urlsDaPagina();
+        for (var i = 0; i < urls.length; i++) {
+            var u;
+            try { u = new URL(urls[i]); } catch (e) { continue; }
+            var q = u.searchParams.get('Aba');
+            if (!q) {
+                // parâmetro com outra caixa (aba=, ABA=)
+                u.searchParams.forEach(function (v, k) { if (!q && k.toLowerCase() === 'aba') q = v; });
+            }
+            if (q) return semAcento(q);
+            if (u.hash && u.hash.length > 1) return semAcento(u.hash.slice(1));
+        }
+        return '';
+    }
+
+    function descreverAba(nome) {
+        var d = ABAS_LINK[nome];
+        if (typeof d === 'string') d = ABAS_LINK[d];
+        if (d) return d;
+        // Qualquer outro nome: tenta a aba cujo href é "#div<nome>" (ou "#<nome>").
+        if (/^[a-z0-9_-]{2,40}$/.test(nome)) {
+            return { hrefs: ['#' + nome, '#div' + nome], texto: null, generico: true };
+        }
+        return null;
+    }
+
+    function acharAba(desc) {
+        var links = document.querySelectorAll('a[href^="#div"], a[href^="#"][onclick]');
+        for (var i = 0; i < links.length; i++) {
+            var a = links[i];
+            var href = semAcento(a.getAttribute('href'));
+            if (href.length < 4) continue;
+            if (desc.hrefs.indexOf(href) >= 0) return a;
+            if (desc.id && a.id === desc.id) return a;
+        }
+        if (desc.texto) {
+            for (var j = 0; j < links.length; j++) {
+                if (/^#div/i.test(links[j].getAttribute('href') || '') && desc.texto.test(semAcento(links[j].textContent))) return links[j];
+            }
+        }
+        return null;
+    }
+
+    function abaJaAtiva(a) {
+        var li = a.closest('li');
+        return !!(li && li.classList.contains('active'));
+    }
+
+    function abrirAbaPeloLink() {
+        var nome = abaPedida();
+        if (!nome) return;
+        var desc = descreverAba(nome);
+        if (!desc) return;
+
+        var terminou = false;
+        var observador = null, tick = null, limite = null;
+        function encerrar() {
+            terminou = true;
+            if (observador) observador.disconnect();
+            clearInterval(tick); clearTimeout(limite);
+            document.removeEventListener('click', usuarioClicou, true);
+        }
+        // Se a pessoa clicar em qualquer aba depois do carregamento, o link perde a vez.
+        function usuarioClicou(ev) {
+            if (!ev.isTrusted || !ev.target || !ev.target.closest) return;
+            if (ev.target.closest('#lMenu a, .sidebar-menu a, a[href^="#div"]')) encerrar();
+        }
+        document.addEventListener('click', usuarioClicou, true);
+
+        function tentar() {
+            if (terminou) return;
+            var a = acharAba(desc);
+            if (!a) return;
+            encerrar();
+            if (abaJaAtiva(a)) return;
+            a.click();   // uma única vez; o onclick do Feegow (ajxContent etc.) faz o resto
+            console.info(PREFIXO + ' Aba aberta pelo link: ' + nome);
+        }
+        observador = new MutationObserver(tentar);
+        observador.observe(document.documentElement, { childList: true, subtree: true });
+        tick = setInterval(tentar, 250);
+        limite = setTimeout(encerrar, 15000);   // desiste depois de 15 s
+        tentar();
+    }
+
+    // ---------- botão "Copiar link das permissões" ----------
+
+    var CLASSE_COPIAR = 'hoc-copiar-link-permissoes';
+
+    function idDaPessoa() {
+        var m = /[?&]I=(\d+)/i.exec(location.search);
+        return m ? m[1] : '';
+    }
+
+    function linkDasPermissoes() {
+        var id = idDaPessoa();
+        if (!id) return '';
+        var p = /[?&]P=profissionais(?:&|#|$)/i.test(location.search) ? 'Profissionais' : 'Funcionarios';
+        return location.origin + '/main/?P=' + p + '&Pers=1&I=' + id + '&Aba=Permissoes';
+    }
+
+    function copiarTexto(texto) {
+        function reserva() {
+            return new Promise(function (resolve, reject) {
+                var ta = document.createElement('textarea');
+                ta.value = texto;
+                ta.setAttribute('readonly', '');
+                ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
+                document.body.appendChild(ta);
+                ta.select();
+                var ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                ta.remove();
+                if (ok) resolve(); else reject(new Error('copy falhou'));
+            });
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(texto).catch(reserva);
+        }
+        return reserva();
+    }
+
+    function injetarBotaoCopiarLink() {
+        if (!telaDePessoal() || !idDaPessoa()) return;
+        var existentes = document.querySelectorAll('.' + CLASSE_COPIAR);
+        for (var i = 1; i < existentes.length; i++) existentes[i].remove();
+        if (existentes.length) return;
+        var esquerda = document.querySelector('#topbar .topbar-left');
+        var direita = document.querySelector('#topbar .topbar-right #rbtns, #topbar .topbar-right');
+        if (!esquerda && !direita) return;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-xs btn-default ' + CLASSE_COPIAR;
+        b.style.cssText = 'margin-left:12px;white-space:nowrap;vertical-align:middle;';
+        b.title = 'Copia o link direto para a aba Permissões desta pessoa (…&Aba=Permissoes)';
+        b.textContent = '🔗 Copiar link das permissões';
+        b.addEventListener('click', function (ev) {
+            ev.preventDefault(); ev.stopPropagation();
+            var link = linkDasPermissoes();
+            if (!link) { aviso('Não achei o número desta pessoa na página.', 'erro'); return; }
+            copiarTexto(link).then(function () {
+                aviso('✔ Link das permissões copiado.', 'ok', 3000);
+            }, function () {
+                aviso('Não consegui copiar. Link: ' + link, 'erro', 9000);
+            });
+        });
+        if (esquerda) esquerda.appendChild(b);
+        else direita.insertBefore(b, direita.firstChild);
+    }
+
+    function varrerLink() {
+        if (ligadoAbaLink) injetarBotaoCopiarLink();
+    }
+
+    if (ligadoAbaLink) {
+        abrirAbaPeloLink();
+        varrerLink();
+        var agLink = null;
+        new MutationObserver(function () {
+            if (agLink) return;
+            agLink = setTimeout(function () { agLink = null; varrerLink(); }, 300);
+        }).observe(document.documentElement, { childList: true, subtree: true });
+    }
+
+    // Daqui para baixo: Reaplicar Permissões (só no cadastro de funcionário).
+    if (!ligadoReaplicar || !telaDeFuncionario()) return;
 
     var CLASSE_BTN = 'hoc-reaplicar-regra-btn';
     var ICONE = 'far fa-redo';
