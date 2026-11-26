@@ -6,14 +6,19 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.1.6.0 |
-| Suite principal | 4.9.10.0 |
+| Core | 1.1.7.0 |
+| Suite principal | 4.9.11.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.3.10 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.3.0 |
 
 ---
+
+### Core 1.1.7.0 e Suite 4.9.11.0 (26/11/2026): botões de permissão ON em todos os PCs
+
+- Os três botões de permissão (Reaplicar regra atual, 🔐 Permissões e ♻️ Reaplicar nas listas) voltam a ficar ON uma vez em todos os PCs, mesmo onde tinham sido desligados. Depois disso, a escolha feita na engrenagem passa a valer.
+- O Core novo faz a Suite ser baixada na hora.
 
 ### Core 1.1.6.0, Suite 4.9.10.0 e Reaplicar Permissões 1.3.0 (26/11/2026): botões Permissões e Reaplicar nas listas
 

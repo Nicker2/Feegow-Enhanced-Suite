@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced Core Injector Agent
 // @namespace    https://github.com/Nicker2
-// @version      1.1.6.0
+// @version      1.1.7.0
 // @description  Puxa o código fonte do GitHub de forma inteligente usando Cache. Inclui a Suite, o PDF HOC Derma, as Propostas HOC Derma, o HOC Gastos para Excel e o HOC Reaplicar Permissões.
 // @author       Nicolas Bonza Cavalari Borges
 // @downloadURL https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/core.user.js

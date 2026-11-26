@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.10.0
+// @version      4.9.11.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -17,6 +17,11 @@
 (function() {
     'use strict';
 
+    // 4.9.11.0: os botões de permissão (Reaplicar regra atual, 🔐 Permissões e ♻️ Reaplicar nas listas)
+    // voltam a ficar ON em todos os PCs uma vez (pedido do dono); depois disso a escolha na engrenagem vale.
+    if (!GM_getValue('mig_botoes_perm_on_49110', false)) {
+        try { GM_setValue('reaplicar_permissoes', true); GM_setValue('btn_perm_lista', true); GM_setValue('btn_reaplicar_lista', true); GM_setValue('mig_botoes_perm_on_49110', true); } catch (e) { /* noop */ }
+    }
     // Lê se a função está ativada no computador atual (Vem ON por padrão:
     // o timbrador é carregado automaticamente pela cascata abaixo).
     const featurePdfHocAtiva = GM_getValue('pdf_hoc_derma', true);
@@ -529,7 +534,7 @@
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
     const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
-    const PERMREG_SUITE_VERSAO  = '4.9.10.0';
+    const PERMREG_SUITE_VERSAO  = '4.9.11.0';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
