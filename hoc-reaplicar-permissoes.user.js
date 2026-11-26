@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HOC Reaplicar Permissões (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.0
-// @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Nas listas de funcionários e profissionais, mostra ao lado de cada cadastro ATIVO os botões "🔐 Permissões" (abre a aba Permissões em nova aba) e, só na lista de funcionários, "♻️ Reaplicar" (abre e reaplica a regra marcada, uma vez só). Nas duas listas, o filtro de status abre sempre em "Ativo" (uma vez por carregamento; se você trocar, é respeitado). O ♻️ Reaplicar espera a aba Permissões carregar por completo antes de procurar a regra marcada. Também abre a aba pelo link (&Aba=Permissoes, desligado por padrão) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
+// @version      1.6.0
+// @description  No cadastro de funcionário do Feegow (aba Permissões): botão "Reaplicar regra atual" (reaplica a regra predefinida que a pessoa já tem, clicando no próprio "Aplicar" da regra) e, à esquerda dele, ferramentas para os MODELOS de permissão (regras predefinidas): Backup das regras (arquivo JSON datado no seu PC, só leitura), Comparar com backup, Restaurar uma regra (prévia, padrão só repor o que falta, releitura e conferência) e Restaurar todas (travado até haver backup revisado e 10 restaurações individuais conferidas). Nas listas de funcionários e profissionais, mostra ao lado de cada cadastro ATIVO os botões "🔐 Permissões" (abre a aba Permissões em nova aba) e, só na lista de funcionários, "♻️ Reaplicar" (abre e reaplica a regra marcada, uma vez só) e o botão "♻️ Reaplicar em todos (N)" à direita do filtro de status (reaplica a regra marcada em todos os funcionários ativos da tela, um por vez, com confirmação, progresso, Parar e relatório). Nas duas listas, mostra TODOS os cadastros de uma vez, sem páginas ("Mostrando todos: N cadastros"; funciona com filtro, busca e letra). Também abre a aba pelo link (&Aba=Permissoes, desligado por padrão) e copia o link das permissões. Não mexe nas permissões do funcionário. Regras de desconto ficam de fora. Já vem com o Core da Feegow Enhanced Suite; com o Core instalado, este avulso não é necessário.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
 // @match        https://feegow.com/*
@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    var VERSAO = '1.5.0';
+    var VERSAO = '1.6.0';
     var PREFIXO = '[HOC Reaplicar Permissões]';
 
     // Telas tratadas: cadastro de funcionário e (só o link de aba) de profissional.
@@ -53,6 +53,8 @@
     // Botão "Reaplicar em todos (N)" nas listas (ligado por padrão) e confirmação antes de começar (ligada por padrão).
     var ligadoBtnMassa = raizDoc.getAttribute('data-hoc-cfg-btn-massa') !== '0';
     var ligadoConfirmaMassa = raizDoc.getAttribute('data-hoc-cfg-confirma-massa') !== '0';
+    // Mostrar todos os cadastros na lista, sem páginas (ligado por padrão).
+    var ligadoTodos = raizDoc.getAttribute('data-hoc-cfg-todos') !== '0';
     var massaRodando = false;
 
     // ---------- LINK DIRETO PARA ABA (&Aba=Permissoes ou #divPermissoes) ----------
@@ -410,7 +412,7 @@
         var texto = ehFuncionarios ? TEXTO_MASSA + ' (' + n + ')' : TEXTO_MASSA;
         var titulo = !ehFuncionarios
             ? 'Indisponível em profissionais: só funcionários têm regras de permissões predefinidas para reaplicar.'
-            : (n ? 'Reaplica a regra de permissões marcada (✓) em cada um dos ' + n + ' funcionários ativos desta página, um por vez, sem abrir abas.' : 'Nenhum funcionário ativo na tela.');
+            : (n ? 'Reaplica a regra de permissões marcada (✓) em cada um dos ' + n + ' funcionários ativos desta lista, um por vez, sem abrir abas.' : 'Nenhum funcionário ativo na tela.');
         var b = antigo;
         if (!b) {
             b = document.createElement('button');
@@ -427,8 +429,159 @@
         }
         if (b.textContent !== texto) b.textContent = texto;
         if (b.title !== titulo) b.title = titulo;
-        var desab = !ehFuncionarios || !n || massaRodando;
+        var carregando = !!raiz.host && expansaoEmCurso(raiz.host);
+        if (carregando) titulo = 'Carregando todos os cadastros da lista...';
+        if (b.title !== titulo) b.title = titulo;
+        var desab = !ehFuncionarios || !n || massaRodando || carregando;
         if (b.disabled !== desab) b.disabled = desab;
+    }
+
+    // ---- Mostrar todos os cadastros (sem páginas) ----
+    // O componente da lista não aceita tamanho de página: o BFF (accounts-bff.feegow.com/staff|professionals/view-data)
+    // ignora pageSize (sempre 20) e a lista não re-renderiza se a propriedade `list` for trocada (ele guarda estado interno).
+    // Então o módulo coloca no fetch DA PÁGINA um gancho: quando o componente pede view-data (primeira página, com o filtro/busca/letra
+    // dele), o gancho busca as demais páginas com a MESMA URL e os MESMOS cabeçalhos (Authorization do próprio componente), junta as
+    // linhas e devolve ao componente uma única resposta com pagination {page:1, totalPages:1}. Só GET de leitura; teto de 1000 cadastros;
+    // se qualquer página falhar, devolve a resposta original (a lista continua paginada, nada quebra). O gancho roda no mundo da
+    // página (<script> injetado), porque o Tampermonkey isola o `window` do script.
+    var TODOS_TETO = 1000;
+    var hookTodosOk = false;
+
+    function hookTodosNaPagina(TETO) {
+        var H = document.documentElement;
+        if (H.getAttribute('data-hoc-todos-hook')) return;
+        var orig = window.fetch;
+        if (typeof orig !== 'function' || typeof Response !== 'function') return;
+        function ehViewData(url) {
+            try {
+                var u = new URL(url, location.href);
+                return /^accounts-bff\./i.test(u.hostname) && /^\/(?:staff|professionals)\/view-data\/?$/.test(u.pathname) ? u : null;
+            } catch (e) { return null; }
+        }
+        function fim() { H.removeAttribute('data-hoc-todos-carregando'); }
+        window.fetch = function (input, init) {
+            var args = arguments, self = this;
+            var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+            var metodo = String((init && init.method) || (input && typeof input === 'object' && input.method) || 'GET').toUpperCase();
+            var u = ehViewData(url);
+            if (!u || metodo !== 'GET' || H.getAttribute('data-hoc-cfg-todos') === '0') return orig.apply(self, args);
+            var cab = (init && init.headers) || (input && typeof input === 'object' && input.headers) || undefined;
+            var opts = { method: 'GET', headers: cab, credentials: (init && init.credentials) || (input && typeof input === 'object' && input.credentials) || 'same-origin', signal: init && init.signal };
+            function pagina(n) {
+                var x = new URL(u.toString()); x.searchParams.set('page', String(n));
+                return orig.call(window, x.toString(), opts).then(function (r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.text().then(function (t) { return { r: r, t: t, j: JSON.parse(t) }; });
+                });
+            }
+            H.setAttribute('data-hoc-todos-carregando', '1');
+            return pagina(1).then(function (p1) {
+                var L = p1.j && p1.j.list, pg = L && L.pagination;
+                var devolverOriginal = function () { return new Response(p1.t, { status: p1.r.status, statusText: p1.r.statusText, headers: { 'Content-Type': p1.r.headers.get('content-type') || 'application/json' } }); };
+                if (!L || !pg || !L.items || !(pg.totalPages > 1)) { fim(); return devolverOriginal(); }
+                var tamanho = L.items.length || pg.pageSize || 20;
+                var ultima = Math.min(pg.totalPages, Math.max(1, Math.ceil(TETO / tamanho)));
+                var paginas = [], n;
+                for (n = 2; n <= ultima; n++) paginas.push(n);
+                var resultados = {}, fila = paginas.slice(), erro = false;
+                function trabalhador() {
+                    if (erro || !fila.length) return Promise.resolve();
+                    var k = fila.shift();
+                    return pagina(k).then(function (px) { resultados[k] = px.j; }).catch(function () { erro = true; }).then(trabalhador);
+                }
+                return Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador()]).then(function () {
+                    if (erro) { fim(); return devolverOriginal(); }
+                    var itens = L.items.slice(), vistos = {};
+                    itens.forEach(function (it) { if (it && it.id != null) vistos[it.id] = true; });
+                    paginas.forEach(function (k) {
+                        var li = resultados[k] && resultados[k].list && resultados[k].list.items;
+                        (li || []).forEach(function (it) { if (it && it.id != null && vistos[it.id]) return; if (it && it.id != null) vistos[it.id] = true; itens.push(it); });
+                    });
+                    var truncado = ultima < pg.totalPages;
+                    var novo = JSON.parse(JSON.stringify(p1.j));
+                    novo.list.items = itens;
+                    novo.list.pagination = { page: 1, pageSize: Math.max(itens.length, pg.pageSize || 20), total: truncado ? pg.total : itens.length, totalPages: 1 };
+                    H.setAttribute('data-hoc-todos-n', String(itens.length));
+                    if (truncado) H.setAttribute('data-hoc-todos-truncado', String(pg.total)); else H.removeAttribute('data-hoc-todos-truncado');
+                    fim();
+                    return new Response(JSON.stringify(novo), { status: 200, statusText: 'OK', headers: { 'Content-Type': p1.r.headers.get('content-type') || 'application/json' } });
+                });
+            }).catch(function (e) {
+                fim();
+                return orig.apply(self, args);   // qualquer falha: pedido original, sem juntar
+            });
+        };
+        window.fetch.__hocTodos = true;
+        H.setAttribute('data-hoc-todos-hook', '1');
+    }
+
+    function instalarHookTodos() {
+        if (!ligadoTodos || document.documentElement.getAttribute('data-hoc-todos-hook')) { hookTodosOk = !!document.documentElement.getAttribute('data-hoc-todos-hook'); return; }
+        try {
+            var sc = document.createElement('script');
+            sc.textContent = '(' + hookTodosNaPagina.toString() + ')(' + TODOS_TETO + ');';
+            (document.head || document.documentElement).appendChild(sc);
+            sc.remove();
+        } catch (e) { console.warn(PREFIXO + ' Não foi possível instalar o gancho de "mostrar todos":', e); }
+        hookTodosOk = !!document.documentElement.getAttribute('data-hoc-todos-hook');
+        if (!hookTodosOk) console.warn(PREFIXO + ' "Mostrar todos os cadastros" indisponível nesta página (script bloqueado?); a lista segue paginada.');
+    }
+
+    // Troca a paginação por "Mostrando todos: N cadastros" quando a lista inteira está na tela (1-N de N).
+    var REGEX_FAIXA = /^\s*1\s*[-–]\s*(\d+)\s+de\s+(\d+)/;
+    function ajustarPaginacao(raiz) {
+        var faixa = raiz.querySelector('[data-testid$="pagination-range"]');
+        var nav = raiz.querySelector('nav[data-testid$="pagination"]');
+        var nosso = raiz.querySelector('.hoc-todos-texto');
+        var m = ligadoTodos && hookTodosOk && faixa ? REGEX_FAIXA.exec(faixa.textContent || '') : null;
+        var inteira = !!m && m[1] === m[2];
+        var trunc = document.documentElement.getAttribute('data-hoc-todos-truncado');
+        if (!ligadoTodos || !hookTodosOk || !faixa || (!inteira && !(m && trunc))) {
+            if (nosso) nosso.remove();
+            if (faixa && faixa.hasAttribute('data-hoc-oculto')) { faixa.removeAttribute('data-hoc-oculto'); faixa.style.display = ''; }
+            if (nav && nav.hasAttribute('data-hoc-oculto')) { nav.removeAttribute('data-hoc-oculto'); nav.style.display = ''; }
+            return;
+        }
+        var texto = inteira ? 'Mostrando todos: ' + m[2] + ' cadastros' : 'Mostrando ' + m[1] + ' de ' + trunc + ' cadastros (limite de ' + TODOS_TETO + ')';
+        if (!nosso) {
+            nosso = document.createElement('p');
+            nosso.className = (faixa.className || '') + ' hoc-todos-texto';
+            nosso.setAttribute('data-testid', 'hoc-todos-texto');
+            faixa.parentNode.insertBefore(nosso, faixa.nextSibling);
+        }
+        if (nosso.textContent !== texto) nosso.textContent = texto;
+        if (!faixa.hasAttribute('data-hoc-oculto')) { faixa.setAttribute('data-hoc-oculto', '1'); faixa.style.display = 'none'; }
+        if (nav && !nav.hasAttribute('data-hoc-oculto')) { nav.setAttribute('data-hoc-oculto', '1'); nav.style.display = 'none'; }
+    }
+
+    // Primeira carga: a lista vem pronta no atributo (20 linhas), sem fetch. Pede ao componente a mesma lista de novo
+    // (re-dispara o change do filtro de status com o valor atual) para o gancho juntar as páginas. Uma vez por host.
+    var hostsExpandidos = (typeof WeakSet === 'function') ? new WeakSet() : null;
+    var hostsPendentes = (typeof WeakMap === 'function') ? new WeakMap() : null;   // host -> instante em que a expansão foi pedida
+    function expandirNoHost(host, raiz, filtroDisparou) {
+        if (!ligadoTodos || !hookTodosOk || !hostsExpandidos || hostsExpandidos.has(host)) return;
+        var faixa = raiz.querySelector('[data-testid$="pagination-range"]');
+        var m = faixa && REGEX_FAIXA.exec(faixa.textContent || '');
+        if (!filtroDisparou) {
+            if (m && m[1] === m[2]) { hostsExpandidos.add(host); return; }   // já inteira
+            var sel = raiz.querySelector('select[aria-label="Filtrar por status de acesso"]');
+            if (!sel) return;   // ainda não renderizou; tenta na próxima varredura
+            sel.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+            sel.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+        }
+        hostsExpandidos.add(host);
+        if (hostsPendentes) hostsPendentes.set(host, Date.now());
+    }
+    function expansaoEmCurso(host) {
+        if (!ligadoTodos || !hookTodosOk) return false;
+        if (document.documentElement.getAttribute('data-hoc-todos-carregando') === '1') return true;
+        var t = hostsPendentes && hostsPendentes.get(host);
+        if (!t) return false;
+        var faixa = host.shadowRoot && host.shadowRoot.querySelector('[data-testid$="pagination-range"]');
+        var m = faixa && REGEX_FAIXA.exec(faixa.textContent || '');
+        if (m && m[1] === m[2]) { hostsPendentes.delete(host); return false; }
+        if (Date.now() - t > 10000) { hostsPendentes.delete(host); return false; }   // não deu certo: não trava o botão
+        return true;
     }
 
     var agendadoListas = null;
@@ -448,27 +601,28 @@
     var hostsComEscuta = (typeof WeakSet === 'function') ? new WeakSet() : null;
 
     function filtroAtivoNoHost(host, raiz) {
-        if (!ligadoListaAtivo || !selectsAplicados) return;
+        if (!ligadoListaAtivo || !selectsAplicados) return false;
         if (!hostsComEscuta.has(host)) {
             hostsComEscuta.add(host);
             raiz.addEventListener('change', function (ev) { if (ev.isTrusted) hostsDoUsuario.add(host); }, true);
         }
-        if (hostsDoUsuario.has(host)) return;
+        if (hostsDoUsuario.has(host)) return false;
         var sel = raiz.querySelector('select[aria-label="Filtrar por status de acesso"]');
-        if (!sel || selectsAplicados.has(sel)) return;
+        if (!sel || selectsAplicados.has(sel)) return false;
         var temAtivo = false;
         for (var i = 0; i < sel.options.length; i++) if (sel.options[i].value === 'active') temAtivo = true;
-        if (!temAtivo) return;
+        if (!temAtivo) return false;
         selectsAplicados.add(sel);
-        if (sel.value === 'active') return;
+        if (sel.value === 'active') return false;
         sel.value = 'active';
         sel.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
         sel.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+        return true;   // o change já refaz a lista (e o gancho junta as páginas)
     }
 
     function varrerListas() {
         if (!tela_lista()) return;
-        if (!ligadoBtnPerm && !ligadoBtnReaplicarLista && !ligadoListaAtivo && !ligadoBtnMassa) return;
+        if (!ligadoBtnPerm && !ligadoBtnReaplicarLista && !ligadoListaAtivo && !ligadoBtnMassa && !ligadoTodos) return;
         for (var i = 0; i < HOSTS_LISTA.length; i++) {
             var hosts = document.querySelectorAll(HOSTS_LISTA[i]);
             for (var j = 0; j < hosts.length; j++) {
@@ -478,13 +632,16 @@
                     raizesObservadas.add(raiz);
                     new MutationObserver(agendarListas).observe(raiz, { childList: true, subtree: true });
                 }
-                filtroAtivoNoHost(hosts[j], raiz);
+                var filtroDisparou = filtroAtivoNoHost(hosts[j], raiz);
+                expandirNoHost(hosts[j], raiz, filtroDisparou);
+                if (ligadoTodos) ajustarPaginacao(raiz);
                 if (ligadoBtnPerm || ligadoBtnReaplicarLista || ligadoBtnMassa) processarRaiz(raiz);
             }
         }
     }
 
-    if (tela_lista() && (ligadoBtnPerm || ligadoBtnReaplicarLista || ligadoListaAtivo || ligadoBtnMassa)) {
+    if (tela_lista() && (ligadoBtnPerm || ligadoBtnReaplicarLista || ligadoListaAtivo || ligadoBtnMassa || ligadoTodos)) {
+        if (ligadoTodos) instalarHookTodos();
         varrerListas();
         new MutationObserver(agendarListas).observe(document.documentElement, { childList: true, subtree: true });
         setInterval(varrerListas, 1000);   // rede de segurança: o shadow root pode surgir depois do host
@@ -590,10 +747,11 @@
 
     function iniciarMassa(raiz) {
         if (massaRodando) return;
+        if (raiz.host && expansaoEmCurso(raiz.host)) { aviso('A lista ainda está carregando todos os cadastros. Tente de novo em instantes.', 'erro', 5000); return; }
         var alvos = funcionariosDaTela(raiz);
         if (!alvos.length) { aviso('Nenhum funcionário ativo na tela. Nada foi feito.', 'erro', 6000); return; }
         var etapa = ligadoConfirmaMassa
-            ? perguntar('Reaplicar em todos', 'Reaplicar a regra marcada em ' + alvos.length + ' funcionários desta página?', 'Reaplicar')
+            ? perguntar('Reaplicar em todos', 'Reaplicar a regra marcada em ' + alvos.length + ' funcionários desta lista?', 'Reaplicar')
             : Promise.resolve(true);
         etapa.then(function (sim) {
             if (!sim) { aviso('Cancelado. Nada foi alterado.', '', 4000); return; }

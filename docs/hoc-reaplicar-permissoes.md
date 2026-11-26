@@ -2,7 +2,7 @@
 
 [Voltar ao README](../README.md)
 
-**Versão atual: 1.5.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
+**Versão atual: 1.6.0** · arquivo [`hoc-reaplicar-permissoes.user.js`](../hoc-reaplicar-permissoes.user.js)
 
 ## Instalação
 
@@ -38,6 +38,16 @@ Em `?P=Funcionarios&Pers=Follow` e `?P=Profissionais&Pers=Follow`, ao lado do no
 - Engrenagem: **Botão Permissões nas listas de funcionários e profissionais** (ON), **Botão Reaplicar nas listas** (ON) e **Pedir confirmação antes de reaplicar pela lista** (OFF; ligada, mostra o modal da Suite antes de aplicar).
 - Atributos do `<html>`: `data-hoc-cfg-btn-perm`, `data-hoc-cfg-btn-reaplicar-lista`, `data-hoc-cfg-confirma-lista`.
 - A lista é um web component (`<feegow-staff-list>`, `<feegow-professionals-list>`) com shadow DOM aberto; cada linha tem `a[href*="Pers=1"][href*="I="]` e `[data-testid="access-state-badge"][data-state]`. Um observador por shadow root refaz os botões na paginação/filtro/busca e confere o id da linha a cada varredura.
+
+### Mostrar todos os cadastros, sem páginas (1.6.0)
+
+Nas listas de funcionários e de profissionais, todos os cadastros aparecem de uma vez e a paginação dá lugar a "Mostrando todos: N cadastros". Funciona com o filtro de status (Ativo / Todos), a busca e as letras.
+
+- **Como:** o endpoint `accounts-bff.feegow.com/{staff|professionals}/view-data` só devolve 20 por vez (ignora `pageSize`) e o componente guarda estado interno (trocar a propriedade `list` não muda a tela). O módulo injeta na página um gancho no `fetch`: ao ver o pedido da lista, busca as outras páginas (mesma URL, mesmos cabeçalhos, 4 em paralelo), junta e devolve uma resposta só.
+- **Riscos tratados:** só GET (nada é gravado); teto de 1000 cadastros (acima disso mostra "Mostrando 1000 de N"); sem duplicados; qualquer falha devolve a resposta original (a lista fica paginada, como antes); se o Feegow trocar o endpoint ou o formato, o gancho simplesmente não age.
+- **♻️ Reaplicar em todos (N):** N passa a ser o total de funcionários ativos na tela; o botão fica desabilitado enquanto a lista carrega e a confirmação continua aparecendo.
+- Engrenagem: **Mostrar todos os cadastros na lista (sem páginas)** (ON; atributo `data-hoc-cfg-todos`).
+- **Testar:** abra `?P=Funcionarios&Pers=Follow`; com "Ativo" devem aparecer 83 linhas (ou o total de ativos) e o texto "Mostrando todos: 83 cadastros"; troque para "Todos os status" e veja o total (ex.: 299). Desligue a opção na engrenagem para voltar às páginas.
 
 ### Reaplicar em todos (1.5.0)
 
@@ -101,6 +111,7 @@ Começa **travado**. Clicar mostra as condições: último backup **COMPLETO (N/
 
 ## Histórico
 
+- **1.6.0 (26/11/2026)**: nas listas, mostra todos os cadastros de uma vez (sem páginas), com opção na engrenagem.
 - **1.5.0 (26/11/2026)**: botão **♻️ Reaplicar em todos (N)** nas listas de funcionários (sem abrir abas, com confirmação, progresso, Parar e relatório).
 - **1.4.0 (26/11/2026)**: listas abrem com o filtro em Ativo; ♻️ espera a aba Permissões carregar por completo.
 

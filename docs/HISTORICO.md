@@ -6,14 +6,23 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.1.9.0 |
-| Suite principal | 4.9.13.0 |
+| Core | 1.2.0.0 |
+| Suite principal | 4.9.14.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.4.5 |
 | HOC Gastos para Excel | 1.1.0 |
-| HOC Reaplicar Permissões | 1.5.0 |
+| HOC Reaplicar Permissões | 1.6.0 |
 
 ---
+
+### Core 1.2.0.0, Suite 4.9.14.0 e Reaplicar Permissões 1.6.0 (26/11/2026): listas mostram todos os cadastros, sem páginas
+
+- Nas listas `?P=Funcionarios&Pers=Follow` e `?P=Profissionais&Pers=Follow`, aparecem **todos os cadastros de uma vez** (antes eram 20 por página). No lugar da paginação: "Mostrando todos: N cadastros".
+- Técnica: o endpoint da lista (`accounts-bff.feegow.com/staff|professionals/view-data`) **ignora `pageSize`** (sempre 20) e o componente não re-renderiza se a propriedade `list` for trocada. Então o módulo instala um gancho no `fetch` da página: quando o componente pede a lista (com o filtro, a busca e a letra dele), o gancho busca as demais páginas pela mesma URL e os mesmos cabeçalhos, junta as linhas e devolve uma única resposta (`totalPages: 1`). Só GET (leitura), 4 pedidos em paralelo, teto de 1000 cadastros, sem duplicados; se qualquer página falhar, vale a resposta original (lista paginada normal).
+- Funciona com o filtro "Ativo" (83 funcionários / 50 profissionais), "Todos os status", busca e letras. Os botões 🔐/♻️ por linha e o **♻️ Reaplicar em todos (N)** seguem iguais: N = funcionários ativos na tela; o botão fica desabilitado enquanto a lista carrega e a confirmação continua aparecendo ("... em N funcionários desta lista?").
+- Engrenagem: **Mostrar todos os cadastros na lista (sem páginas)** (ON, migração para ficar ON em todos os PCs). Atributo `data-hoc-cfg-todos`.
+- Corrigido o cabeçalho `@version` do script avulso (estava 1.4.0 no `.user.js`).
+- Core 1.2.0.0 faz a Suite nova ser baixada na hora.
 
 ### Core 1.1.9.0, Suite 4.9.13.0 e Reaplicar Permissões 1.5.0 (26/11/2026): botão "Reaplicar em todos (N)" nas listas
 
