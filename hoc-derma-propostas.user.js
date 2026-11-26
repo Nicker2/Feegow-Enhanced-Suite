@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.0
+// @version      1.4.1
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.0
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.1
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -212,6 +212,10 @@ window.HOCDERMA_TIMBRADO = {
  *     "Substituir os ajustes atuais?". Fontes do Google Fonts oficial (SIL OFL; licenças em
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
+ *
+ * v1.4.1 (26/11/2026)
+ *   - "ANATOMOPATOLÓGICO (2 FRASCO)" passa a usar a descrição de "ANATOMOPATOLÓGICO | MAIS DE 02 FRASCOS"
+ *     (2 frascos e mais de 2); 1 frasco continua na própria entrada.
  *
  * v1.4.0 (26/11/2026)
  *   - "Gerenciar descrições" (botão ao lado de "Imprimir HOC Derma" e menu do Tampermonkey): lista com
@@ -847,7 +851,7 @@ window.HOCDERMA_TIMBRADO = {
     {
       id: "anatomopatologico-mais-de-02-frascos",
       titulo: "ANATOMOPATOLÓGICO | MAIS DE 02 FRASCOS",
-      palavrasChave: ["anatomopatologico mais 2 frascos", "anatomopatologico acima 2 frascos"],
+      palavrasChave: ["anatomopatologico 2 frascos", "anatomopatologico mais 2 frascos", "anatomopatologico acima 2 frascos"],
       investimento: "",
       texto: "Análise em laboratório dos tecidos retirados durante o procedimento e enviados em mais de dois frascos, para identificar a natureza das lesões e auxiliar no diagnóstico."
     },
@@ -959,7 +963,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.4.0';
+  const VERSAO = '1.4.1';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';

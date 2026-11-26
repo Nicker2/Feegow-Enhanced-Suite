@@ -9,7 +9,7 @@
 | Core | 1.1.7.0 |
 | Suite principal | 4.9.11.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.4.0 |
+| Propostas HOC Derma | 1.4.1 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.3.0 |
 
@@ -79,6 +79,10 @@
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.4.1 (26/11/2026)
+
+- O procedimento do Feegow **"ANATOMOPATOLÓGICO (2 FRASCO)"** usa a mesma descrição de "ANATOMOPATOLÓGICO | MAIS DE 02 FRASCOS" (2 frascos e mais de 2). "1 frasco" continua na própria descrição.
 
 ### Propostas 1.4.0 (26/11/2026): Gerenciar descrições
 
