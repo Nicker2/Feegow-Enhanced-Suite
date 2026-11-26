@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Propostas HOC Derma — Imprimir HOC Derma (Feegow)
 // @namespace    https://github.com/Nicker2
-// @version      1.4.9
+// @version      1.4.10
 // @description  Gera a proposta de tratamento da HOC Derma (imprimir ou salvar em PDF) a partir da proposta do prontuário no Feegow: botão "Imprimir HOC Derma", editor com prévia A4, descrição de cada procedimento dermatológico, investimento com os valores do Feegow (editáveis) e timbrado HOC Derma. Ao clicar, salva a proposta no Feegow (botão SALVAR) e abre a impressão. Na janela, "＋ Feegow" inclui um procedimento novo na proposta real, e quantidade, valores, descontos e acréscimos dos itens e o desconto total vão para o Feegow (com SALVAR); descrições e textos valem só para a impressão.
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*
@@ -35,7 +35,7 @@ window.HOCDERMA_TIMBRADO = {
 };
 
 /* ============================================================================
- * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.9
+ * Propostas HOC Derma: impressão personalizada (Feegow REAL), v1.4.10
  *
  * Módulo no padrão da Feegow Enhanced Suite (IIFE, 'use strict', seções
  * numeradas, window.HOCDERMA_PROPOSTAS). Sem dependências: não usa jQuery.
@@ -212,6 +212,13 @@ window.HOCDERMA_TIMBRADO = {
  *     "Substituir os ajustes atuais?". Fontes do Google Fonts oficial (SIL OFL; licenças em
  *     assets/fontes/), subconjunto latino em woff2 base64 embutido (sem internet); a prévia e a
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
+ *
+ * v1.4.10 (26/11/2026)
+ *   - Desconto total DIVIDIDO NOS ITENS: o campo "Desconto total (%)" do Feegow (que apaga os descontos por item e
+ *     ignora o acréscimo) fica em 0; o script calcula o desconto de cada item em R$, proporcional ao valor do item
+ *     (cortesia fica de fora; sobra de centavo no maior item) para o total do Feegow ficar EXATAMENTE igual ao do
+ *     documento, dispara o recálculo, confere (tolerância 0) e salva (opção ligada); se divergir, não salva e avisa
+ *     em vermelho com os dois valores e o detalhe por item.
  *
  * v1.4.9 (26/11/2026)
  *   - Desconto total do editor → campo "Desconto total (%)" do Feegow (em R$, vira % sobre o subtotal), com os
@@ -1614,7 +1621,7 @@ window.HOCDERMA_TIMBRADO = {
    * 0. CONFIGURAÇÃO
    * ------------------------------------------------------------------------ */
 
-  const VERSAO = '1.4.9';
+  const VERSAO = '1.4.10';
   const ID_ROOT = 'hocderma-propostas-root';
   const ID_IFRAME = 'hocderma-propostas-print';
   const CLASSE_BOTAO = 'hocderma-prop-btn';
@@ -4179,7 +4186,7 @@ window.HOCDERMA_TIMBRADO = {
     // v1.3.6: desconto geral alterado na janela → #DescontoTotal (%) do Feegow + SALVAR
     ['descontoTotalPct', 'descontoTotalTipo'].forEach((k) => {
       const el = sh.querySelector('[data-k="' + k + '"]');
-      if (el) el.addEventListener('change', agendarDescontoFeegow);
+      if (el) el.addEventListener('change', () => { dados._descSujo = true; agendarDescontoFeegow(); });
     });
 
     // blocos de descrição: incluir/excluir, título e texto (só nesta impressão)
@@ -4557,6 +4564,10 @@ window.HOCDERMA_TIMBRADO = {
     setCampo(form, 'Acrescimo', id, fmtNum(num(it.acrescimo)));
   }
 
+  // v1.4.10: SINCRONIZAÇÃO janela → proposta real, com o DESCONTO TOTAL DISTRIBUÍDO NOS ITENS.
+  // O "Desconto total (%)" do Feegow apaga os descontos de cada item e ignora o acréscimo, então ele fica em 0
+  // e o script calcula o desconto de CADA item (em R$, proporcional ao valor do item, sobras de centavo no
+  // maior item) para o TOTAL do Feegow ficar exatamente igual ao total do documento.
   function sincronizarFeegow() {
     const d = S.dados;
     if (!d) return false;
@@ -4564,47 +4575,9 @@ window.HOCDERMA_TIMBRADO = {
     const form = formAtual();
     if (!form) { msgFeegow('Não sincronizado: a proposta do Feegow não está aberta na tela.', 'erro'); return false; }
     const sujos = d.itens.filter((it) => it._sujo && itemVinculado(it));
-    if (sujos.length) msgFeegow('Sincronizando com o Feegow...', 'and');
-    const erros = [];
-    let nItens = 0;
-    sujos.forEach((it) => {
-      it._sujo = false;
-      const l = linhaRealDoItem(form, it);
-      if (l.erro) { erros.push(limpa(it.descricao) + ': ' + l.erro); return; }
-      it.idFeegow = l.id;
-      aplicarItemReal(form, l.id, it);
-      nItens++;
-    });
-    if (nItens) tentarPagina('recalc', []);
-    const r = gravarDescontoTotalFeegow(form, d); // também confere o #total
-    if (!r.ok && !nItens) { msgFeegow('Desconto total não gravado: ' + r.motivo + '.', 'erro'); return false; }
-    const mudouDesc = r.ok && r.mudou;
-    if (!nItens && !mudouDesc) {
-      atualizar(false);
-      if (erros.length) msgFeegow('Não sincronizado: ' + erros.join(' · '), 'erro');
-      else if (!r.bate) msgFeegow(avisoTotal(r), 'erro');
-      return !erros.length;
-    }
-    // v1.4.9: só o desconto total mudou → espera o recálculo do Feegow, confere o total e (opção ligada por padrão)
-    // SALVA a proposta, mas só se o total do Feegow ficou igual ao do documento.
-    if (!nItens) { concluirDescontoFeegow(form, d); return true; }
-    const salvou = clicarSalvarFeegow(form) || tentarPagina('propostaSave', [false]);
-    let t;
-    if (!nItens) {
-      const base = r.pct ? 'Desconto total de ' + fmtPct(r.pct) + '% ' : 'Desconto total zerado ';
-      t = salvou ? '✔ ' + base + 'gravado no Feegow e salvo' : base + 'preenchido no Feegow, mas o SALVAR não foi encontrado: clique em SALVAR no Feegow';
-    } else {
-      const partes = [nItens + (nItens > 1 ? ' itens atualizados' : ' item atualizado')];
-      if (mudouDesc) partes.push(r.pct ? 'desconto total ' + fmtPct(r.pct) + '%' : 'desconto total zerado');
-      t = (salvou ? '✔ Salvo no Feegow: ' : 'Preenchido no Feegow, mas o SALVAR não foi encontrado: ') + partes.join(', ');
-    }
-    if (!r.ok) t += ' · desconto total não gravado: ' + r.motivo;
-    if (erros.length) t += ' · erro: ' + erros.join(' · ');
-    if (r.ok && !r.bate) t += ' · ' + avisoTotal(r);
-    msgFeegow(t, salvou && r.ok && r.bate && !erros.length ? 'ok' : 'erro');
-    log(t);
-    atualizar(false);
-    return salvou;
+    if (!sujos.length && !d._descSujo) { atualizar(false); return true; }
+    concluirSincronizacaoFeegow(form, d);
+    return true;
   }
   const sincronizarDescontoFeegow = sincronizarFeegow;
 
@@ -4647,33 +4620,136 @@ window.HOCDERMA_TIMBRADO = {
     sh.appendChild(t);
     setTimeout(() => { if (t.isConnected) t.remove(); }, tipo === 'erro' ? 9000 : 5000);
   }
-  async function concluirDescontoFeegow(form, d) {
+  // espera o Feegow parar de recalcular (total e linhas sem mudar por ~0,7 s) ou o tempo acabar
+  async function estabilizarFeegow(form, ms) {
+    const t0 = Date.now();
+    const assinatura = () => (q(form, SEL.total) || {}).textContent + '|' + qa(form, '[id^="sub"]').map((e) => limpa(e.textContent || e.value)).join(',');
+    let ult = assinatura();
+    let igual = 0;
+    while (Date.now() - t0 < ms) {
+      await espera(200);
+      const a = assinatura();
+      if (a === ult) { igual++; if (igual >= 3) return true; } else { igual = 0; ult = a; }
+    }
+    return false;
+  }
+  const centavos = (v) => Math.round((v + Number.EPSILON) * 100);
+  // Divide dc centavos entre os itens elegíveis, proporcional ao valor de cada um (lc = centavos da linha);
+  // a sobra do arredondamento vai para o maior item; nenhum item recebe mais do que o seu valor.
+  function distribuirCentavos(dc, lcs) {
+    const soma = lcs.reduce((s, v) => s + v, 0);
+    if (dc <= 0 || !soma) return lcs.map(() => 0);
+    const a = lcs.map((l) => Math.round(dc * l / soma));
+    let falta = dc - a.reduce((s, v) => s + v, 0);
+    const ordem = lcs.map((l, i) => i).sort((x, y) => lcs[y] - lcs[x]);
+    for (let k = 0; falta !== 0 && k < 2000; k++) {
+      const i = ordem[k % ordem.length];
+      const passo = falta > 0 ? 1 : -1;
+      if (a[i] + passo >= 0 && a[i] + passo <= lcs[i]) { a[i] += passo; falta -= passo; }
+    }
+    return a;
+  }
+  function escreverItemSilencioso(form, id, it) {
+    const poe = (nome, valor) => { const el = porId(form, nome + id); if (el) el.value = valor; };
+    poe('Quantidade', String(num(it.qtd) || 1).replace('.', ','));
+    poe('ValorUnitario', fmtNum(num(it.unitario)));
+    poe('DescontoTipo', it.descontoTipo === 'P' ? 'P' : 'V');
+    poe('Desconto', fmtNum(num(it.desconto)));
+    poe('Acrescimo', fmtNum(num(it.acrescimo)));
+  }
+  // Calcula e preenche o desconto de cada item (R$) na proposta do Feegow e confere o total.
+  // Retorna { ok, motivo, bate, totFg, totJanela, detalhe:[{nome, de, para, extra}] }.
+  async function aplicarDescontoPorItem(form, d) {
+    const c = calcular(d);
+    const vinc = d.itens.map((it, i) => ({ it, i, l: c.linhas[i] })).filter((x) => itemVinculado(x.it));
+    const reais = [];
+    for (const x of vinc) {
+      const lr = linhaRealDoItem(form, x.it);
+      if (lr.erro) return { ok: false, motivo: limpa(x.it.descricao) + ': ' + lr.erro };
+      reais.push(Object.assign({}, x, { id: lr.id }));
+    }
+    if (!reais.length) return { ok: false, motivo: 'nenhum item da proposta está vinculado a uma linha do Feegow' };
+    // 1) o desconto total do Feegow fica em 0 (senão ele reescreve os descontos dos itens)
+    // Valores preenchidos SEM disparar os eventos do Feegow (cada evento dispara um recalcProposta.asp e as
+    // respostas chegam fora de ordem, deixando linhas desatualizadas). Um único recálculo no fim, com o
+    // formulário inteiro já preenchido, e a conferência depois.
+    const dt = porId(form, 'DescontoTotal');
+    let zerou = false;
+    if (dt && lerValor(dt.value) > 0.0001) { dt.value = '0'; zerou = true; }
+    // 2) divisão proporcional (em centavos) entre os itens que têm valor e não são cortesia
+    const D = centavos(c.descTotal);
+    const elegiveis = reais.filter((x) => x.l.total > 0 && !(x.it.descontoTipo === 'P' && num(x.it.desconto) >= 100));
+    const lcs = elegiveis.map((x) => centavos(x.l.total));
+    const somaL = lcs.reduce((s, v) => s + v, 0);
+    if (D > somaL) return { ok: false, motivo: 'o desconto de ' + fmtBRL(D / 100) + ' é maior que o valor dos itens elegíveis (' + fmtBRL(somaL / 100) + ')' };
+    const aCent = distribuirCentavos(D, lcs);
+    const extra = new Map();
+    elegiveis.forEach((x, k) => extra.set(x.i, aCent[k]));
+    // 3) preenche cada item: desconto em R$ que leva a linha a (valor atual − parte do desconto)
+    const detalhe = [];
+    reais.forEach((x) => {
+      const ex = extra.get(x.i) || 0;
+      if (!(x.it._sujo || ex > 0 || zerou)) return;
+      const it2 = Object.assign({}, x.it);
+      if (ex > 0) {
+        const alvoL = centavos(x.l.total) - ex;
+        const porUn = x.it.modo === 'unidade';
+        const qtd = num(x.it.qtd) || 1;
+        const totDesc = centavos(x.l.base) + centavos(x.l.acrR) - alvoL; // R$ de desconto da linha inteira
+        it2.descontoTipo = 'V';
+        it2.desconto = arred(totDesc / 100 / (porUn ? qtd : 1));
+      }
+      x.it._sujo = false;
+      escreverItemSilencioso(form, x.id, it2);
+      detalhe.push({ nome: limpa(x.it.descricao), id: x.id, de: x.l.total, para: arred((centavos(x.l.total) - ex) / 100), extra: ex / 100 });
+    });
+    // 4) recálculo do Feegow (pelo campo de um item alterado) e conferência: linhas e total (até 3 tentativas)
+    const gatilho = 'Desconto' + (detalhe[0] ? detalhe[0].id : reais[0].id);
+    let totFg = null;
+    let bate = false;
+    for (let t = 0; t < 3 && !bate; t++) {
+      tentarPagina('recalc', [gatilho]);
+      await estabilizarFeegow(form, 6000);
+      const totEl = q(form, SEL.total);
+      totFg = totEl ? lerValor(totEl.textContent) : null;
+      bate = totFg != null && Math.abs(totFg - c.total) <= 0.004; // tolerância zero (meio centavo)
+    }
+    detalhe.forEach((x) => { const sb = porId(form, 'sub' + x.id); x.feegow = sb ? lerValor(sb.textContent || sb.value) : null; });
+    if (totFg != null) d.totalFeegow = totFg;
+    return { ok: true, zerou, bate, totFg, totJanela: c.total, detalhe, descTotal: c.descTotal };
+  }
+  function resumoDetalhe(r) {
+    return (r.detalhe || []).filter((x) => x.extra > 0).slice(0, 8).map((x) => x.nome.slice(0, 28) + ': ' + fmtBRL(x.de) + ' → ' + fmtBRL(x.feegow != null ? x.feegow : x.para) + ' (−' + fmtBRL(x.extra) + ')').join(' · ');
+  }
+
+  async function concluirSincronizacaoFeegow(form, d) {
     if (S.fgSalvando) return;
     S.fgSalvando = true;
+    const comDesc = !!d._descSujo;
     const fim = (texto, tipo) => { msgFeegow(texto, tipo === 'erro' ? 'erro' : 'ok'); toastFeegow(texto, tipo); log(texto); if (S.dados === d) atualizar(false); };
     try {
-      const c = calcular(d);
-      const tol = Math.max(0.05, c.subtotal * 0.00005 + 0.01);
-      const base = num(c.pct) ? 'Desconto total de ' + fmtPct(c.pct) + '%' : 'Desconto total zerado';
-      msgFeegow('Aplicando o desconto no Feegow...', 'and');
-      const tot = await esperarTotalFeegow(form, c.total, tol, 4000);
-      if (tot != null) d.totalFeegow = tot;
-      if (tot == null) { fim(base + ' aplicado, mas não consegui ler o total do Feegow para conferir: nada foi salvo. Confira e clique em SALVAR.', 'erro'); return; }
-      if (Math.abs(tot - c.total) > tol) {
-        fim('ATENÇÃO: total do Feegow ' + fmtBRL(tot) + ' ≠ total do documento ' + fmtBRL(c.total) + '. A proposta NÃO foi salva: confira os valores e clique em SALVAR no Feegow.', 'erro');
+      msgFeegow('Aplicando no Feegow...', 'and');
+      const r = await aplicarDescontoPorItem(form, d);
+      if (!r.ok) { fim('Não apliquei no Feegow: ' + r.motivo + '. Nada foi salvo.', 'erro'); return; }
+      d._descSujo = false;
+      if (r.totFg == null) { fim('Aplicado, mas não consegui ler o total do Feegow para conferir: nada foi salvo. Confira e clique em SALVAR.', 'erro'); return; }
+      if (!r.bate) {
+        fim('ATENÇÃO: total do Feegow ' + fmtBRL(r.totFg) + ' ≠ total do documento ' + fmtBRL(r.totJanela) + '. A proposta NÃO foi salva. Detalhe: ' + (resumoDetalhe(r) || 'sem itens alterados') + '.', 'erro');
         return;
       }
       const opt = typeof d.salvarAoDesconto === 'boolean' ? d.salvarAoDesconto : lerPrefs().salvarAoDesconto !== false;
-      if (!opt) { fim('✔ ' + base + ' aplicado na proposta do Feegow (total ' + fmtBRL(tot) + ' confere) — confira e clique em SALVAR.', 'ok'); return; }
+      const o = comDesc ? (r.descTotal > 0 ? 'Desconto de ' + fmtBRL(r.descTotal) + ' dividido nos itens' : 'Desconto zerado nos itens') : 'Itens atualizados';
+      if (!opt) { fim('✔ ' + o + ' no Feegow (total ' + fmtBRL(r.totFg) + ' confere) — confira e clique em SALVAR.', 'ok'); return; }
       msgFeegow('Salvando a proposta no Feegow...', 'and');
-      const r = await salvarPropostaComResposta(form, 10000);
-      if (r.erro) fim('Erro ao salvar a proposta no Feegow: ' + r.erro, 'erro');
-      else if (r.timeout) fim('O Feegow não confirmou o salvamento (tempo esgotado). Confira a proposta e clique em SALVAR se precisar.', 'erro');
-      else if (r.semConferencia) fim('Desconto aplicado e SALVAR clicado, mas não consegui conferir a resposta do Feegow. Confira a proposta.', 'erro');
-      else if (/erro|error|falha|n[aã]o foi poss/i.test(r.data) && !/sucesso|success/i.test(r.data)) fim('O Feegow respondeu com erro ao salvar: ' + limpa(r.data.replace(/<[^>]+>/g, ' ')).slice(0, 160), 'erro');
-      else fim('✔ Desconto salvo na proposta do Feegow (total ' + fmtBRL(tot) + ').', 'ok');
+      const sv = await salvarPropostaComResposta(form, 10000);
+      const ok = comDesc ? 'Desconto salvo na proposta do Feegow' : 'Proposta salva no Feegow';
+      if (sv.erro) fim('Erro ao salvar a proposta no Feegow: ' + sv.erro, 'erro');
+      else if (sv.timeout) fim('O Feegow não confirmou o salvamento (tempo esgotado). Confira a proposta e clique em SALVAR se precisar.', 'erro');
+      else if (sv.semConferencia) fim(o + ' e SALVAR clicado, mas não consegui conferir a resposta do Feegow. Confira a proposta.', 'erro');
+      else if (/erro|error|falha|n[aã]o foi poss/i.test(sv.data) && !/sucesso|success/i.test(sv.data)) fim('O Feegow respondeu com erro ao salvar: ' + limpa(sv.data.replace(/<[^>]+>/g, ' ')).slice(0, 160), 'erro');
+      else fim('✔ ' + ok + ' (total ' + fmtBRL(r.totFg) + '). ' + o + '.', 'ok');
     } catch (e) {
-      fim('Erro ao aplicar o desconto no Feegow: ' + ((e && e.message) || e), 'erro');
+      fim('Erro ao aplicar no Feegow: ' + ((e && e.message) || e), 'erro');
     } finally { S.fgSalvando = false; }
   }
 
@@ -4776,13 +4852,15 @@ window.HOCDERMA_TIMBRADO = {
 
       msgFeegow('Salvando a proposta no Feegow...', 'and');
       const f3 = formAtual() || f;
-      const rd = gravarDescontoTotalFeegow(f3, d); // desconto geral da janela (se houver) junto
+      it.fg.estado = 'ok'; // vinculado a partir daqui (entra na distribuição do desconto)
+      const rd = calcular(d).descTotal > 0 ? await aplicarDescontoPorItem(f3, d) : { ok: true, bate: true }; // v1.4.10: desconto da janela dividido nos itens
       const salvou = clicarSalvarFeegow(f3) || tentarPagina('propostaSave', [false]);
       it.fg.estado = 'ok';
       delete it.fg.antes;
       const notas = [];
       if (!salvou) notas.push('botão SALVAR não encontrado: clique em SALVAR no Feegow');
       if (avisoTotal(rd)) notas.push(avisoTotal(rd));
+      if (rd && rd.ok === false) notas.push('desconto não aplicado nos itens: ' + rd.motivo);
       it.fg.msg = (salvou ? '✔ Adicionado e salvo no Feegow: ' : '✔ Adicionado no Feegow (NÃO salvo): ') + nomeReal + (notas.length ? ' · ' + notas.join(' · ') : '');
       msgFeegow(it.fg.msg, salvou && !avisoTotal(rd) ? 'ok' : 'erro');
       log(it.fg.msg + ' (linha ' + id + ')');

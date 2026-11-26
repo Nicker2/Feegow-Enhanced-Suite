@@ -9,7 +9,7 @@
 | Core | 1.2.2.0 |
 | Suite principal | 4.9.16.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
-| Propostas HOC Derma | 1.4.9 |
+| Propostas HOC Derma | 1.4.10 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.8.0 |
 
@@ -124,6 +124,13 @@ Vale **só para profissionais** (página, ♻️ por linha e "♻️ Reaplicar e
 - O Feegow trocou a tela de login por uma nova, em duas etapas (e-mail → Continuar → senha → Entrar), e o recurso de entrada com sessão ocupada tinha parado de funcionar. Agora ele funciona nas duas telas, a nova e a antiga.
 - Tenta entrar de novo a cada 1,5 s, por cerca de 1 minuto. Se não conseguir, devolve a senha no campo para tentar na mão.
 - **Senha errada é avisada na hora**: a Suite para e não fica tentando à toa.
+
+### Propostas 1.4.10 (26/11/2026): desconto total dividido nos itens
+
+- O "Desconto total (%)" do Feegow apaga os descontos de cada item e ignora o acréscimo, então a janela **não usa mais esse campo**: ele fica em 0 e o script calcula o **desconto de cada item em R$** para o **total do Feegow ficar exatamente igual ao total do documento**.
+- **Divisão:** proporcional ao valor de cada item (todos recebem o mesmo percentual; itens maiores recebem mais reais). Em centavos: a sobra do arredondamento vai para o maior item, e o desconto de cada item é somado ao que ele já tinha. **Cortesia** (100% de desconto) e item sem valor ficam de fora, e nenhum item fica negativo. Se o desconto for maior que o valor dos itens, o script avisa e não aplica.
+- **Conferência:** o script preenche os campos sem disparar um recálculo por campo (as respostas do Feegow chegam fora de ordem e deixavam linhas desatualizadas), dispara um recálculo único, confere o total com tolerância zero e **salva** (opção ligada por padrão). Se o total divergir, **não salva** e avisa em vermelho com os dois valores e o detalhe por item.
+- Exemplo (proposta de teste, desconto de 10% sobre R$ 10.530,00 = R$ 1.053,00): itens de R$ 5.990,00, 900,00, 900,00, 900,00, 240,00 e 1.600,00 receberam R$ 599,00, 90,00, 90,00, 90,00, 24,00 e 160,00; total do Feegow R$ 9.477,00, igual ao do documento.
 
 ### Propostas 1.4.9 (26/11/2026): profissional com CRM e RQE
 

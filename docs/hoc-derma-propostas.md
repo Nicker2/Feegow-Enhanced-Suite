@@ -1,6 +1,6 @@
 # Propostas HOC Derma (userscript do Feegow)
 
-**Versão atual: 1.4.9** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
+**Versão atual: 1.4.10** · arquivo [`hoc-derma-propostas.user.js`](../hoc-derma-propostas.user.js)
 
 **[Instalar no Tampermonkey](https://raw.githubusercontent.com/Nicker2/Feegow-Enhanced-Suite/main/hoc-derma-propostas.user.js)**
 
@@ -272,7 +272,8 @@ Para diagnóstico técnico, as mensagens no console do navegador (F12) usam o pr
 
 | Versão | Data | Mudanças |
 |---|---|---|
-| **1.4.9** | 26/11/2026 | **Profissional com CRM e RQE** na folha ("DRA. NOME · CRM nº/UF · RQE nº"), lidos em tempo de execução do cadastro do Feegow (página do profissional, mesma origem, sem token; nada gravado no script); padrão: Dra. Linda; o que faltar no cadastro não é inventado e a janela avisa. **Desconto total** do editor aplicado no campo "Desconto total (%)" do Feegow e **salva a proposta** só se o total do Feegow ficar igual ao do documento (aviso verde "Desconto salvo na proposta do Feegow"; se divergir, não salva e avisa em vermelho com os dois valores); opção na engrenagem, ligada por padrão. |
+| **1.4.10** | 26/11/2026 | **Desconto total dividido nos itens**: o campo "Desconto total (%)" do Feegow fica em 0; o script calcula o desconto de cada item em R$ (proporcional ao valor, sobra de centavos no maior item, cortesia de fora) para o total do Feegow ficar igual ao do documento, recalcula uma vez, confere (tolerância zero) e salva; se divergir, não salva e avisa com os dois valores e o detalhe por item. |
+| **1.4.9** | 26/11/2026 | **Profissional com CRM e RQE** na folha ("DRA. NOME · CRM nº/UF · RQE nº"), lidos em tempo de execução do cadastro do Feegow (página do profissional, mesma origem, sem token; nada gravado no script); padrão: Dra. Linda; o que faltar no cadastro não é inventado e a janela avisa. **Desconto total** do editor (a partir da 1.4.10, dividido nos itens) e **salva a proposta** só se o total do Feegow ficar igual ao do documento (aviso verde "Desconto salvo na proposta do Feegow"; se divergir, não salva e avisa em vermelho com os dois valores); opção na engrenagem, ligada por padrão. |
 | **1.4.8** | 26/11/2026 | **Valor atual do Feegow** lido na hora (campo Valor da página do procedimento; cache por sessão) quando o item está sem valor e o script também; ordem: proposta > investimento do script > valor atual > tabela embutida. Gerenciar descrições: **busca no Feegow** (sir.asp, 250 ms) com status tem/sem descrição, Criar/Editar; **Inserir na proposta** (`itens('S','I',id)`, múltipla, sem salvar). |
 | **1.4.7** | 26/11/2026 | **Investimento sem vazio**: item da proposta sem valor usa o valor do procedimento no Feegow (tabela `VALORES_FEEGOW`, por ID ou nome exato); valor da proposta tem prioridade; 0 = sem valor (sem "R$ 0,00"); cortesia não ganha valor do catálogo; 46 entradas do catálogo preenchidas ("a partir de" onde há variantes). |
 | **1.4.6** | 26/11/2026 | Título "BACCIO LIP \| REVITALIZAÇÃO LABIAL" (dois C), também casa "BACCIO LÁBIOS". Conferência com os nomes renomeados no Feegow: nada se perdeu. |
