@@ -89,7 +89,7 @@
 
 ### Propostas 1.4.5 (26/11/2026): falsos positivos
 
-- **ECG** só vale como eletrocoagulação junto de lesão, pele, mucosa ou curetagem. Eletrocardiograma, teste ergométrico e o pacote de consulta com ECG não recebem mais a descrição de eletrocoagulação.
+- A sigla **ECG** deixou de reconhecer eletrocoagulação (o Feegow já usa o nome por extenso). Eletrocardiograma, teste ergométrico e o pacote de consulta com ECG não recebem mais a descrição de eletrocoagulação.
 - **Anestesista e 1º auxiliar**: linhas de equipe não recebem descrição de nenhum procedimento (valia só para alguns).
 - Blefaroplastia não pega mais tumor/biópsia nem Plasma IQ; "LIP" não pega LIP oftalmo nem LIP Glow; ácido hialurônico não pega a infiltração de quadril; exérese de cisto não cai mais na de lesão de baixa complexidade.
 

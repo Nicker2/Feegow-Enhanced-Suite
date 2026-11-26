@@ -214,8 +214,8 @@ window.HOCDERMA_TIMBRADO = {
  *     impressão esperam as fontes carregarem (document.fonts) antes de paginar.
  *
  * v1.4.5 (26/11/2026)
- *   - Falsos positivos corrigidos: "ECG" só vale como eletrocoagulação junto de lesão/pele/mucosa/curetagem
- *     (e nunca com derivações, eletrocardiograma, ergométrico, cardio, ecodoppler, basal, consulta); linhas de
+ *   - Falsos positivos corrigidos: a sigla "ECG" deixou de reconhecer eletrocoagulação (só a palavra
+ *     "eletrocoagulação" por extenso; o Feegow já renomeou), então eletrocardiograma/ergométrico não pegam mais; linhas de
  *     ANESTESISTA / AUXILIAR não recebem descrição em nenhum procedimento; blefaroplastia não pega tumor/
  *     biópsia/plasma; LIP não pega oftalmo/glow; ácido hialurônico não pega quadril; exérese de cisto/lipoma
  *     não cai na de lesão de baixa complexidade.
@@ -413,8 +413,7 @@ window.HOCDERMA_TIMBRADO = {
       id: "ecg-ate-05-lesoes",
       modeloFeegow: 102,
       titulo: "ELETROCOAGULAÇÃO (ECG) DE LESÃO | ATÉ 05 LESÕES",
-      palavrasChave: ["ecg lesao", "ecg lesoes", "ecg pele", "ecg mucosa", "ecg cutanea", "ecg curetagem"],
-      excluir: ["derivacoes", "eletrocardiograma", "ergometrico", "cardio*", "ecodoppler*", "basal", "consulta"],
+      palavrasChave: ["eletrocoagulacao"],
       investimento: "R$ 750,00",
       texto: "Procedimento que utiliza o calor gerado por uma corrente elétrica para cauterizar a lesão na pele."
     },
@@ -955,7 +954,7 @@ window.HOCDERMA_TIMBRADO = {
     {
       id: "curetagem-com-ou-sem-eletrocauterizacao",
       titulo: "CURETAGEM COM OU SEM ELETROCAUTERIZAÇÃO",
-      palavrasChave: ["curetagem", "curetagem ecg", "curetagem ecg lesao"],
+      palavrasChave: ["curetagem", "curetagem eletrocoagulacao", "curetagem eletrocoagulacao lesao"],
       excluir: ["uterina", "uterino", "ginecologica", "molusco", "mucosas"],
       investimento: "",
       texto: "Remoção da lesão por raspagem com um instrumento específico, podendo ser associada à cauterização para complementar o tratamento e controlar pequenos sangramentos."
@@ -1022,7 +1021,6 @@ window.HOCDERMA_TIMBRADO = {
     ['palpebra superior', 'blefaro superior'],
     ['palpebra inferior', 'blefaro inferior'],
     ['luz intensa pulsada', 'lip'],
-    ['eletrocoagulacao', 'ecg'],
     ['axilar', 'axila'],
     ['hammok', 'hammock'],
     ['prophilo', 'profhilo'],
