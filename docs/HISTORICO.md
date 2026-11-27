@@ -6,8 +6,8 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.2.4.0 |
-| Suite principal | 4.9.18.0 |
+| Core | 1.2.5.0 |
+| Suite principal | 4.9.19.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.4.10 |
 | HOC Gastos para Excel | 1.1.0 |
@@ -15,9 +15,14 @@
 
 ---
 
+### Core 1.2.5.0 e Suite 4.9.19.0 (27/11/2026): novo padrão das notificações do Feegow (só verde e vermelho)
+
+- Novo padrão: **Mostrar confirmações verdes (sucesso)** ON, **Mostrar erros vermelhos** ON; **Mostrar avisos amarelos**, **Mostrar avisos de PREPARO** e **Mostrar avisos azuis** OFF.
+- Migração única (chave `mig_pnotify_49190`): grava esses valores uma vez em todos os PCs; depois a escolha de cada PC na engrenagem vale.
+
 ### Core 1.2.4.0 e Suite 4.9.18.0 (27/11/2026): mostrar/ocultar notificações do Feegow por tipo
 
-- Cinco opções novas na engrenagem, todas **ON por padrão** (comportamento atual): **Mostrar confirmações verdes (sucesso)**, **Mostrar avisos amarelos (ex.: PREPARO)**, **Mostrar avisos de PREPARO** (sub-opção, vale com os amarelos ON), **Mostrar avisos azuis (informação)** e **Mostrar erros vermelhos**.
+- Cinco opções novas na engrenagem, todas **ON por padrão** (substituído na 4.9.19.0): **Mostrar confirmações verdes (sucesso)**, **Mostrar avisos amarelos (ex.: PREPARO)**, **Mostrar avisos de PREPARO** (sub-opção, vale com os amarelos ON), **Mostrar avisos azuis (informação)** e **Mostrar erros vermelhos**.
 - OFF fecha e remove aquele tipo de notificação PNotify (`alert-success`, `alert-warning`, `alert-info`, `alert-danger`). Com tudo ON nada é tocado.
 
 ### Core 1.2.2.0, Suite 4.9.16.0 e Reaplicar Permissões 1.8.0 (26/11/2026): profissionais recebem a regra MÉDICOS ao reaplicar

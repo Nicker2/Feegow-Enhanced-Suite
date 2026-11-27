@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.18.0
+// @version      4.9.19.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*

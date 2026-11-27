@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.18.0
+// @version      4.9.19.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -17,12 +17,21 @@
 (function() {
     'use strict';
 
-    // 4.9.18.0: opções 'Mostrar' (ON por padrão) por tipo de notificação PNotify: verde, amarelo, PREPARO, azul e vermelho
+    // 4.9.19.0: opções 'Mostrar' (ON por padrão) por tipo de notificação PNotify: verde, amarelo, PREPARO, azul e vermelho
     // 4.9.16.0: Reaplicar Permissões troca regra ao reaplicar (só PROFISSIONAIS: Permissão Médicos Padrão / Perfil Padrão -> MÉDICOS, lista editável na engrenagem)
     // e profissional sem regra marcada recebe MÉDICOS (opção). O módulo vai para a 1.8.0.
     // 4.9.15.0: Reaplicar Permissões também em PROFISSIONAIS (regra atual, backup/comparar/restaurar, ♻️ por linha e Reaplicar em todos).
     // A Suite só sobe de versão para o módulo 1.7.0 ser baixado na hora.
 
+    // 4.9.19.0: novo padrão das notificações PNotify do Feegow: só verde (sucesso) e vermelho (erro) aparecem;
+    // amarelo, PREPARO e azul entram OFF em todos os PCs (migração de uma vez; depois a engrenagem vale).
+    if (!GM_getValue('mig_pnotify_49190', false)) {
+        try {
+            GM_setValue('mostrar_pnotify_sucesso', true); GM_setValue('mostrar_pnotify_erro', true);
+            GM_setValue('mostrar_pnotify_aviso', false); GM_setValue('mostrar_pnotify_preparo', false); GM_setValue('mostrar_pnotify_info', false);
+            GM_setValue('mig_pnotify_49190', true);
+        } catch (e) { /* noop */ }
+    }
     // 4.9.14.0: "Mostrar todos os cadastros na lista (sem páginas)" (todos_lista) entra ligada em todos os PCs
     // (migração de uma vez; depois a engrenagem vale).
     if (!GM_getValue('mig_todos_lista_49140', false)) {
@@ -84,7 +93,7 @@
     // Pedir confirmação antes de reaplicar pela lista (vem OFF por padrão).
     const featureConfirmaListaAtiva = GM_getValue('confirma_reaplicar_lista', false);
     // Padrão de cada opção da engrenagem (a maioria vem ON; estas vêm OFF).
-    const PADRAO_OPCOES_OFF = { aba_link: true, confirma_reaplicar_lista: true };
+    const PADRAO_OPCOES_OFF = { aba_link: true, confirma_reaplicar_lista: true, mostrar_pnotify_aviso: true, mostrar_pnotify_preparo: true, mostrar_pnotify_info: true };
 
     // =========================================================================
     // OCULTAR PEDIDO DE NOTIFICAÇÕES DO FEEGOW (vem ON por padrão)
@@ -261,19 +270,19 @@
     iniciarOcultarPropagandas();
 
     // =========================================================================
-    // NOTIFICAÇÕES PNOTIFY DO FEEGOW: mostrar/ocultar por tipo (tudo ON = como hoje)
+    // NOTIFICAÇÕES PNOTIFY DO FEEGOW: mostrar/ocultar por tipo (padrão: só verde e vermelho)
     // =========================================================================
     // Tipos (classe do .ui-pnotify-container): verde alert-success (confirmação),
     // amarelo alert-warning (ex.: "PREPARO:"), azul alert-info, vermelho alert-danger (erro).
-    // Cada opção é "Mostrar ...": ON (padrão) = aparece; OFF = fecha/remove.
+    // Cada opção é "Mostrar ...": ON = aparece; OFF = fecha/remove. Padrão: só verde e vermelho ON.
     // "Mostrar avisos de PREPARO" só vale enquanto os amarelos estão ON.
     const pnMostrar = {
         success: GM_getValue('mostrar_pnotify_sucesso', true),
-        warning: GM_getValue('mostrar_pnotify_aviso', true),
-        info:    GM_getValue('mostrar_pnotify_info', true),
+        warning: GM_getValue('mostrar_pnotify_aviso', false),
+        info:    GM_getValue('mostrar_pnotify_info', false),
         danger:  GM_getValue('mostrar_pnotify_erro', true)
     };
-    const pnMostrarPreparo = GM_getValue('mostrar_pnotify_preparo', true);
+    const pnMostrarPreparo = GM_getValue('mostrar_pnotify_preparo', false);
 
     function tratarAvisoPNotify(ext) {
         if (!ext || ext.dataset.hocAviso === '1') return;
@@ -301,7 +310,7 @@
     }
 
     function iniciarOcultarAvisosAmarelos() {
-        if (pnMostrar.success && pnMostrar.warning && pnMostrar.info && pnMostrar.danger && pnMostrarPreparo) return; // tudo como hoje
+        if (pnMostrar.success && pnMostrar.warning && pnMostrar.info && pnMostrar.danger && pnMostrarPreparo) return; // tudo ON: nada a fazer
         const iniciarVigia = () => {
             let agendado = false;
             const agenda = () => {
@@ -633,7 +642,7 @@
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
     const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
-    const PERMREG_SUITE_VERSAO  = '4.9.18.0';
+    const PERMREG_SUITE_VERSAO  = '4.9.19.0';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
