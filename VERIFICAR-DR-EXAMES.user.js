@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.19.0
+// @version      4.9.19.1
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -83,8 +83,7 @@
     function trocasEmJson() {
         if (!featureTrocasAtiva) return '0';
         const pares = [];
-        trocasTexto.split(/[;
-]/).forEach(p => {
+        trocasTexto.split(/[;\r\n]/).forEach(p => {
             const m = p.split('=>');
             if (m.length === 2 && m[0].trim() && m[1].trim()) pares.push([m[0].trim(), m[1].trim()]);
         });
@@ -642,7 +641,7 @@
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
     const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
-    const PERMREG_SUITE_VERSAO  = '4.9.19.0';
+    const PERMREG_SUITE_VERSAO  = '4.9.19.1';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
@@ -1750,8 +1749,7 @@ const protocolosDilatacao = {
             if (itemTrocas) itemTrocas.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const novo = window.prompt('Trocar regras ao reaplicar. Formato: origem => destino ; origem => destino
-(deixe vazio para restaurar o padrão)', trocasTexto);
+                const novo = window.prompt('Trocar regras ao reaplicar. Formato: origem => destino ; origem => destino\n(deixe vazio para restaurar o padrão)', trocasTexto);
                 if (novo === null) return;
                 GM_setValue('trocas_regras_texto', novo.trim() ? novo.trim() : TROCAS_TEXTO_PADRAO);
                 location.reload();
