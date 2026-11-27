@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.17.0
+// @version      4.9.18.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -17,7 +17,7 @@
 (function() {
     'use strict';
 
-    // 4.9.17.0: opções OFF por padrão para ocultar avisos amarelos (alert-warning) do Feegow e só os de PREPARO; verdes/azuis/vermelhos intactos
+    // 4.9.18.0: opções 'Mostrar' (ON por padrão) por tipo de notificação PNotify: verde, amarelo, PREPARO, azul e vermelho
     // 4.9.16.0: Reaplicar Permissões troca regra ao reaplicar (só PROFISSIONAIS: Permissão Médicos Padrão / Perfil Padrão -> MÉDICOS, lista editável na engrenagem)
     // e profissional sem regra marcada recebe MÉDICOS (opção). O módulo vai para a 1.8.0.
     // 4.9.15.0: Reaplicar Permissões também em PROFISSIONAIS (regra atual, backup/comparar/restaurar, ♻️ por linha e Reaplicar em todos).
@@ -84,7 +84,7 @@
     // Pedir confirmação antes de reaplicar pela lista (vem OFF por padrão).
     const featureConfirmaListaAtiva = GM_getValue('confirma_reaplicar_lista', false);
     // Padrão de cada opção da engrenagem (a maioria vem ON; estas vêm OFF).
-    const PADRAO_OPCOES_OFF = { aba_link: true, confirma_reaplicar_lista: true, ocultar_avisos_amarelos: true, ocultar_avisos_preparo: true };
+    const PADRAO_OPCOES_OFF = { aba_link: true, confirma_reaplicar_lista: true };
 
     // =========================================================================
     // OCULTAR PEDIDO DE NOTIFICAÇÕES DO FEEGOW (vem ON por padrão)
@@ -261,33 +261,39 @@
     iniciarOcultarPropagandas();
 
     // =========================================================================
-    // OCULTAR AVISOS AMARELOS (PNotify) DO FEEGOW (vem OFF por padrão)
+    // NOTIFICAÇÕES PNOTIFY DO FEEGOW: mostrar/ocultar por tipo (tudo ON = como hoje)
     // =========================================================================
-    // O Feegow mostra notificações PNotify: verdes (alert-success, confirmação:
-    // "Dados gravados"), amarelas (alert-warning, ex.: "PREPARO:"), azuis
-    // (alert-info) e vermelhas (alert-danger, erros).
-    //  - ocultar_avisos_amarelos: fecha TODAS as amarelas (alert-warning).
-    //  - ocultar_avisos_preparo: fecha só as amarelas cujo título é "PREPARO:".
-    // Verdes, azuis e vermelhas NUNCA são tocadas.
-    const featureOcultarAvisosAmarelos = GM_getValue('ocultar_avisos_amarelos', false);
-    const featureOcultarAvisosPreparo = GM_getValue('ocultar_avisos_preparo', false);
+    // Tipos (classe do .ui-pnotify-container): verde alert-success (confirmação),
+    // amarelo alert-warning (ex.: "PREPARO:"), azul alert-info, vermelho alert-danger (erro).
+    // Cada opção é "Mostrar ...": ON (padrão) = aparece; OFF = fecha/remove.
+    // "Mostrar avisos de PREPARO" só vale enquanto os amarelos estão ON.
+    const pnMostrar = {
+        success: GM_getValue('mostrar_pnotify_sucesso', true),
+        warning: GM_getValue('mostrar_pnotify_aviso', true),
+        info:    GM_getValue('mostrar_pnotify_info', true),
+        danger:  GM_getValue('mostrar_pnotify_erro', true)
+    };
+    const pnMostrarPreparo = GM_getValue('mostrar_pnotify_preparo', true);
 
     function tratarAvisoPNotify(ext) {
         if (!ext || ext.dataset.hocAviso === '1') return;
         const cont = ext.querySelector('.ui-pnotify-container');
-        if (!cont || !cont.classList.contains('alert-warning')) return; // só amarelo
-        if (cont.classList.contains('alert-success') || cont.classList.contains('alert-danger') || cont.classList.contains('alert-info')) return;
-        if (!featureOcultarAvisosAmarelos) {
+        if (!cont) return;
+        let tipo = null;
+        for (const t of ['danger', 'success', 'warning', 'info']) if (cont.classList.contains('alert-' + t)) { tipo = t; break; }
+        if (!tipo) return;
+        let ocultar = !pnMostrar[tipo];
+        if (!ocultar && tipo === 'warning' && !pnMostrarPreparo) {
             const tEl = cont.querySelector('.ui-pnotify-title');
-            const titulo = (tEl ? tEl.textContent : '').replace(/\s+/g, ' ').trim().toUpperCase();
-            if (!titulo.startsWith('PREPARO')) return;
+            ocultar = (tEl ? tEl.textContent : '').replace(/\s+/g, ' ').trim().toUpperCase().startsWith('PREPARO');
         }
+        if (!ocultar) return;
         ext.dataset.hocAviso = '1';
         ext.style.setProperty('display', 'none', 'important');
         const fechar = cont.querySelector('.ui-pnotify-closer');
         if (fechar) { try { fechar.click(); } catch (e) { /* remove abaixo */ } }
         setTimeout(() => { if (ext.isConnected) ext.remove(); }, 600);
-        log('Aviso amarelo do Feegow ocultado.');
+        log('Notificação PNotify (' + tipo + ') ocultada.');
     }
 
     function varrerAvisosPNotify() {
@@ -295,7 +301,7 @@
     }
 
     function iniciarOcultarAvisosAmarelos() {
-        if (!featureOcultarAvisosAmarelos && !featureOcultarAvisosPreparo) return;
+        if (pnMostrar.success && pnMostrar.warning && pnMostrar.info && pnMostrar.danger && pnMostrarPreparo) return; // tudo como hoje
         const iniciarVigia = () => {
             let agendado = false;
             const agenda = () => {
@@ -627,7 +633,7 @@
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
     const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
-    const PERMREG_SUITE_VERSAO  = '4.9.17.0';
+    const PERMREG_SUITE_VERSAO  = '4.9.18.0';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
@@ -1644,11 +1650,20 @@ const protocolosDilatacao = {
                     <li class="toggle-remover" data-key="ocultar_propagandas_popups" style="padding: 5px 10px; cursor: pointer; color: ${featureOcultarPropagandasPopups ? 'green' : 'red'};" title="Fecha os popups de propaganda/novidades (Amplitude) pelo X; nunca clica no botão da oferta">
                         Ocultar propagandas e novidades do Feegow (popups): ${featureOcultarPropagandasPopups ? 'ON' : 'OFF'}
                     </li>
-                    <li class="toggle-remover" data-key="ocultar_avisos_amarelos" style="padding: 5px 10px; cursor: pointer; color: ${featureOcultarAvisosAmarelos ? 'green' : 'red'};" title="Fecha os avisos amarelos (alert-warning) do Feegow; mantém as confirmações verdes, os azuis e os erros vermelhos">
-                        Ocultar avisos amarelos do Feegow (mantém as confirmações verdes): ${featureOcultarAvisosAmarelos ? 'ON' : 'OFF'}
+                    <li class="toggle-remover" data-key="mostrar_pnotify_sucesso" style="padding: 5px 10px; cursor: pointer; color: ${pnMostrar.success ? 'green' : 'red'};" title="OFF esconde as notificações verdes (ex.: Dados gravados)">
+                        Mostrar confirmações verdes (sucesso): ${pnMostrar.success ? 'ON' : 'OFF'}
                     </li>
-                    <li class="toggle-remover" data-key="ocultar_avisos_preparo" style="padding: 5px 10px; cursor: pointer; color: ${featureOcultarAvisosPreparo ? 'green' : 'red'};" title="Fecha só o aviso amarelo 'PREPARO:' (os outros amarelos continuam)">
-                        Ocultar só avisos de PREPARO: ${featureOcultarAvisosPreparo ? 'ON' : 'OFF'}
+                    <li class="toggle-remover" data-key="mostrar_pnotify_aviso" style="padding: 5px 10px; cursor: pointer; color: ${pnMostrar.warning ? 'green' : 'red'};" title="OFF esconde todas as notificações amarelas">
+                        Mostrar avisos amarelos (ex.: PREPARO): ${pnMostrar.warning ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="mostrar_pnotify_preparo" style="padding: 5px 10px; cursor: pointer; color: ${pnMostrarPreparo ? 'green' : 'red'};" title="OFF esconde só o amarelo PREPARO: (vale se os amarelos estão ON)">
+                        Mostrar avisos de PREPARO: ${pnMostrarPreparo ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="mostrar_pnotify_info" style="padding: 5px 10px; cursor: pointer; color: ${pnMostrar.info ? 'green' : 'red'};" title="OFF esconde as notificações azuis">
+                        Mostrar avisos azuis (informação): ${pnMostrar.info ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="mostrar_pnotify_erro" style="padding: 5px 10px; cursor: pointer; color: ${pnMostrar.danger ? 'green' : 'red'};" title="OFF esconde as notificações vermelhas (não recomendado)">
+                        Mostrar erros vermelhos: ${pnMostrar.danger ? 'ON' : 'OFF'}
                     </li>
                     <li class="toggle-remover" data-key="pdf_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePdfHocAtiva ? 'green' : 'red'}; border-top: 1px solid #eee; margin-top: 5px;" title="Mostra o atalho vermelho 'PDF HOC Derma' à esquerda de Configurações">
                         PDF HOC Derma (v3): ${featurePdfHocAtiva ? 'ON' : 'OFF'}
