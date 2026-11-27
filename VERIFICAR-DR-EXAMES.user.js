@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.19.1
+// @version      4.9.19.2
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -17,6 +17,7 @@
 (function() {
     'use strict';
 
+    // 4.9.19.2: engrenagem: 1º item "Atualizar script" (baixa tudo do GitHub na hora) e menu com barra de rolagem (não precisa reduzir o zoom).
     // 4.9.19.0: opções 'Mostrar' (ON por padrão) por tipo de notificação PNotify: verde, amarelo, PREPARO, azul e vermelho
     // 4.9.16.0: Reaplicar Permissões troca regra ao reaplicar (só PROFISSIONAIS: Permissão Médicos Padrão / Perfil Padrão -> MÉDICOS, lista editável na engrenagem)
     // e profissional sem regra marcada recebe MÉDICOS (opção). O módulo vai para a 1.8.0.
@@ -641,7 +642,7 @@
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
     const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
-    const PERMREG_SUITE_VERSAO  = '4.9.19.1';
+    const PERMREG_SUITE_VERSAO  = '4.9.19.2';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
@@ -1631,7 +1632,10 @@ const protocolosDilatacao = {
                 <button data-toggle="dropdown" class="btn btn-sm dropdown-toggle btn-menu-left" title="Configurações do Script">
                   <span class="far fa-cog fs14 va-m"></span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-right" style="min-width: 220px; padding: 5px; z-index: 9999;">
+                <ul class="dropdown-menu dropdown-menu-right" style="min-width: 220px; padding: 5px; z-index: 9999; max-height: calc(100vh - 70px); overflow-y: auto; overscroll-behavior: contain;">
+                    <li id="atualizar-script" style="padding: 6px 10px; cursor: pointer; font-weight: bold; color: #1a6ed8; border-bottom: 1px solid #eee;" title="Baixa agora a Suite e os módulos do GitHub (ignora o tempo de cache) e recarrega a página">
+                        &#128260; Atualizar script
+                    </li>
                     <li style="padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #eee; font-size: 11px;">DR. EXAMES (Lista de Espera)</li>
                     <li id="toggle-dr-exames" style="padding: 5px 10px; cursor: pointer; color: ${drExamesAtivo ? 'green' : 'red'};">
                         ${drExamesAtivo ? 'Ativado (ON)' : 'Desativado (OFF)'}
@@ -1721,6 +1725,15 @@ const protocolosDilatacao = {
                 </ul>
               </div>
             `;
+
+            // 4.9.19.2: primeiro item da engrenagem. Zera os relógios de cache (Core + módulos) e recarrega: tudo é baixado do GitHub na hora.
+            btn.querySelector('#atualizar-script').addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                ['last_fetch_time', 'hoc_derma_fetch_time', 'hoc_propostas_fetch_time', 'hoc_gastos_fetch_time', 'hoc_permregra_fetch_time'].forEach(k => GM_setValue(k, 0));
+                GM_setValue('core_versao', '');
+                location.reload();
+            });
 
             btn.querySelector('#toggle-dr-exames').addEventListener('click', (e) => {
                 e.preventDefault();
