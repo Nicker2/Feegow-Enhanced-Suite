@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Suite Feegow Enhanced
 // @namespace    https://github.com/Nicker2/Verificar-DR.EXAMES
-// @version      4.9.16.0
+// @version      4.9.17.0
 // @description  Conta pacientes DR. EXAMES com logs detalhados, exibe apenas a lista superior por padrão, oculta a lista inferior até que a superior esteja fora de vista, nomes como hyperlinks azuis sem sublinhado, adiciona botão para alternar visibilidade, destaca "Primeira vez" com badge, intercepta dados de login e faz Bypass Invisível de sessão dupla via Fetch API com tela de carregamento, adiciona especialidade, mantém valor 30, e integra em cascata o PDF HOC Derma v3 (atalho vermelho à esquerda do Configs), as Propostas HOC Derma, o HOC Gastos para Excel (botão Copiar para Excel nos registros de gasto) e o HOC Reaplicar Permissões (botão que reaplica a regra de permissões atual no cadastro de funcionário).
 // @author       Nicolas Bonza Cavalari Borges
 // @match        https://*.feegow.com/*/*
@@ -17,6 +17,7 @@
 (function() {
     'use strict';
 
+    // 4.9.17.0: opções OFF por padrão para ocultar avisos amarelos (alert-warning) do Feegow e só os de PREPARO; verdes/azuis/vermelhos intactos
     // 4.9.16.0: Reaplicar Permissões troca regra ao reaplicar (só PROFISSIONAIS: Permissão Médicos Padrão / Perfil Padrão -> MÉDICOS, lista editável na engrenagem)
     // e profissional sem regra marcada recebe MÉDICOS (opção). O módulo vai para a 1.8.0.
     // 4.9.15.0: Reaplicar Permissões também em PROFISSIONAIS (regra atual, backup/comparar/restaurar, ♻️ por linha e Reaplicar em todos).
@@ -83,7 +84,7 @@
     // Pedir confirmação antes de reaplicar pela lista (vem OFF por padrão).
     const featureConfirmaListaAtiva = GM_getValue('confirma_reaplicar_lista', false);
     // Padrão de cada opção da engrenagem (a maioria vem ON; estas vêm OFF).
-    const PADRAO_OPCOES_OFF = { aba_link: true, confirma_reaplicar_lista: true };
+    const PADRAO_OPCOES_OFF = { aba_link: true, confirma_reaplicar_lista: true, ocultar_avisos_amarelos: true, ocultar_avisos_preparo: true };
 
     // =========================================================================
     // OCULTAR PEDIDO DE NOTIFICAÇÕES DO FEEGOW (vem ON por padrão)
@@ -258,6 +259,57 @@
         else document.addEventListener('DOMContentLoaded', iniciarVigia, { once: true });
     }
     iniciarOcultarPropagandas();
+
+    // =========================================================================
+    // OCULTAR AVISOS AMARELOS (PNotify) DO FEEGOW (vem OFF por padrão)
+    // =========================================================================
+    // O Feegow mostra notificações PNotify: verdes (alert-success, confirmação:
+    // "Dados gravados"), amarelas (alert-warning, ex.: "PREPARO:"), azuis
+    // (alert-info) e vermelhas (alert-danger, erros).
+    //  - ocultar_avisos_amarelos: fecha TODAS as amarelas (alert-warning).
+    //  - ocultar_avisos_preparo: fecha só as amarelas cujo título é "PREPARO:".
+    // Verdes, azuis e vermelhas NUNCA são tocadas.
+    const featureOcultarAvisosAmarelos = GM_getValue('ocultar_avisos_amarelos', false);
+    const featureOcultarAvisosPreparo = GM_getValue('ocultar_avisos_preparo', false);
+
+    function tratarAvisoPNotify(ext) {
+        if (!ext || ext.dataset.hocAviso === '1') return;
+        const cont = ext.querySelector('.ui-pnotify-container');
+        if (!cont || !cont.classList.contains('alert-warning')) return; // só amarelo
+        if (cont.classList.contains('alert-success') || cont.classList.contains('alert-danger') || cont.classList.contains('alert-info')) return;
+        if (!featureOcultarAvisosAmarelos) {
+            const tEl = cont.querySelector('.ui-pnotify-title');
+            const titulo = (tEl ? tEl.textContent : '').replace(/\s+/g, ' ').trim().toUpperCase();
+            if (!titulo.startsWith('PREPARO')) return;
+        }
+        ext.dataset.hocAviso = '1';
+        ext.style.setProperty('display', 'none', 'important');
+        const fechar = cont.querySelector('.ui-pnotify-closer');
+        if (fechar) { try { fechar.click(); } catch (e) { /* remove abaixo */ } }
+        setTimeout(() => { if (ext.isConnected) ext.remove(); }, 600);
+        log('Aviso amarelo do Feegow ocultado.');
+    }
+
+    function varrerAvisosPNotify() {
+        document.querySelectorAll('.ui-pnotify').forEach(tratarAvisoPNotify);
+    }
+
+    function iniciarOcultarAvisosAmarelos() {
+        if (!featureOcultarAvisosAmarelos && !featureOcultarAvisosPreparo) return;
+        const iniciarVigia = () => {
+            let agendado = false;
+            const agenda = () => {
+                if (agendado) return;
+                agendado = true;
+                requestAnimationFrame(() => { agendado = false; varrerAvisosPNotify(); });
+            };
+            varrerAvisosPNotify();
+            new MutationObserver(agenda).observe(document.body, { childList: true, subtree: true });
+        };
+        if (document.body) iniciarVigia();
+        else document.addEventListener('DOMContentLoaded', iniciarVigia, { once: true });
+    }
+    iniciarOcultarAvisosAmarelos();
 
     // =========================================================================
     // PDF HOC DERMA v3 — CASCATA: o VERIFICAR baixa e executa o timbrador
@@ -575,7 +627,7 @@
     const PERMREG_CHAVE_TIME    = 'hoc_permregra_fetch_time';
     const PERMREG_CHAVE_VERSAO  = 'hoc_permregra_versao';
     const PERMREG_CHAVE_SUITE   = 'hoc_permregra_suite';   // versão da Suite que baixou o módulo (Suite nova = módulo baixado na hora)
-    const PERMREG_SUITE_VERSAO  = '4.9.16.0';
+    const PERMREG_SUITE_VERSAO  = '4.9.17.0';
     let permRegraCarregando = null;
 
     function permRegraDisponivel() {
@@ -1591,6 +1643,12 @@ const protocolosDilatacao = {
                     </li>
                     <li class="toggle-remover" data-key="ocultar_propagandas_popups" style="padding: 5px 10px; cursor: pointer; color: ${featureOcultarPropagandasPopups ? 'green' : 'red'};" title="Fecha os popups de propaganda/novidades (Amplitude) pelo X; nunca clica no botão da oferta">
                         Ocultar propagandas e novidades do Feegow (popups): ${featureOcultarPropagandasPopups ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="ocultar_avisos_amarelos" style="padding: 5px 10px; cursor: pointer; color: ${featureOcultarAvisosAmarelos ? 'green' : 'red'};" title="Fecha os avisos amarelos (alert-warning) do Feegow; mantém as confirmações verdes, os azuis e os erros vermelhos">
+                        Ocultar avisos amarelos do Feegow (mantém as confirmações verdes): ${featureOcultarAvisosAmarelos ? 'ON' : 'OFF'}
+                    </li>
+                    <li class="toggle-remover" data-key="ocultar_avisos_preparo" style="padding: 5px 10px; cursor: pointer; color: ${featureOcultarAvisosPreparo ? 'green' : 'red'};" title="Fecha só o aviso amarelo 'PREPARO:' (os outros amarelos continuam)">
+                        Ocultar só avisos de PREPARO: ${featureOcultarAvisosPreparo ? 'ON' : 'OFF'}
                     </li>
                     <li class="toggle-remover" data-key="pdf_hoc_derma" style="padding: 5px 10px; cursor: pointer; color: ${featurePdfHocAtiva ? 'green' : 'red'}; border-top: 1px solid #eee; margin-top: 5px;" title="Mostra o atalho vermelho 'PDF HOC Derma' à esquerda de Configurações">
                         PDF HOC Derma (v3): ${featurePdfHocAtiva ? 'ON' : 'OFF'}

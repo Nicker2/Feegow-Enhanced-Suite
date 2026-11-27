@@ -6,14 +6,19 @@
 
 | Script | Versão |
 | :--- | :---: |
-| Core | 1.2.2.0 |
-| Suite principal | 4.9.16.0 |
+| Core | 1.2.3.0 |
+| Suite principal | 4.9.17.0 |
 | PDF HOC Derma (Timbrador) | 3.1.0 |
 | Propostas HOC Derma | 1.4.10 |
 | HOC Gastos para Excel | 1.1.0 |
 | HOC Reaplicar Permissões | 1.8.0 |
 
 ---
+
+### Core 1.2.3.0 e Suite 4.9.17.0 (27/11/2026): ocultar avisos amarelos do Feegow
+
+- Novas opções na engrenagem, **OFF por padrão** (nada muda até ligar): **Ocultar avisos amarelos do Feegow (mantém as confirmações verdes)** e **Ocultar só avisos de PREPARO**.
+- Distingue as notificações PNotify pela classe: `alert-warning` (amarelo) é fechada; `alert-success` (verde), `alert-info` (azul) e `alert-danger` (vermelho, erros) nunca são tocadas.
 
 ### Core 1.2.2.0, Suite 4.9.16.0 e Reaplicar Permissões 1.8.0 (26/11/2026): profissionais recebem a regra MÉDICOS ao reaplicar
 
